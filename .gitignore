@@ -34,3 +34,20 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+.Rproj.user
+
+# Misc
+*.log
+*.pdf
+*.run.xml
+
+# LaTeX intermediate and output files
+*.aux
+*.bcf
+*.bbl
+*.dvi
+*.blg
+
+# Vim swap files
+*.swp
+
