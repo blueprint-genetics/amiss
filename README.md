@@ -1,8 +1,4 @@
----
-output:
-  html_document: default
-  pdf_document: default
----
+
 # Comparison of missing data handling methods in building variant pathogenicity metapredictors
 
 This project will compare methods for handling missing data in variant annotations for the purpose of building variant pathogenicity metapredictors.
