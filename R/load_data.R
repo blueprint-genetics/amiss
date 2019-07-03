@@ -31,11 +31,7 @@ spread_info_column <- function(vcf, row_limit=100) {
                                       })
   
   # Find all INFO keywords that appear in the dataset
-  # TODO: is parsing metadata easier?
-  keys <- lapply(info_key_value_pair_lists,
-                 function(x) unique(x[, "key"]))
-  
-  keys <- unique(unlist(keys))
+  keys <- get_info_keys(vcf)
   
   # "Spread" the data from key-value pairs, i.e. transform from narrow to wide data
   info_key_value_pair_lists <- lapply(info_key_value_pair_lists,
@@ -75,6 +71,16 @@ spread_info_column <- function(vcf, row_limit=100) {
   
   return(variant_data)
   
+}
+
+get_info_keys <- function(vcf) {
+  
+  info_metadata <- vcfR::queryMETA(vcf, "INFO", nice=TRUE)
+  keys <- lapply(info_metadata, function(x) x[1]) %>% unlist
+  keys <- stringr::str_split(string = keys, pattern = fixed("INFO=ID="), n = 2)
+  keys <- vapply(keys, function(x) x[2], character(1))
+  
+  return(keys)
 }
 
 get_vep_field_names <- function(vcf) {
