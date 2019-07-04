@@ -1,11 +1,15 @@
 library(tidyr)
 library(stringr)
 library(vcfR)
+library(futile.logger)
 
 spread_info_column <- function(vcf, row_limit=100) {
   # TODO: once code seems to work, remove row restriction
   # TODO: check for existence of multiple ALT alleles
   
+  if (is.null(row_limit))
+    row_limit <- nrow(vcf@fix)
+    
   stopifnot(class(vcf) == "vcfR")
   
   # Separate locus and substitution from annotation data 
@@ -75,7 +79,7 @@ spread_info_column <- function(vcf, row_limit=100) {
 
 get_info_keys <- function(vcf) {
   
-  info_metadata <- vcfR::queryMETA(vcf, "INFO", nice=TRUE)
+  info_metadata <- vcfR::queryMETA(vcf, "INFO", nice = TRUE)
   keys <- lapply(info_metadata, function(x) x[1]) %>% unlist
   keys <- stringr::str_split(string = keys, pattern = fixed("INFO=ID="), n = 2)
   keys <- vapply(keys, function(x) x[2], character(1))
@@ -124,10 +128,25 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
 
 }
 
-vcf_object_to_dataframe <- function(vcf, row_limit = 100) {
+vcf_object_to_dataframe <- function(vcf, row_limit = 100, info_filters = NULL, vep_filters = NULL) {
   
   variant_df <- spread_info_column(vcf, row_limit = row_limit)
+
+  
+  if (!is.null(info_filters)) {
+    variant_df <- apply_filters(info_filters, variant_df)
+  }
+  
+  stopifnot(nrow(variant_df) > 0)
+  
   variant_df <- split_vep_fields(variant_df, get_vep_field_names(vcf))
+  
+  if (!is.null(vep_filters)) {
+    variant_df <- apply_filters(vep_filters, variant_df)
+  }
+  
+  stopifnot(nrow(variant_df) > 0)
+  
   variant_df <- type.convert(x = variant_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
   
   return(variant_df)
