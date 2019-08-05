@@ -3,19 +3,19 @@ library(stringr)
 library(vcfR)
 library(futile.logger)
 
-spread_info_column <- function(vcf, row_limit=100) {
+spread_info_column <- function(vcf, row_indices=1:100) {
   # TODO: once code seems to work, remove row restriction
   # TODO: check for existence of multiple ALT alleles
   
-  if (is.null(row_limit))
-    row_limit <- nrow(vcf@fix)
+  if (is.null(row_indices))
+    row_indices <- 1:nrow(vcf@fix)
     
   stopifnot(class(vcf) == "vcfR")
   
   # Separate locus and substitution from annotation data 
-  idfiers <- data.frame(vcf@fix[1:row_limit, c("CHROM", "POS", "REF", "ALT")], stringsAsFactors = FALSE)
+  idfiers <- data.frame(vcf@fix[row_indices, c("CHROM", "POS", "REF", "ALT")], stringsAsFactors = FALSE)
   #idfiers <- type.convert(idfiers, as.is = TRUE)
-  info <- vcf@fix[1:row_limit, "INFO", drop = TRUE] 
+  info <- vcf@fix[row_indices, "INFO", drop = TRUE] 
   
   # The INFO column consists of key-value pairs separated by semicolons
   info_split <- stringr::str_split(string = info, pattern = fixed(";"))
@@ -128,16 +128,24 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
 
 }
 
-vcf_object_to_dataframe <- function(vcf, row_limit = 100, info_filters = NULL, vep_filters = NULL) {
+split_dbnsfp_values <- function(variant_dataframe) {
   
-  variant_df <- spread_info_column(vcf, row_limit = row_limit)
+  stopifnot(class(variant_dataframe) == "data.frame")
+  
+  # "&"-splits
+  etsplits <- lapply(variant_dataframe, function(x) if(any(grepl("&", x, fixed = TRUE))) stringr::str_split(string = x, pattern = fixed("&")) else x)
+  
+}
 
-  
+vcf_object_to_dataframe <- function(vcf, row_indices = 1:100, info_filters = NULL, vep_filters = NULL) {
+
+  variant_df <- spread_info_column(vcf, row_indices = row_indices)
+
   if (!is.null(info_filters)) {
     variant_df <- apply_filters(info_filters, variant_df)
   }
   
-  stopifnot(nrow(variant_df) > 0)
+  if (!nrow(variant_df) > 0) return(NULL)
   
   variant_df <- split_vep_fields(variant_df, get_vep_field_names(vcf))
   
@@ -145,7 +153,7 @@ vcf_object_to_dataframe <- function(vcf, row_limit = 100, info_filters = NULL, v
     variant_df <- apply_filters(vep_filters, variant_df)
   }
   
-  stopifnot(nrow(variant_df) > 0)
+  if (!nrow(variant_df) > 0) return(NULL)
   
   variant_df <- type.convert(x = variant_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
   
