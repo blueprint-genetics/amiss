@@ -134,9 +134,27 @@ split_dbnsfp_values <- function(variant_dataframe) {
   stopifnot(class(variant_dataframe) == "data.frame")
   
   # "&"-splits
-  etsplits <- lapply(variant_dataframe, function(x) if(any(grepl("&", x, fixed = TRUE))) stringr::str_split(string = x, pattern = fixed("&")) else x)
+  etsplits <- lapply(variant_dataframe, function(x) if(any(grepl("&", x, fixed = TRUE))) stringr::str_split(string = x, pattern = fixed("&")) else NULL)
+  
+  etsplits <- etsplits[sapply(etsplits, function(x) !is.null(x))]
+  
+  if (is.null(etsplits$Ensembl_transcriptid)) {
+    # Transcript is unambiguous for all variants
+    return(variant_dataframe)
+  }
+  match_indices <- mapply(x = variant_dataframe$Feature,
+                          table = etsplits$Ensembl_transcriptid, 
+                          FUN = match)
+  
+  picked_values <- lapply(etsplits, function(column) mapply(x=match_indices, y=column, FUN=function(x,y) if(!is.na(x)) y[x] else NA))
+  
+  variant_dataframe[,names(picked_values)] <- picked_values
+  
+  return(variant_dataframe)
   
 }
+
+#match_transcripts <- function(transcript_dataframe, 
 
 vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL, vep_filters = NULL) {
 
@@ -144,7 +162,7 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
   num_rows <- nrow(vcf@fix)
   batches <- divide_rows_into_batches(num_rows, num_batches)
   
-  # Do processing batch-wise
+  # Do processing batch-wise so that the full data is not expanded in memory before filtering
   # This should be trivial to parallelize
   batch_df_list <- mapply(batch = batches, batch_i = 1:length(batches), function(batch, batch_i) {
 
@@ -166,11 +184,16 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
     
     if (!nrow(batch_df) > 0) return(NULL)
     
+    batch_df <- split_dbnsfp_values(batch_df)
+    batch_df <- batch_df[batch_df$Ensembl_transcriptid %>% is.na %>% `!`, ]
+    
+    if (!nrow(batch_df) > 0) return(NULL)
+    
     batch_df <- type.convert(x = batch_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
-  
+    
     return(batch_df)
     
-  })
+  }, SIMPLIFY = FALSE)
   
   # Remove NULLs from list
   batch_df_list <- batch_df_list[sapply(batch_df_list, function(x) !is.null(x))]
