@@ -5,6 +5,16 @@ library(futile.logger)
 
 source("R/utils.R")
 
+#' Spread data stored in key-value pairs in the INFO column
+#' 
+#' Spread data stored in key-value pairs in the INFO column
+#' so that every key is represented by a column containing the values.
+#'
+#' @param vcf A `vcfR` object.
+#' @param row_indices The rows for which spreading should be done. Useful for running data preprocessing in batches to conserve memory.
+#'
+#' @return A data.frame otherwise similar to `vcf@fix`, but with the INFO column spread as described.
+#'
 spread_info_column <- function(vcf, row_indices) {
   # TODO: check for existence of multiple ALT alleles
   
@@ -15,7 +25,6 @@ spread_info_column <- function(vcf, row_indices) {
   
   # Separate locus and substitution from annotation data 
   idfiers <- data.frame(vcf@fix[row_indices, c("CHROM", "POS", "REF", "ALT")], stringsAsFactors = FALSE)
-  #idfiers <- type.convert(idfiers, as.is = TRUE)
   info <- vcf@fix[row_indices, "INFO", drop = TRUE] 
   
   # The INFO column consists of key-value pairs separated by semicolons
@@ -78,7 +87,17 @@ spread_info_column <- function(vcf, row_indices) {
   
 }
 
+#' Get INFO keys
+#' 
+#' Parses the VCF metadata to find a list of possible keys that 
+#' may occur in the INFO column.
+#'
+#' @param vcf A `vcfR` object
+#'
+#' @return List of keys that may occur in INFO
 get_info_keys <- function(vcf) {
+  
+  stopifnot(class(vcf) == "vcfR")
   
   info_metadata <- vcfR::queryMETA(vcf, "INFO", nice = TRUE)
   keys <- lapply(info_metadata, function(x) x[1]) %>% unlist
@@ -88,7 +107,17 @@ get_info_keys <- function(vcf) {
   return(keys)
 }
 
+#' Get VEP field names
+#' 
+#' Parses the (VEP-annotated) VCF's metadata to find field names 
+#' for fields added by VEP.
+#'
+#' @param vcf A `vcfR` object
+#'
+#' @return (Ordered) list of field names added by VEP
 get_vep_field_names <- function(vcf) {
+  
+  stopifnot(class(vcf) == "vcfR")
   
   # Get CSQ keys from metadata
   csq_keys <- vcfR::queryMETA(vcf, 'CSQ', nice = TRUE)[[1]][4]
@@ -100,6 +129,24 @@ get_vep_field_names <- function(vcf) {
   return(csq_keys)
 }
 
+#' Split VEP fields into their own columns and divides multi-transcript rows into multiple single-transcript rows
+#' 
+#' VEP stores its output in the `CSQ`-key in INFO.
+#' The values are separated by `|` (vertical pipe character).
+#' This function splits the values so that each field value on 
+#' each row is stored in the column created for that field.
+#' 
+#' If there are multiple transcripts for the variant, each transcript 
+#' has its values stored in CSQ so that each field is recorded 
+#' as usual sequentially delimited by `|`, but then `,` delimits the
+#' value strings that match each transcript.
+#' 
+#' This function duplicates rows so that every row has a single transcript.
+#'
+#' @param variant_dataframe A data.frame with a CSQ-column containing values output by VEP.
+#' @param vep_field_names Ordered list of field names that match the values in the CSQ column.
+#'
+#' @return A data.frame 
 split_vep_fields <- function(variant_dataframe, vep_field_names) {
   
   stopifnot(class(variant_dataframe) == "data.frame",
@@ -129,11 +176,25 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
 
 }
 
+#' Split and match transcript-specific values from dbNSFP to the correct transcripts
+#'
+#' dbNSFP stores certain tool scores so that transcript-specific values are delimited
+#' with `&` and ordered to match the Ensembl transcript ids stored in the `Ensembl_transcriptid` column.
+#' 
+#' This function matches transcript ids produced by VEP (in the `Feature` column) 
+#' to those from dbNSFP (in `Ensembl_transcriptid` column), and then chooses for each `&`-delimited 
+#' column and every row a single value matching the row's transcript id.
+#'
+#' @param variant_dataframe A data.frame containing the columns 
+#'
+#' @return a data.frame with the `&`-delimited columns processed 
+#' to contain the value matching the row's transcript id.
 split_dbnsfp_values <- function(variant_dataframe) {
   
   stopifnot(class(variant_dataframe) == "data.frame")
   
   # "&"-splits
+  # This does not currently work correctly with the `Interpro_domain` column, but it is not planned to be used anywhere
   etsplits <- lapply(variant_dataframe, function(x) if(any(grepl("&", x, fixed = TRUE))) stringr::str_split(string = x, pattern = fixed("&")) else NULL)
   
   etsplits <- etsplits[sapply(etsplits, function(x) !is.null(x))]
@@ -154,8 +215,30 @@ split_dbnsfp_values <- function(variant_dataframe) {
   
 }
 
-#match_transcripts <- function(transcript_dataframe, 
-
+#' Process data contained in a vcfR object into a data.frame usable for downstream analysis
+#' 
+#' This function takes a vcfR object and produces a data.frame 
+#' that should be then directly usable for downstream analysis.
+#' 
+#' The function can be given two lists of filters in order to remove variants or transcripts
+#' during the processing, so that memory and CPU time are not wasted on variants that would 
+#' be filtered out later. 
+#' 
+#' The lists are distinguished by the phase of processing that they are applied in: 
+#' `info_filters` are applied after INFO fields have been split (see documentation 
+#' for `spread_info_column`), and `vep_filters` #' are applied later, after VEP fields have 
+#' been split (see documentation for `split_vep_fields`).
+#' 
+#' The processing can be done in "batches", so that only a small portion of the data is 
+#' processed at a time. This drastically reduces memory usage, since the full, unfiltered data
+#' does not need to be kept in memory at any point.
+#'
+#' @param vcf A `vcfR` object
+#' @param num_batches Number of batches to run the processing in
+#' @param info_filters List of filter functions to apply to the rows
+#' @param vep_filters List of filter functions to apply to the rows
+#'
+#' @return
 vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL, vep_filters = NULL) {
 
   # Form batches of row indices so that variants are split into `num_batches` equally-sized sets
