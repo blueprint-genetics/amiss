@@ -3,8 +3,9 @@ library(stringr)
 library(vcfR)
 library(futile.logger)
 
-spread_info_column <- function(vcf, row_indices=1:100) {
-  # TODO: once code seems to work, remove row restriction
+source("R/utils.R")
+
+spread_info_column <- function(vcf, row_indices) {
   # TODO: check for existence of multiple ALT alleles
   
   if (is.null(row_indices))
@@ -137,26 +138,46 @@ split_dbnsfp_values <- function(variant_dataframe) {
   
 }
 
-vcf_object_to_dataframe <- function(vcf, row_indices = 1:100, info_filters = NULL, vep_filters = NULL) {
+vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL, vep_filters = NULL) {
 
-  variant_df <- spread_info_column(vcf, row_indices = row_indices)
+  # Form batches of row indices so that variants are split into `num_batches` equally-sized sets
+  num_rows <- nrow(vcf@fix)
+  batches <- divide_rows_into_batches(num_rows, num_batches)
+  
+  # Do processing batch-wise
+  # This should be trivial to parallelize
+  batch_df_list <- mapply(batch = batches, batch_i = 1:length(batches), function(batch, batch_i) {
 
-  if (!is.null(info_filters)) {
-    variant_df <- apply_filters(info_filters, variant_df)
-  }
+    flog.debug("Batch " %>% paste0(batch_i))
+    
+    batch_df <- spread_info_column(vcf, row_indices = batch)
   
-  if (!nrow(variant_df) > 0) return(NULL)
+    if (!is.null(info_filters)) {
+      batch_df <- apply_filters(info_filters, batch_df)
+    }
+    
+    if (!nrow(batch_df) > 0) return(NULL)
+    
+    batch_df <- split_vep_fields(batch_df, get_vep_field_names(vcf))
+    
+    if (!is.null(vep_filters)) {
+      batch_df <- apply_filters(vep_filters, batch_df)
+    }
+    
+    if (!nrow(batch_df) > 0) return(NULL)
+    
+    batch_df <- type.convert(x = batch_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
   
-  variant_df <- split_vep_fields(variant_df, get_vep_field_names(vcf))
+    return(batch_df)
+    
+  })
   
-  if (!is.null(vep_filters)) {
-    variant_df <- apply_filters(vep_filters, variant_df)
-  }
+  # Remove NULLs from list
+  batch_df_list <- batch_df_list[sapply(batch_df_list, function(x) !is.null(x))]
+
+  # Combine into one data.frame
+  vcf_df <- do.call(rbind, batch_df_list)
   
-  if (!nrow(variant_df) > 0) return(NULL)
-  
-  variant_df <- type.convert(x = variant_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
-  
-  return(variant_df)
+  return(vcf_df)
   
 }
