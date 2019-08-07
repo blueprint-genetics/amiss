@@ -81,5 +81,5 @@ $ docker run -t -i -v $HOME/vep_data:/opt/vep/.vep -v $HOME/dbnsfp_data:/opt/vep
 ```
 
 ```
-$ ./vep --cache --offline --format vcf --vcf --force_overwrite --dir_cache /opt/vep/.vep/ --dir_plugins /opt/vep/.vep/Plugins/ --input_file /data/clinvar_20190624.vcf.gz --output_file /data/clinvar_20190624.vep.vcf --plugin dbNSFP,/opt/vep/dbnsfp_data/dbNSFP3.5c.gz,ALL
+$ ./vep --cache --offline --format vcf --vcf --force_overwrite --dir_cache /opt/vep/.vep/ --dir_plugins /opt/vep/.vep/Plugins/ --input_file /data/clinvar_20190624.vcf.gz --output_file /data/clinvar_20190624.vep.vcf --plugin dbNSFP,/opt/vep/dbnsfp_data/dbNSFP3.5c.gz,ALL --canonical
 ```
