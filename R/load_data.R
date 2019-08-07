@@ -1,7 +1,6 @@
 library(tidyr)
 library(stringr)
 library(vcfR)
-library(futile.logger)
 
 source("R/utils.R")
 
@@ -179,7 +178,8 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
 #' Split and match transcript-specific values from dbNSFP to the correct transcripts
 #'
 #' dbNSFP stores certain tool scores so that transcript-specific values are delimited
-#' with `&` and ordered to match the Ensembl transcript ids stored in the `Ensembl_transcriptid` column.
+#' with `;` (which is converted into `&` by VEP) and ordered to match the Ensembl 
+#' transcript ids stored in the `Ensembl_transcriptid` column.
 #' 
 #' This function matches transcript ids produced by VEP (in the `Feature` column) 
 #' to those from dbNSFP (in `Ensembl_transcriptid` column), and then chooses for each `&`-delimited 
@@ -193,11 +193,24 @@ split_dbnsfp_values <- function(variant_dataframe) {
   
   stopifnot(class(variant_dataframe) == "data.frame")
   
-  # "&"-splits
-  # This does not currently work correctly with the `Interpro_domain` column, but it is not planned to be used anywhere
-  etsplits <- lapply(variant_dataframe, function(x) if(any(grepl("&", x, fixed = TRUE))) stringr::str_split(string = x, pattern = fixed("&")) else NULL)
+  process_columns <- c(
+    "Ensembl_transcriptid", 
+    "Ensembl_proteinid",
+    "aapos",
+    "SIFT_score",
+    "SIFT_pred",
+    "MutationTaster_score", # NOTE: transcripts may not match those from other tools
+    "MutationTaster_pred",
+    "FATHMM_score",
+    "FATHMM_pred",
+    "PROVEAN_score",
+    "PROVEAN_pred"
+  )
   
-  etsplits <- etsplits[sapply(etsplits, function(x) !is.null(x))]
+  # "&"-splits
+  etsplits <- lapply(variant_dataframe[, process_columns], function(x) stringr::str_split(string = x, pattern = fixed("&")))
+  
+  #etsplits <- etsplits[sapply(etsplits, function(x) !is.null(x))]
   
   if (is.null(etsplits$Ensembl_transcriptid)) {
     # Transcript is unambiguous for all variants
@@ -207,9 +220,16 @@ split_dbnsfp_values <- function(variant_dataframe) {
                           table = etsplits$Ensembl_transcriptid, 
                           FUN = match)
   
-  picked_values <- lapply(etsplits, function(column) mapply(x=match_indices, y=column, FUN=function(x,y) if(!is.na(x)) y[x] else NA))
+  # Choose the value for the transcript
+  picked_values <- lapply(etsplits, 
+                          function(column) 
+                            mapply(
+                              match_indices, column,  
+                              FUN = function(index, col) if (!is.na(index)) col[index] else NA 
+                            )
+                          )
   
-  variant_dataframe[,names(picked_values)] <- picked_values
+  variant_dataframe[, process_columns] <- picked_values
   
   return(variant_dataframe)
   
