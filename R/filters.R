@@ -13,6 +13,12 @@ clingen <- function(variant) {
   variant[, "CLNREVSTAT", drop = TRUE] %in% c("reviewed_by_expert_panel", "practice_guideline")
 }
 
+canonical <- function(transcript) {
+  
+  stopifnot(class(transcript) == "data.frame")
+  
+  transcript[, "CANONICAL", drop = TRUE] == "YES"
+}
 
 
 apply_filters <- function(filters, df) {
