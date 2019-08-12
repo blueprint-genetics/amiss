@@ -210,14 +210,12 @@ split_dbnsfp_values <- function(variant_dataframe) {
   # "&"-splits
   etsplits <- lapply(variant_dataframe[, process_columns], function(x) stringr::str_split(string = x, pattern = fixed("&")))
   
-  #etsplits <- etsplits[sapply(etsplits, function(x) !is.null(x))]
-  
-  if (is.null(etsplits$Ensembl_transcriptid)) {
+  if (length(etsplits$Ensembl_transcriptid) == 1) {
     # Transcript is unambiguous for all variants
     return(variant_dataframe)
   }
-  match_indices <- mapply(x = variant_dataframe$Feature,
-                          table = etsplits$Ensembl_transcriptid, 
+  match_indices <- mapply(x = variant_dataframe$Feature %>% as.character,
+                          table = etsplits$Ensembl_transcriptid %>% as.character, 
                           FUN = match)
   
   # Choose the value for the transcript
@@ -229,6 +227,13 @@ split_dbnsfp_values <- function(variant_dataframe) {
                             )
                           )
   
+  # Transcript-specific values were not parsed by VEP to turn "." into "", 
+  # and thus also not correctly processed in split_vep_fields.
+  # Put NA instead of "." or "" here.
+  picked_values <- lapply(picked_values, function(column) {
+    column[column %in% c(".", "")] <- NA
+    return(column)
+  })
   variant_dataframe[, process_columns] <- picked_values
   
   return(variant_dataframe)
@@ -292,7 +297,6 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
     
     if (!nrow(batch_df) > 0) return(NULL)
     
-    batch_df <- type.convert(x = batch_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
     
     return(batch_df)
     
@@ -303,6 +307,7 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
 
   # Combine into one data.frame
   vcf_df <- do.call(rbind, batch_df_list)
+  vcf_df <- type.convert(x = vcf_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
   
   return(vcf_df)
   
