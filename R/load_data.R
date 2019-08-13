@@ -169,7 +169,7 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
   vep_data <- stringr::str_split_fixed(vep_data %>% unlist, fixed("|"), n = length(vep_field_names))
   colnames(vep_data) <- vep_field_names
   
-  variant_dataframe <- data.frame(variant_dataframe, vep_data)
+  variant_dataframe <- data.frame(variant_dataframe, vep_data, stringsAsFactors = FALSE)
   
   return(variant_dataframe)
 
@@ -210,12 +210,8 @@ split_dbnsfp_values <- function(variant_dataframe) {
   # "&"-splits
   etsplits <- lapply(variant_dataframe[, process_columns], function(x) stringr::str_split(string = x, pattern = fixed("&")))
   
-  if (length(etsplits$Ensembl_transcriptid) == 1) {
-    # Transcript is unambiguous for all variants
-    return(variant_dataframe)
-  }
-  match_indices <- mapply(x = variant_dataframe$Feature %>% as.character,
-                          table = etsplits$Ensembl_transcriptid %>% as.character, 
+  match_indices <- mapply(variant_dataframe$Feature,
+                          etsplits$Ensembl_transcriptid,
                           FUN = match)
   
   # Choose the value for the transcript
