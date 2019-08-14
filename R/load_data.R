@@ -223,13 +223,6 @@ split_dbnsfp_values <- function(variant_dataframe) {
                             )
                           )
   
-  # Transcript-specific values were not parsed by VEP to turn "." into "", 
-  # and thus also not correctly processed in split_vep_fields.
-  # Put NA instead of "." or "" here.
-  picked_values <- lapply(picked_values, function(column) {
-    column[column %in% c(".", "")] <- NA
-    return(column)
-  })
   variant_dataframe[, process_columns] <- picked_values
   
   return(variant_dataframe)
@@ -303,6 +296,10 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
 
   # Combine into one data.frame
   vcf_df <- do.call(rbind, batch_df_list)
+  
+  vcf_df[vcf_df == ""] <- NA 
+  vcf_df[vcf_df == "."] <- NA 
+  
   vcf_df <- type.convert(x = vcf_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
   
   return(vcf_df)
