@@ -44,3 +44,8 @@ training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
   dummify_categoricals(training_data[, categorical_features, drop = FALSE]))
 
+correlations <- training_data[,numeric_features] %>% cor
+missingness_correlations <- is.na(training_data) %>% data.frame
+missingness_correlations <- missingness_correlations[, sapply(missingness_correlations, any), drop=FALSE]
+missingness_correlations[,] <- missingness_correlations %>% sapply(as.integer)
+missingness_correlations %<>% cor
