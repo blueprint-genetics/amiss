@@ -2,6 +2,8 @@ library(magrittr)
 library(futile.logger)
 
 source("R/process_data.R")
+source("R/visualizations.R")
+source("R/utils.R")
 
 flog.threshold(DEBUG)
 
@@ -42,10 +44,8 @@ training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
 
 training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
-  dummify_categoricals(training_data[, categorical_features, drop = FALSE]))
+  dummify_categoricals(training_data[, categorical_features, drop = FALSE])
+)
 
-correlations <- training_data[,numeric_features] %>% cor
-missingness_correlations <- is.na(training_data) %>% data.frame
-missingness_correlations <- missingness_correlations[, sapply(missingness_correlations, any), drop=FALSE]
-missingness_correlations[,] <- missingness_correlations %>% sapply(as.integer)
-missingness_correlations %<>% cor
+correlations <- correlation_frame(training_data[, numeric_features, drop = FALSE], cluster = TRUE)
+miss_correlations <- missingness_correlation_tidy(training_data, cluster = TRUE)

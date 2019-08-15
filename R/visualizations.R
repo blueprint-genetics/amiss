@@ -28,11 +28,3 @@ heatmap <- function(data) {
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     scale_fill_gradient2(limits=c(-1, 1))
 }
-
-clustered_heatmap <- function(data) {
-  clustering_order <- hclust(cluster::daisy(data))$order
-  data <- data.frame(data[clustering_order, clustering_order])
-  data <- to_heatmap_format(data)
-  
-  heatmap(data)
-}
