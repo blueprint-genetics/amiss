@@ -42,10 +42,11 @@ categorical_features <- make.names(c(
 training_data <- training_set[, c(numeric_features, categorical_features)]
 training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
 
+miss_correlations <- missingness_correlation_tidy(training_data, cluster = TRUE)
+
 training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
   dummify_categoricals(training_data[, categorical_features, drop = FALSE])
 )
 
 correlations <- correlation_tidy(training_data[, numeric_features, drop = FALSE], cluster = TRUE)
-miss_correlations <- missingness_correlation_tidy(training_data, cluster = TRUE)
