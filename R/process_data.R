@@ -40,6 +40,12 @@ missingness_indicators <- function(dataframe) {
   return(miss_ind)
 }
 
+#' Compute numeric labels from ClinVar classifications
+#'
+#' @param class_vector Character vector containing ClinVar classifications
+#'
+#' @return Numeric vector containing 1.0 for each pathogenic classification and 
+#' 0.0 for each non-pathogenic classification.
 compute_numeric_labels <- function(class_vector) {
   
   stopifnot(class(class_vector) == "character")
@@ -48,6 +54,7 @@ compute_numeric_labels <- function(class_vector) {
   positive <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", "Pathogenic/Likely_pathogenic,_drug_response")
   negative <- c("Benign", "Likely_benign", "Uncertain_significance")
   
+  # If classification is not any of these, raise and error
   undefined_class_ind <- !class_vector %in% c(positive, negative)
   if (any(undefined_class_ind)) {
     error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(unique(class_vector[undefined_class_ind]))
@@ -60,15 +67,23 @@ compute_numeric_labels <- function(class_vector) {
   return(positive_class)
 }
 
+#' Convert categorical variables into sets of dummy variables
+#'
+#' @param dataframe A data.frame containing only character columns
+#'
+#' @return A data.frame containing dummy variables for each original column
 dummify_categoricals <- function(dataframe) {
   
   stopifnot(class(dataframe) == "data.frame")
+  # Check that all columns are of type character
   stopifnot(dataframe %>% sapply(is.character) %>% all)
   
   dataframe <- lapply(dataframe, function(col) {
       
+    # Find all unique values that appear in this column
     lvls <- unique(col) %>% na.omit
     
+    # Form a dummy variable for each unique value of original column
     dummies <- lapply(lvls, function(value) {
        as.integer(col == value)
     }) 
