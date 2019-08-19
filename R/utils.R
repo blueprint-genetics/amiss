@@ -38,7 +38,7 @@ missingness_correlation_tidy <- function(data, cluster = FALSE) {
   miss_corr[,] <- miss_corr %>% sapply(as.integer)
   
   miss_corr %<>% cor
-  miss_corr %<>% correlation_frame(cluster = cluster)
+  miss_corr %<>% correlation_tidy(cluster = cluster)
   
   return(miss_corr)
 }
