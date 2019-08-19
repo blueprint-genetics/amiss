@@ -23,7 +23,7 @@ spread_info_column <- function(vcf, row_indices) {
   stopifnot(class(vcf) == "vcfR")
   
   # Separate locus and substitution from annotation data 
-  idfiers <- data.frame(vcf@fix[row_indices, c("CHROM", "POS", "REF", "ALT")], stringsAsFactors = FALSE)
+  idfiers <- data.frame(vcf@fix[row_indices, c("CHROM", "POS", "REF", "ALT"), drop = FALSE], stringsAsFactors = FALSE)
   info <- vcf@fix[row_indices, "INFO", drop = TRUE] 
   
   # The INFO column consists of key-value pairs separated by semicolons

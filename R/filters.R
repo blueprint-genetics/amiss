@@ -3,7 +3,7 @@ missense <- function(variant) {
   
   stopifnot(class(variant) == "data.frame")# nrow(variant)  == 1)
   
-  variant[, "Consequence", drop = TRUE] == "missense_variant"
+  grepl("missense_variant", variant[, "Consequence", drop = TRUE], fixed=TRUE)
 }
 
 clingen <- function(variant) {
