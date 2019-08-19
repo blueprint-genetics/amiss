@@ -47,5 +47,5 @@ training_data <- cbind(
   dummify_categoricals(training_data[, categorical_features, drop = FALSE])
 )
 
-correlations <- correlation_frame(training_data[, numeric_features, drop = FALSE], cluster = TRUE)
+correlations <- correlation_tidy(training_data[, numeric_features, drop = FALSE], cluster = TRUE)
 miss_correlations <- missingness_correlation_tidy(training_data, cluster = TRUE)
