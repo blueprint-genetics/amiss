@@ -95,7 +95,7 @@ As the main metric, we will use the Matthews correlation coefficient (MCC). For 
 
 ## Data split
 
-Prior to annotation, we will divide the dataset into a *training set* and a *test set*, containing 70 % and 30 % of the variants, respectively.
+After parsing the annotated VCF into an analyzable format, we will divide the dataset into a *training set* and a *test set*, containing 70 % and 30 % of the variants, respectively.
 
 ## Correlation matrices
 
