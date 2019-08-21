@@ -23,7 +23,7 @@ spread_info_column <- function(vcf, row_indices) {
   stopifnot(class(vcf) == "vcfR")
   
   # Separate locus and substitution from annotation data 
-  idfiers <- data.frame(vcf@fix[row_indices, c("CHROM", "POS", "REF", "ALT")], stringsAsFactors = FALSE)
+  idfiers <- data.frame(vcf@fix[row_indices, c("CHROM", "POS", "REF", "ALT"), drop = FALSE], stringsAsFactors = FALSE)
   info <- vcf@fix[row_indices, "INFO", drop = TRUE] 
   
   # The INFO column consists of key-value pairs separated by semicolons
@@ -169,7 +169,7 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
   vep_data <- stringr::str_split_fixed(vep_data %>% unlist, fixed("|"), n = length(vep_field_names))
   colnames(vep_data) <- vep_field_names
   
-  variant_dataframe <- data.frame(variant_dataframe, vep_data)
+  variant_dataframe <- data.frame(variant_dataframe, vep_data, stringsAsFactors = FALSE)
   
   return(variant_dataframe)
 
@@ -210,14 +210,8 @@ split_dbnsfp_values <- function(variant_dataframe) {
   # "&"-splits
   etsplits <- lapply(variant_dataframe[, process_columns], function(x) stringr::str_split(string = x, pattern = fixed("&")))
   
-  #etsplits <- etsplits[sapply(etsplits, function(x) !is.null(x))]
-  
-  if (is.null(etsplits$Ensembl_transcriptid)) {
-    # Transcript is unambiguous for all variants
-    return(variant_dataframe)
-  }
-  match_indices <- mapply(x = variant_dataframe$Feature,
-                          table = etsplits$Ensembl_transcriptid, 
+  match_indices <- mapply(variant_dataframe$Feature,
+                          etsplits$Ensembl_transcriptid,
                           FUN = match)
   
   # Choose the value for the transcript
@@ -292,7 +286,6 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
     
     if (!nrow(batch_df) > 0) return(NULL)
     
-    batch_df <- type.convert(x = batch_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
     
     return(batch_df)
     
@@ -303,6 +296,11 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
 
   # Combine into one data.frame
   vcf_df <- do.call(rbind, batch_df_list)
+  
+  vcf_df[vcf_df == ""] <- NA 
+  vcf_df[vcf_df == "."] <- NA 
+  
+  vcf_df <- type.convert(x = vcf_df, as.is = TRUE, numerals = "allow.loss") # TODO: can the precision loss be avoided?
   
   return(vcf_df)
   
