@@ -3,7 +3,7 @@ library(futile.logger)
 
 flog.threshold(DEBUG)
 
-source("R/load_data.R")
+source("R/data_parsing.R")
 source("R/filters.R")
 source("R/process_data.R")
 
