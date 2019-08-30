@@ -7,7 +7,9 @@
 #' @return List containing vectors of row numbers.
 partition_rows_into_batches <- function(num_rows, batches = 100) {
   
-  breakpoints <- seq(1, num_rows, length.out = batches)
+  breakpoints <- seq(1, num_rows, length.out = batches + 1)
+  # Keep only midpoints
+  breakpoints <- breakpoints[2:batches]
   row_batch_indicator <- findInterval(1:num_rows, breakpoints)
   batch_list <- split(1:num_rows, row_batch_indicator)
   

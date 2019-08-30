@@ -257,7 +257,7 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
 
   # Form batches of row indices so that variants are split into `num_batches` equally-sized sets
   num_rows <- nrow(vcf@fix)
-  batches <- divide_rows_into_batches(num_rows, num_batches)
+  batches <- partition_rows_into_batches(num_rows, num_batches)
   
   # Do processing batch-wise so that the full data is not expanded in memory before filtering
   # This should be trivial to parallelize
