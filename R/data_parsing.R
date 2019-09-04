@@ -36,8 +36,8 @@ spread_info_column <- function(vcf, row_indices) {
                                       })
   
   # Form 2-column data.frames from the pairs in order to use tidyr::spread
-  info_key_value_pair_lists <- lapply(info_key_value_pair_lists,
-                                      function(x) {
+  info_key_value_pair_lists <- lapply(X = info_key_value_pair_lists,
+                                      FUN = function(x) {
                                         x <- data.frame(x, stringsAsFactors = FALSE)
                                         colnames(x) <- c("key", "value")
                                         return(x)
@@ -47,8 +47,8 @@ spread_info_column <- function(vcf, row_indices) {
   keys <- get_info_keys(vcf)
   
   # "Spread" the data from key-value pairs, i.e. transform from narrow to wide data
-  info_key_value_pair_lists <- lapply(info_key_value_pair_lists,
-                                      function(x)
+  info_key_value_pair_lists <- lapply(X = info_key_value_pair_lists,
+                                      FUN = function(x)
                                         tidyr::spread(
                                           x,
                                           key = "key",
@@ -57,13 +57,13 @@ spread_info_column <- function(vcf, row_indices) {
                                         ))
 
   # Are all just one observation, as they should be? 
-  stopifnot(all(sapply(info_key_value_pair_lists, function(x) nrow(x) == 1)))
+  stopifnot(all(sapply(X = info_key_value_pair_lists, FUN = function(x) nrow(x) == 1)))
   
   row_idx = seq_along(info_key_value_pair_lists)
   
   # Combine the locus and substitution information with wide INFO data
-  info_w_ids <- lapply(row_idx,
-                       function(row_id) {
+  info_w_ids <- lapply(X = row_idx,
+                       FUN = function(row_id) {
                          cbind(
                            idfiers[row_id, , drop = FALSE],
                            info_key_value_pair_lists[[row_id]]
@@ -71,8 +71,8 @@ spread_info_column <- function(vcf, row_indices) {
                        })
   
   # Put NA in columns for which there was no key-value pair for this variant
-  info_w_ids <- lapply(info_w_ids,
-                       function(x) 
+  info_w_ids <- lapply(X = info_w_ids,
+                       FUN = function(x) 
                        {
                          missing_cols <- setdiff(x = c("CHROM", "POS", "ALT", "REF", keys), y = colnames(x))
                          x[, missing_cols] <- NA
@@ -99,9 +99,9 @@ get_info_keys <- function(vcf) {
   stopifnot(class(vcf) == "vcfR")
   
   info_metadata <- vcfR::queryMETA(vcf, "INFO", nice = TRUE)
-  keys <- lapply(info_metadata, function(x) x[1]) %>% unlist
+  keys <- lapply(X = info_metadata, FUN = function(x) x[1]) %>% unlist
   keys <- stringr::str_split(string = keys, pattern = fixed("INFO=ID="), n = 2)
-  keys <- vapply(keys, function(x) x[2], character(1))
+  keys <- vapply(X = keys, FUN = function(x) x[2], FUN.VALUE = character(1))
   
   return(keys)
 }
@@ -152,15 +152,15 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
             class(vep_field_names)   == "character")
   
   # Split by transcript
-  vep_data <- lapply(variant_dataframe[, "CSQ", drop = TRUE],
-                     . %>% str_split(string = ., pattern = ',', n = Inf) %>% unlist)
+  vep_data <- lapply(X = variant_dataframe[, "CSQ", drop = TRUE],
+                     FUN = . %>% str_split(string = ., pattern = ',', n = Inf) %>% unlist)
   variant_dataframe$CSQ <- NULL
   
-  transcript_nums <- lapply(vep_data, . %>% length)
+  transcript_nums <- lapply(X = vep_data, FUN = length)
   
   # Check that transcripts are unique
-  vep_data <- lapply(vep_data, unique)
-  unique_transcript_nums <- lapply(vep_data, . %>% length)
+  vep_data <- lapply(X = vep_data, FUN = unique)
+  unique_transcript_nums <- lapply(X = vep_data, FUN = length)
   stopifnot(mapply(FUN = function(x,y) x == y, transcript_nums, unique_transcript_nums))
   
   # Replicate rows so that each transcript gets its own row
@@ -208,15 +208,15 @@ split_dbnsfp_values <- function(variant_dataframe) {
   )
   
   # "&"-splits
-  etsplits <- lapply(variant_dataframe[, process_columns], function(x) stringr::str_split(string = x, pattern = fixed("&")))
+  etsplits <- lapply(X = variant_dataframe[, process_columns], FUN = function(x) stringr::str_split(string = x, pattern = fixed("&")))
   
   match_indices <- mapply(variant_dataframe$Feature,
                           etsplits$Ensembl_transcriptid,
                           FUN = match)
   
   # Choose the value for the transcript
-  picked_values <- lapply(etsplits, 
-                          function(column) 
+  picked_values <- lapply(X = etsplits, 
+                          FUN = function(column) 
                             mapply(
                               match_indices, column,  
                               FUN = function(index, col) if (!is.na(index)) col[index] else NA 
