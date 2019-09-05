@@ -282,7 +282,6 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
     if (!nrow(batch_df) > 0) return(NULL)
     
     batch_df <- split_dbnsfp_values(batch_df)
-    batch_df <- batch_df[batch_df$Ensembl_transcriptid %>% is.na %>% `!`, ]
     
     if (!nrow(batch_df) > 0) return(NULL)
     
