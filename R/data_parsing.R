@@ -156,12 +156,12 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
                      FUN = . %>% str_split(string = ., pattern = ',', n = Inf) %>% unlist)
   variant_dataframe$CSQ <- NULL
   
-  transcript_nums <- lapply(X = vep_data, FUN = length)
+  transcript_nums <- sapply(X = vep_data, FUN = length)
   
   # Check that transcripts are unique
   vep_data <- lapply(X = vep_data, FUN = unique)
-  unique_transcript_nums <- lapply(X = vep_data, FUN = length)
-  stopifnot(mapply(FUN = function(x,y) x == y, transcript_nums, unique_transcript_nums))
+  unique_transcript_nums <- sapply(X = vep_data, FUN = length)
+  stopifnot(transcript_nums == unique_transcript_nums)
   
   # Replicate rows so that each transcript gets its own row
   variant_dataframe <- variant_dataframe[rep(1:nrow(variant_dataframe), times = unlist(transcript_nums)), ]
@@ -207,19 +207,27 @@ split_dbnsfp_values <- function(variant_dataframe) {
     "PROVEAN_pred"
   )
   
-  # "&"-splits
-  etsplits <- lapply(X = variant_dataframe[, process_columns], FUN = function(x) stringr::str_split(string = x, pattern = fixed("&")))
+  # "&"-splits.
+  # Note that the output is a list that contains columns (as lists) that contains rows, 
+  # each of which is now a vector, since it may contain multiple values that were separated by '&'.
+  # etsplits = list( col1 = list( row_1 = c("val1", "val2", ...), ... ), ... )
+  etsplits <- lapply(X = variant_dataframe[, process_columns, drop = FALSE], 
+                     FUN = function(x) stringr::str_split(string = x, pattern = fixed("&")))
   
-  match_indices <- mapply(variant_dataframe$Feature,
-                          etsplits$Ensembl_transcriptid,
-                          FUN = match)
+  # For each row, try to match the transcript given by VEP (Feature-column)
+  # to the vector of transcripts given by dbNSFP (Ensembl_transcriptid-column).
+  # Output is a list whose elements are vectors that contain every match for the row.
+  match_indices <- mapply(FUN = match,
+                          x = variant_dataframe$Feature,
+                          table = etsplits$Ensembl_transcriptid)
   
-  # Choose the value for the transcript
   picked_values <- lapply(X = etsplits, 
                           FUN = function(column) 
                             mapply(
-                              match_indices, column,  
-                              FUN = function(index, col) if (!is.na(index)) col[index] else NA 
+                              FUN = `[`,
+                              x = column,
+                              i = match_indices, 
+                              SIMPLIFY = TRUE
                             )
                           )
   
@@ -261,7 +269,7 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
   
   # Do processing batch-wise so that the full data is not expanded in memory before filtering
   # This should be trivial to parallelize
-  batch_df_list <- mapply(batch = batches, batch_i = 1:length(batches), function(batch, batch_i) {
+  process_batch <- function(batch, batch_i) {
 
     flog.debug("Batch " %>% paste0(batch_i))
     
@@ -288,7 +296,9 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
     
     return(batch_df)
     
-  }, SIMPLIFY = FALSE)
+  }
+
+  batch_df_list <- mapply(FUN = process_batch, batch = batches, batch_i = 1:length(batches), SIMPLIFY = FALSE)
   
   # Remove NULLs from list
   batch_df_list <- batch_df_list[sapply(batch_df_list, function(x) !is.null(x))]
