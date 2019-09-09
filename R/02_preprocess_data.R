@@ -20,8 +20,6 @@ numeric_features <- make.names(c(
   "M-CAP_score", 
   "MutPred_score", 
   "fathmm-MKL_coding_score", 
-  "Eigen-raw", 
-  "Eigen-PC-raw", 
   "GenoCanyon_score", 
   "integrated_fitCons_score", 
   "GERP++_NR", 
@@ -43,4 +41,6 @@ training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
 training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
   dummify_categoricals(training_data[, categorical_features, drop = FALSE]))
+
+write.csv(training_data, "preprocessed_training_data.csv", row.names = FALSE)
 
