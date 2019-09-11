@@ -80,7 +80,7 @@ numeric_features <- make.names(c(
   "EncodetotalRNA-sum",
   "EncodetotalRNA-max",
   # "Grantham",
-  "RemapOverlapTF",
+  "RemapOverlapTF"
   "RemapOverlapCL"
 ))
 categorical_features <- make.names(c(
@@ -97,7 +97,8 @@ training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
 
 training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
-  dummify_categoricals(training_data[, categorical_features, drop = FALSE]))
+  dummify_categoricals(training_data[, categorical_features, drop = FALSE]),
+  outcome = training_data$outcome
+)
 
 write.csv(training_data, "preprocessed_training_data.csv", row.names = FALSE)
-
