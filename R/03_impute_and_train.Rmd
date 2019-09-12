@@ -1,0 +1,91 @@
+---
+title: "03: Impute data and train model"
+output: html_notebook
+---
+
+## Setup 
+```{r}
+library(magrittr)
+library(futile.logger)
+library(caret)
+library(mice)
+```
+
+```{r}
+training_data <- read.csv("../preprocessed_training_data.csv", as.is = TRUE)
+
+outcome_col_index <- which(colnames(training_data) == "outcome")
+outcome <- factor(training_data$outcome, levels = c("1", "0"), labels = c("positive", "negative"))
+
+training_data <- training_data[, -outcome_col_index]
+```
+
+
+## Exploratory computations
+```{r}
+sum(training_data$Type.SNV)
+sum(training_data$Type.INS) 
+sum(training_data$Type.DEL)
+
+```
+
+## Removal of problematic features
+
+### Near-zero variance
+```{r}
+nearzerovariance <- caret::nearZeroVar(training_data, saveMetrics = TRUE)
+print(nearzerovariance[nearzerovariance$nzv, ])
+
+if (any(nearzerovariance$nzv)) {
+  training_data <- training_data[, !nearzerovariance$nzv]
+}
+```
+
+### Highly correlated features
+```{r}
+correlations <- cor(training_data, use = "pairwise.complete.obs")
+correlations[is.na(correlations)] <- 0.0
+
+highly_correlated_variables <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
+print(highly_correlated_variables)
+
+if(highly_correlated_variables %>% length > 0) {
+  training_data <- training_data[, !colnames(training_data) %in% highly_correlated_variables]
+}
+```
+
+## Imputation
+```{r}
+imputed_training_data <- mice::mice(data = training_data)
+
+completed_training_data <- mice::complete(imputed_training_data, action = 1)
+```
+
+## Training
+```{r}
+
+hyperparameter_grid <- data.frame(mtry = 1:10 * 4 - 1)
+
+training_settings <- trainControl(classProbs = TRUE,
+                                  verboseIter = TRUE,
+                                  method = "oob",
+                                  returnResamp = "all")
+
+train_args <- list(x = completed_training_data,
+                   y = outcome,
+                   method = "rf",
+                   preProcess = c("center", "scale"),
+                   trControl = training_settings,
+                   tuneGrid = hyperparameter_grid)
+
+rf_model <- do.call(caret::train, train_args)
+
+rf_model
+```
+```{r}
+plot(rf_model)
+```
+
+## Saving model
+```{r}
+```

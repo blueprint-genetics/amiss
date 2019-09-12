@@ -80,7 +80,7 @@ numeric_features <- make.names(c(
   "EncodetotalRNA-sum",
   "EncodetotalRNA-max",
   # "Grantham",
-  "RemapOverlapTF"
+  "RemapOverlapTF",
   "RemapOverlapCL"
 ))
 categorical_features <- make.names(c(
