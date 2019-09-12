@@ -20,13 +20,11 @@ outcome <- factor(training_data$outcome, levels = c("1", "0"), labels = c("posit
 training_data <- training_data[, -outcome_col_index]
 ```
 
-
 ## Exploratory computations
 ```{r}
 sum(training_data$Type.SNV)
 sum(training_data$Type.INS) 
 sum(training_data$Type.DEL)
-
 ```
 
 ## Removal of problematic features
@@ -82,10 +80,19 @@ rf_model <- do.call(caret::train, train_args)
 
 rf_model
 ```
+
 ```{r}
 plot(rf_model)
 ```
 
 ## Saving model
 ```{r}
+if (!dir.exists("../output")) {
+  dir_creation_success <- dir.create("../output", showWarnings = TRUE)
+  if (!dir_creation_success) {
+    stop("Failed to create directory for saving model.")
+  }
+}
+
+saveRDS(rf_model, file = "../output/rf_model.rds")
 ```
