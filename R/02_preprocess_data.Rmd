@@ -1,14 +1,31 @@
+---
+title: "Preprocess data"
+output: html_notebook
+---
+
+## Setup
+```{r}
 library(magrittr)
 library(futile.logger)
 
-source("R/preprocessing.R")
+source("../R/preprocessing.R")
 
 flog.threshold(DEBUG)
 
 set.seed(20)
 
-training_set <- read.csv("training_data.csv", as.is = TRUE)
+training_set <- read.csv("../training_data.csv", as.is = TRUE)
+```
 
+## Descriptive statistics
+```{r}
+conseq_by_clnsig <- table(training_set$Consequence.x, training_set$CLNSIG, useNA = "always")
+conseq_by_clnsig <- cbind(conseq_by_clnsig, ALL_ = rowSums(conseq_by_clnsig))
+conseq_by_clnsig <- rbind(conseq_by_clnsig, ALL_ = colSums(conseq_by_clnsig))
+conseq_by_clnsig
+```
+## Choose features
+```{r}
 numeric_features <- make.names(c(
   # From dbNSFP
   "SIFT_score", 
@@ -89,10 +106,19 @@ categorical_features <- make.names(c(
   
   # From CADD annotations
   "Type",
-  "Dst2SplType"
+  "Dst2SplType",
+  "Consequence.x"
 ))
 
 training_data <- training_set[, c(numeric_features, categorical_features)]
+```
+
+```{r fig.height=11, fig.width=13}
+nas <- lapply(training_data, function(x) sapply(split(is.na(x), training_data$Consequence), sum)) 
+nas %<>% data.frame %>% as.matrix
+heatmap(nas)
+```
+```{r}
 training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
 
 training_data <- cbind(
@@ -102,3 +128,5 @@ training_data <- cbind(
 )
 
 write.csv(training_data, "preprocessed_training_data.csv", row.names = FALSE)
+```
+
