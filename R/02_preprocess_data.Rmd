@@ -4,26 +4,18 @@ output: html_notebook
 ---
 
 ## Setup
+
 ```{r}
+library(ggplot2)
 library(magrittr)
-library(futile.logger)
 
 source("../R/preprocessing.R")
 
-flog.threshold(DEBUG)
-
-set.seed(20)
-
 training_set <- read.csv("../training_data.csv", as.is = TRUE)
+training_set$outcome <- compute_numeric_labels(training_set$CLNSIG)
+
 ```
 
-## Descriptive statistics
-```{r}
-conseq_by_clnsig <- table(training_set$Consequence.x, training_set$CLNSIG, useNA = "always")
-conseq_by_clnsig <- cbind(conseq_by_clnsig, ALL_ = rowSums(conseq_by_clnsig))
-conseq_by_clnsig <- rbind(conseq_by_clnsig, ALL_ = colSums(conseq_by_clnsig))
-conseq_by_clnsig
-```
 ## Choose features
 ```{r}
 numeric_features <- make.names(c(
@@ -48,6 +40,7 @@ numeric_features <- make.names(c(
   "phastCons20way_mammalian", 
   "SiPhy_29way_logOdds", 
   "gnomAD_exomes_AF",
+  "gnomAD_genomes_AF",
   
   # From CADD annotations
   "Length",
@@ -110,23 +103,46 @@ categorical_features <- make.names(c(
   "Consequence.x"
 ))
 
-training_data <- training_set[, c(numeric_features, categorical_features)]
+training_data <- training_set[, c(numeric_features, categorical_features, "outcome")]
 ```
 
-```{r fig.height=11, fig.width=13}
+## Descriptive statistics
+
+- Check whether all consequences have both positive and negative examples
+  - they don't.
+```{r}
+table_with_margin <- function(...) {
+  tabl <- table(...)
+  tabl %<>% cbind(ALL_ = rowSums(tabl))
+  tabl %<>% rbind(ALL_ = colSums(tabl))
+  return(tabl)
+}
+conseq_by_clnsig <- table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always")
+conseq_by_outcome <- table_with_margin(training_set$Consequence.x, training_set$outcome, useNA = "always")
+conseq_by_clnsig
+conseq_by_outcome
+```
+- Plot distributions of each feature. Are they normal or linear?
+```{r}
+invisible(lapply(numeric_features, function(column) plot(ggplot2::quickplot(na.omit(training_data[,column]), main = column, bins = 30))))
+```
+
+```{r}
+lapply(training_data[, categorical_features], function(x) table(x, useNA = "always"))
+```
+```{r}
 nas <- lapply(training_data, function(x) sapply(split(is.na(x), training_data$Consequence), sum)) 
 nas %<>% data.frame %>% as.matrix
 heatmap(nas)
 ```
-```{r}
-training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
 
+```{r}
 training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
   dummify_categoricals(training_data[, categorical_features, drop = FALSE]),
   outcome = training_data$outcome
 )
 
-write.csv(training_data, "preprocessed_training_data.csv", row.names = FALSE)
+write.csv(training_data, "../preprocessed_training_data.csv", row.names = FALSE)
 ```
 
