@@ -1,8 +1,8 @@
 library(magrittr)
 library(futile.logger)
+library(ggcorrplot)
 
 source("R/preprocessing.R")
-source("R/visualizations.R")
 source("R/utils.R")
 
 flog.threshold(DEBUG)
@@ -37,17 +37,22 @@ categorical_features <- make.names(c(
   "LRT_pred"
 ))
 
-training_data <- training_set[, c(numeric_features, categorical_features)]
+features <- c(numeric_features, categorical_features)
+training_data <- training_set[, features]
 training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
 
-miss_correlations <- missingness_correlation_tidy(training_data, cluster = TRUE)
+# Plot correlations
+corr <- cor(training_data[, numeric_features], use = "pairwise.complete.obs")
+corr[is.na(corr)] <- 0.0
+ggcorrplot(corr = corr, type = "lower", hc.order = TRUE)
+
+# Plot correlations of missingness
+missingness_corr <- cor(is.na(training_data[, features]))
+ggcorrplot(corr = missingness_corr, type = "lower", hc.order = TRUE)
 
 training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
   dummify_categoricals(training_data[, categorical_features, drop = FALSE]),
   training_data$outcome)
-
-correlations <- correlation_tidy(training_data[, numeric_features, drop = FALSE], cluster = TRUE)
-plot(correlations %>% heatmap)
 
 write.csv(training_data, "preprocessed_training_data.csv", row.names = FALSE)
