@@ -3,7 +3,6 @@ library(futile.logger)
 library(ggcorrplot)
 
 source("R/preprocessing.R")
-source("R/utils.R")
 
 flog.threshold(DEBUG)
 
