@@ -1,7 +1,7 @@
 library(magrittr)
 library(futile.logger)
 
-source("R/process_data.R")
+source("R/preprocessing.R")
 source("R/visualizations.R")
 source("R/utils.R")
 
@@ -22,8 +22,6 @@ numeric_features <- make.names(c(
   "M-CAP_score", 
   "MutPred_score", 
   "fathmm-MKL_coding_score", 
-  "Eigen-raw", 
-  "Eigen-PC-raw", 
   "GenoCanyon_score", 
   "integrated_fitCons_score", 
   "GERP++_NR", 
@@ -46,7 +44,10 @@ miss_correlations <- missingness_correlation_tidy(training_data, cluster = TRUE)
 
 training_data <- cbind(
   training_data[, numeric_features, drop = FALSE], 
-  dummify_categoricals(training_data[, categorical_features, drop = FALSE])
-)
+  dummify_categoricals(training_data[, categorical_features, drop = FALSE]),
+  training_data$outcome)
 
 correlations <- correlation_tidy(training_data[, numeric_features, drop = FALSE], cluster = TRUE)
+plot(correlations %>% heatmap)
+
+write.csv(training_data, "preprocessed_training_data.csv", row.names = FALSE)
