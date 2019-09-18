@@ -13,10 +13,12 @@ source("../R/preprocessing.R")
 
 training_set <- read.csv("../training_data.csv", as.is = TRUE)
 training_set$outcome <- compute_numeric_labels(training_set$CLNSIG)
-
 ```
 
 ## Choose features
+
+The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier.
+
 ```{r}
 numeric_features <- make.names(c(
   # From dbNSFP
@@ -93,6 +95,7 @@ numeric_features <- make.names(c(
   "RemapOverlapTF",
   "RemapOverlapCL"
 ))
+
 categorical_features <- make.names(c(
   # From dbNSFP
   "LRT_pred",
@@ -127,6 +130,7 @@ conseq_by_outcome
 invisible(lapply(numeric_features, function(column) plot(ggplot2::quickplot(na.omit(training_data[,column]), main = column, bins = 30))))
 ```
 
+
 ```{r}
 lapply(training_data[, categorical_features], function(x) table(x, useNA = "always"))
 ```
@@ -134,6 +138,10 @@ lapply(training_data[, categorical_features], function(x) table(x, useNA = "alwa
 nas <- lapply(training_data, function(x) sapply(split(is.na(x), training_data$Consequence), sum)) 
 nas %<>% data.frame %>% as.matrix
 heatmap(nas)
+```
+```{r}
+num_missingness_patterns <- training_data %>% is.na %>% unique %>% nrow
+print(paste(num_missingness_patterns, "out of", 2^ncol(training_data), "possible missingness patterns."))
 ```
 
 ```{r}
