@@ -12,9 +12,17 @@ library(gridExtra)
 library(ggcorrplot)
 
 source("../R/preprocessing.R")
+source("../R/visualizations.R")
 
 training_set <- read.csv("../training_data.csv", as.is = TRUE)
-training_set$outcome <- compute_numeric_labels(training_set$CLNSIG)
+```
+
+The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive). 
+```{r}
+positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", "Pathogenic/Likely_pathogenic,_drug_response")
+negative_classes <- c("Benign", "Likely_benign", "Uncertain_significance")
+training_set$outcome <- compute_numeric_labels(training_set$CLNSIG, positive_classes, negative_classes)
+table(training_set$outcome)
 ```
 
 ## Choose features
@@ -107,12 +115,18 @@ categorical_features <- make.names(c(
   "Dst2SplType",
   "Consequence.x"
 ))
-
 features <- c(numeric_features, categorical_features)
-training_data <- training_set[, features, drop = FALSE]
-training_data$outcome <- compute_numeric_labels(training_set$CLNSIG)
+training_data <- training_set[, c(features, "outcome"), drop = FALSE]
+```
 
+Categorical variables are processed into sets of dummy variables. Note that here each category is represented by a dummy variable. An extra category could be represented using these variables by leaving each value for an observation as `0`; this is one strategy for handling missing values in categorical variables. However, missing values are left as missing values at this point so that predictive mean matching can be also experimented on.
+```{r}
 dummy_categoricals <- dummify_categoricals(training_data[, categorical_features, drop = FALSE])
+head(dummy_categoricals)
+```
+
+Next, the original categorical variables are replaced with the new dummy variables.
+```{r}
 processed_features <- c(numeric_features, colnames(dummy_categoricals))
 
 training_data <- cbind(
@@ -120,33 +134,21 @@ training_data <- cbind(
   dummy_categoricals,
   outcome = training_data$outcome
 )
-
-
-plot_missingness_correlations <- function(data, features, title) {
-  miss_data <- is.na(data)
-  missingness_corr <- cor(miss_data[, features])
-  ggcorrplot(corr = missingness_corr, type = "lower", title = title)
-}
-plot_observed_correlations <- function(data, features, title) {
-  corr <- cor(data[, features], use = "pairwise.complete.obs")
-  # This makes hierarchical clustering work, and produces a gray square in the plot as desired
-  corr[is.na(corr)] <- -2.0
-  ggcorrplot(corr = corr, type = "lower", title = title)
-}
-plot_missingness_vs_observed_correlations <- function(data, features, title) {
-  miss_data <- is.na(data)
-  colnames(miss_data) <- paste0("miss_", colnames(miss_data))
-  missingness_vs_value_corr <- cor(data, miss_data, use = "pairwise.complete.obs")
-  # This makes hierarchical clustering work, and produces a gray square in the plot as desired
-  missingness_vs_value_corr[is.na(missingness_vs_value_corr)] <- -2.0
-  ggcorrplot(missingness_vs_value_corr, title = title)
-}
-
-positive_data <- training_data[training_data$outcome == 1.0, ]
-negative_data <- training_data[training_data$outcome == 0.0, ]
 ```
 
+```{r}
+write.csv(training_data, "../preprocessed_training_data.csv", row.names = FALSE)
+```
+
+## Descriptive statistics
+
+### Correlations 
+
+Plot correlation matrices of missingness indicators against missingness indicators, observed values against observed values, and missingness indicators against observed values.
 ```{r fig.height=10, fig.width=10}
+positive_data <- training_data[training_data$outcome == 1.0, ]
+negative_data <- training_data[training_data$outcome == 0.0, ]
+
 # Missingness indicator correlations
 plot_missingness_correlations(training_data, processed_features, "Missingness indicator correlations")
 plot_missingness_correlations(positive_data, processed_features, "Missingness indicator correlations (positive-labeled)")
@@ -161,13 +163,11 @@ plot_observed_correlations(negative_data, processed_features, "Correlations of o
 plot_missingness_vs_observed_correlations(training_data, processed_features, "Missingness correlations vs. observed values")
 plot_missingness_vs_observed_correlations(positive_data, processed_features, "Missingness correlations vs. observed values (positive-labeled)")
 plot_missingness_vs_observed_correlations(negative_data, processed_features, "Missingness correlations vs. observed values (negative-labeled)")
-
 ```
 
-## Descriptive statistics
+# Class distribution per consequence
 
-- Check whether all consequences have both positive and negative examples
-  - they don't.
+Next, check whether all consequences have both positive and negative examples.
 ```{r}
 table_with_margin <- function(...) {
   tabl <- table(...)
@@ -175,32 +175,64 @@ table_with_margin <- function(...) {
   tabl %<>% rbind(ALL_ = colSums(tabl))
   return(tabl)
 }
-conseq_by_clnsig <- table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always")
-conseq_by_outcome <- table_with_margin(training_set$Consequence.x, training_set$outcome, useNA = "always")
-conseq_by_clnsig
-conseq_by_outcome
+table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always")
+table_with_margin(training_set$Consequence.x, training_set$outcome, useNA = "always")
 ```
+Indeed they do not. One might consider e.g. removing all stop-gain variants in the test set to avoid biasing the result, as the 
+
+### Feature value distributions
+
 - Plot distributions of each feature. Are they normal or linear?
 ```{r}
-invisible(lapply(numeric_features, function(column) plot(ggplot2::quickplot(na.omit(training_data[,column]), main = column, bins = 30))))
+feature_distribution_plots <- lapply(numeric_features, 
+                                     function(column) {
+                                       ggplot2::quickplot(
+                                         na.omit(training_data[,column]),  
+                                         main = column,  
+                                         xlab = "",  
+                                         bins = 30
+                                       )
+                                     })
+                 
+marrangeGrob(
+  ncol = 2, nrow = 3,
+  grobs = feature_distribution_plots
+)
 ```
+They are not, and thus it might be worth considering data transformations. In the case of random forest, however, monotone transformations should have no effect.
 
+### Categorical level occurence counts
 
+Print (one-dimensional) contingency tables, i.e. occurence counts of each level of categorical variables.
 ```{r}
-lapply(training_data[, categorical_features], function(x) table(x, useNA = "always"))
+for (cat_feat in categorical_features) {
+  table(training_set[, cat_feat, drop = FALSE], dnn = cat_feat, useNA = "always") %>% print
+  cat("\n")
+}
 ```
+Looking at `Consequence.x` is redundant as it was already displayed earlier, but looking at `LRT_pred` we can see a troublingly low number of observations of level `U`.
+
+### Heatmap of feature missingness against consequence
+
+It is likely that missing values are more or less common in some variables depending on the predicted consequence. This can be visualized by a heatmap:
 ```{r}
-nas <- lapply(training_data, function(x) sapply(split(is.na(x), training_data$Consequence), sum)) 
-nas %<>% data.frame %>% as.matrix
-heatmap(nas)
+missing_value_sum_per_consequence <- lapply(training_set[, features, drop = FALSE],
+                                            function(column) {
+                                              sapply(
+                                                split(is.na(column), training_set$Consequence.x),
+                                                sum
+                                              )
+                                            })
+missing_value_sum_per_consequence %<>% data.frame %>% as.matrix
+heatmap(missing_value_sum_per_consequence)
 ```
+Stop-gained and non-synonymous variants have much less missingness in certain variables (as expected), and missingness rates are somewhat constant over different consequences in epigenetics variables.
+
+### Compute number of observed missingness patterns
+
+The number of observed missingness patterns over the data influences the feasibility of using reduced-feature models; in the strict form, you need exactly as many models as you have missingness patterns.
 ```{r}
 num_missingness_patterns <- training_data %>% is.na %>% unique %>% nrow
 print(paste(num_missingness_patterns, "out of", 2^ncol(training_data), "possible missingness patterns."))
 ```
-
-```{r}
-
-write.csv(training_data, "../preprocessed_training_data.csv", row.names = FALSE)
-```
-
+The number is not as bad as it could be, but still large.

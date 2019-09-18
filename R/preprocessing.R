@@ -46,25 +46,21 @@ missingness_indicators <- function(dataframe) {
 #'
 #' @return Numeric vector containing 1.0 for each pathogenic classification and 
 #' 0.0 for each non-pathogenic classification.
-compute_numeric_labels <- function(class_vector) {
+compute_numeric_labels <- function(class_vector, positive_classes, negative_classes) {
   
   stopifnot(class(class_vector) == "character")
   stopifnot(length(class_vector) > 0)
   
-  positive <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", "Pathogenic/Likely_pathogenic,_drug_response")
-  negative <- c("Benign", "Likely_benign", "Uncertain_significance")
-  
   # If classification is not any of these, raise and error
-  undefined_class_ind <- !class_vector %in% c(positive, negative)
+  undefined_class_ind <- !class_vector %in% c(positive_classes, negative_classes)
   if (any(undefined_class_ind)) {
     error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(unique(class_vector[undefined_class_ind]))
-    flog.error(error_msg)
     stop(error_msg)
   }
   
-  positive_class <- ifelse(class_vector %in% positive, 1.0, 0.0)
+  positive_class_indicator <- ifelse(class_vector %in% positive_classes, 1.0, 0.0)
   
-  return(positive_class)
+  return(positive_class_indicator)
 }
 
 #' Convert categorical variables into sets of dummy variables
