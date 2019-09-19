@@ -12,6 +12,7 @@ plot_observed_correlations <- function(data, features, title) {
   ggcorrplot(corr = corr, type = "lower", title = title)
 }
 plot_missingness_vs_observed_correlations <- function(data, features, title) {
+  data <- data[, features]
   miss_data <- is.na(data)
   colnames(miss_data) <- paste0("miss_", colnames(miss_data))
   missingness_vs_value_corr <- cor(data, miss_data, use = "pairwise.complete.obs")
