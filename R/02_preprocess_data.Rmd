@@ -175,14 +175,14 @@ table_with_margin <- function(...) {
   tabl %<>% rbind(ALL_ = colSums(tabl))
   return(tabl)
 }
-table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always")
-table_with_margin(training_set$Consequence.x, training_set$outcome, useNA = "always")
+table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame
+table_with_margin(training_set$Consequence.x, training_set$outcome, useNA = "always") %>% as.data.frame
 ```
-Indeed they do not. One might consider e.g. removing all stop-gain variants in the test set to avoid biasing the result, as the 
+Indeed they do not. One might consider e.g. removing all stop-gain variants in the test set to avoid biasing the result. Any stop-gain variants in the ClinGen dataset will almost certainly be from genes with disease association, and thus all stop-gain variants will also be pathogenic in the test set. The model will then guess correctly looking at the consequence, something that could also be programmed deterministically.
 
 ### Feature value distributions
 
-- Plot distributions of each feature. Are they normal or linear?
+Next, plot distributions of each feature. Are they normal or linear?
 ```{r}
 feature_distribution_plots <- lapply(numeric_features, 
                                      function(column) {
@@ -206,7 +206,7 @@ They are not, and thus it might be worth considering data transformations. In th
 Print (one-dimensional) contingency tables, i.e. occurence counts of each level of categorical variables.
 ```{r}
 for (cat_feat in categorical_features) {
-  table(training_set[, cat_feat, drop = FALSE], dnn = cat_feat, useNA = "always") %>% print
+  table(training_set[, cat_feat, drop = FALSE], dnn = cat_feat, useNA = "always") %>% as.data.frame %>% print
   cat("\n")
 }
 ```
@@ -232,7 +232,17 @@ Stop-gained and non-synonymous variants have much less missingness in certain va
 
 The number of observed missingness patterns over the data influences the feasibility of using reduced-feature models; in the strict form, you need exactly as many models as you have missingness patterns.
 ```{r}
-num_missingness_patterns <- training_data %>% is.na %>% unique %>% nrow
+missingness_patterns <- training_data %>% is.na
+num_missingness_patterns <- missingness_patterns %>% unique %>% nrow
 print(paste(num_missingness_patterns, "out of", 2^ncol(training_data), "possible missingness patterns."))
 ```
 The number is not as bad as it could be, but still large.
+
+The most important thing is of course whether the different patterns contain sufficiently many samples to train a model on each one. 
+```{r}
+missingness_pattern_factor <- apply(missingness_patterns, MARGIN=1, function(x) paste0(as.integer(x), collapse = "")) %>% factor
+rows_per_missingness_pattern <- table(missingness_pattern_factor)
+rows_per_missingness_pattern <- rows_per_missingness_pattern %>% as.data.frame
+rows_per_missingness_pattern[order(rows_per_missingness_pattern$Freq, decreasing=TRUE),]
+```
+The quick answer is definitely no. In the ideal form, reduced-feature models are not applicable. The hybrid forms (i.e. impute values to obtain more common patterns and fewer models) could still work.
