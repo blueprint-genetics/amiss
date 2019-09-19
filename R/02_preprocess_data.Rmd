@@ -6,243 +6,49 @@ output: html_notebook
 ## Setup
 
 ```{r}
-library(ggplot2)
 library(magrittr)
-library(gridExtra)
-library(ggcorrplot)
 
 source("../R/preprocessing.R")
-source("../R/visualizations.R")
 
 training_set <- read.csv("../training_data.csv", as.is = TRUE)
+
+source("../R/feature_definitions.R")
+```
+
+```{r}
+id_cols <- c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID")
+rownames(training_set) <- apply(
+  training_set[, id_cols],
+  MARGIN = 1,
+  function(x) paste0(x, collapse = ":")
+)
 ```
 
 The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive). 
 ```{r}
 positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", "Pathogenic/Likely_pathogenic,_drug_response")
 negative_classes <- c("Benign", "Likely_benign", "Uncertain_significance")
-training_set$outcome <- compute_numeric_labels(training_set$CLNSIG, positive_classes, negative_classes)
-table(training_set$outcome)
-```
-
-## Choose features
-
-The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier.
-
-```{r}
-numeric_features <- make.names(c(
-  # From dbNSFP
-  "SIFT_score", 
-  "LRT_score", 
-  "LRT_Omega", 
-  "MutationTaster_score", 
-  "MutationAssessor_score", 
-  "FATHMM_score", 
-  "PROVEAN_score", 
-  "M-CAP_score", 
-  "MutPred_score", 
-  "fathmm-MKL_coding_score", 
-  "GenoCanyon_score", 
-  "integrated_fitCons_score", 
-  "GERP++_NR", 
-  "GERP++_RS", 
-  "phyloP100way_vertebrate", 
-  "phyloP20way_mammalian", 
-  "phastCons100way_vertebrate", 
-  "phastCons20way_mammalian", 
-  "SiPhy_29way_logOdds", 
-  "gnomAD_exomes_AF",
-  "gnomAD_genomes_AF",
-  
-  # From CADD annotations
-  "Length",
-  "GC",
-  "CpG",
-  "motifECount",
-  "motifEHIPos",
-  "motifEScoreChng",
-  # "(Intron)",
-  # "(Exon)",
-  "relcDNApos",
-  "relCDSpos",
-  "relProtPos",
-  "Dst2Splice",
-  "minDistTSS",
-  "minDistTSE",
-  # "targetScan",
-  "mirSVR-Score",
-  "mirSVR-E",
-  "mirSVR-Aln",
-  "tOverlapMotifs",
-  "motifDist",
-  "EncodeH3K4me1-sum",
-  "EncodeH3K4me1-max",
-  "EncodeH3K4me2-sum",
-  "EncodeH3K4me2-max",
-  "EncodeH3K4me3-sum",
-  "EncodeH3K4me3-max",
-  "EncodeH3K9ac-sum",
-  "EncodeH3K9ac-max",
-  "EncodeH3K9me3-sum",
-  "EncodeH3K9me3-max",
-  "EncodeH3K27ac-sum",
-  "EncodeH3K27ac-max",
-  "EncodeH3K27me3-sum",
-  "EncodeH3K27me3-max",
-  "EncodeH3K36me3-sum",
-  "EncodeH3K36me3-max",
-  "EncodeH3K79me2-sum",
-  "EncodeH3K79me2-max",
-  "EncodeH4K20me1-sum",
-  "EncodeH4K20me1-max",
-  "EncodeH2AFZ-sum",
-  "EncodeH2AFZ-max",
-  "EncodeDNase-sum",
-  "EncodeDNase-max",
-  "EncodetotalRNA-sum",
-  "EncodetotalRNA-max",
-  # "Grantham",
-  "RemapOverlapTF",
-  "RemapOverlapCL"
-))
-
-categorical_features <- make.names(c(
-  # From dbNSFP
-  "LRT_pred",
-  
-  # From CADD annotations
-  "Type",
-  "Dst2SplType",
-  "Consequence.x"
-))
-features <- c(numeric_features, categorical_features)
-training_data <- training_set[, c(features, "outcome"), drop = FALSE]
+outcome <- compute_numeric_labels(training_set$CLNSIG, positive_classes, negative_classes)
+names(outcome) <- row.names(training_set)
+table(outcome)
 ```
 
 Categorical variables are processed into sets of dummy variables. Note that here each category is represented by a dummy variable. An extra category could be represented using these variables by leaving each value for an observation as `0`; this is one strategy for handling missing values in categorical variables. However, missing values are left as missing values at this point so that predictive mean matching can be also experimented on.
 ```{r}
-dummy_categoricals <- dummify_categoricals(training_data[, categorical_features, drop = FALSE])
+dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
 head(dummy_categoricals)
 ```
 
-Next, the original categorical variables are replaced with the new dummy variables.
+Next, the new dummy variables are bound to the `data.frame`. We keep also the original categorical variables, since they are easier to use for certain statistics computations.
 ```{r}
-processed_features <- c(numeric_features, colnames(dummy_categoricals))
-
-training_data <- cbind(
-  training_data[, numeric_features, drop = FALSE], 
-  dummy_categoricals,
-  outcome = training_data$outcome
+training_set <- cbind(
+  training_set,
+  dummy_categoricals
 )
 ```
 
+Finally, write out the processed data CSV file.
 ```{r}
-write.csv(training_data, "../preprocessed_training_data.csv", row.names = FALSE)
+write.csv(training_set, "../preprocessed_training_data.csv", row.names = TRUE)
+write.csv(outcome, "../outcomes.csv", row.names = TRUE)
 ```
-
-## Descriptive statistics
-
-### Correlations 
-
-Plot correlation matrices of missingness indicators against missingness indicators, observed values against observed values, and missingness indicators against observed values.
-```{r fig.height=10, fig.width=10}
-positive_data <- training_data[training_data$outcome == 1.0, ]
-negative_data <- training_data[training_data$outcome == 0.0, ]
-
-# Missingness indicator correlations
-plot_missingness_correlations(training_data, processed_features, "Missingness indicator correlations")
-plot_missingness_correlations(positive_data, processed_features, "Missingness indicator correlations (positive-labeled)")
-plot_missingness_correlations(negative_data, processed_features, "Missingness indicator correlations (negative-labeled)")
-
-# Observed value correlations
-plot_observed_correlations(training_data, processed_features, "Correlations of observed values")
-plot_observed_correlations(positive_data, processed_features, "Correlations of observed values (positive-labeled)")
-plot_observed_correlations(negative_data, processed_features, "Correlations of observed values (negative-labeled)") 
-
-# Missingness vs. observed correlations
-plot_missingness_vs_observed_correlations(training_data, processed_features, "Missingness correlations vs. observed values")
-plot_missingness_vs_observed_correlations(positive_data, processed_features, "Missingness correlations vs. observed values (positive-labeled)")
-plot_missingness_vs_observed_correlations(negative_data, processed_features, "Missingness correlations vs. observed values (negative-labeled)")
-```
-
-# Class distribution per consequence
-
-Next, check whether all consequences have both positive and negative examples.
-```{r}
-table_with_margin <- function(...) {
-  tabl <- table(...)
-  tabl %<>% cbind(ALL_ = rowSums(tabl))
-  tabl %<>% rbind(ALL_ = colSums(tabl))
-  return(tabl)
-}
-table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame
-table_with_margin(training_set$Consequence.x, training_set$outcome, useNA = "always") %>% as.data.frame
-```
-Indeed they do not. One might consider e.g. removing all stop-gain variants in the test set to avoid biasing the result. Any stop-gain variants in the ClinGen dataset will almost certainly be from genes with disease association, and thus all stop-gain variants will also be pathogenic in the test set. The model will then guess correctly looking at the consequence, something that could also be programmed deterministically.
-
-### Feature value distributions
-
-Next, plot distributions of each feature. Are they normal or linear?
-```{r}
-feature_distribution_plots <- lapply(numeric_features, 
-                                     function(column) {
-                                       ggplot2::quickplot(
-                                         na.omit(training_data[,column]),  
-                                         main = column,  
-                                         xlab = "",  
-                                         bins = 30
-                                       )
-                                     })
-                 
-marrangeGrob(
-  ncol = 2, nrow = 3,
-  grobs = feature_distribution_plots
-)
-```
-They are not, and thus it might be worth considering data transformations. In the case of random forest, however, monotone transformations should have no effect.
-
-### Categorical level occurence counts
-
-Print (one-dimensional) contingency tables, i.e. occurence counts of each level of categorical variables.
-```{r}
-for (cat_feat in categorical_features) {
-  table(training_set[, cat_feat, drop = FALSE], dnn = cat_feat, useNA = "always") %>% as.data.frame %>% print
-  cat("\n")
-}
-```
-Looking at `Consequence.x` is redundant as it was already displayed earlier, but looking at `LRT_pred` we can see a troublingly low number of observations of level `U`.
-
-### Heatmap of feature missingness against consequence
-
-It is likely that missing values are more or less common in some variables depending on the predicted consequence. This can be visualized by a heatmap:
-```{r}
-missing_value_sum_per_consequence <- lapply(training_set[, features, drop = FALSE],
-                                            function(column) {
-                                              sapply(
-                                                split(is.na(column), training_set$Consequence.x),
-                                                sum
-                                              )
-                                            })
-missing_value_sum_per_consequence %<>% data.frame %>% as.matrix
-heatmap(missing_value_sum_per_consequence)
-```
-Stop-gained and non-synonymous variants have much less missingness in certain variables (as expected), and missingness rates are somewhat constant over different consequences in epigenetics variables.
-
-### Compute number of observed missingness patterns
-
-The number of observed missingness patterns over the data influences the feasibility of using reduced-feature models; in the strict form, you need exactly as many models as you have missingness patterns.
-```{r}
-missingness_patterns <- training_data %>% is.na
-num_missingness_patterns <- missingness_patterns %>% unique %>% nrow
-print(paste(num_missingness_patterns, "out of", 2^ncol(training_data), "possible missingness patterns."))
-```
-The number is not as bad as it could be, but still large.
-
-The most important thing is of course whether the different patterns contain sufficiently many samples to train a model on each one. 
-```{r}
-missingness_pattern_factor <- apply(missingness_patterns, MARGIN=1, function(x) paste0(as.integer(x), collapse = "")) %>% factor
-rows_per_missingness_pattern <- table(missingness_pattern_factor)
-rows_per_missingness_pattern <- rows_per_missingness_pattern %>% as.data.frame
-rows_per_missingness_pattern[order(rows_per_missingness_pattern$Freq, decreasing=TRUE),]
-```
-The quick answer is definitely no. In the ideal form, reduced-feature models are not applicable. The hybrid forms (i.e. impute values to obtain more common patterns and fewer models) could still work.

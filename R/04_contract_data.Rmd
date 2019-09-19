@@ -1,0 +1,25 @@
+---
+title: "Contract data"
+output: html_notebook
+---
+
+## Feature selection
+
+The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier.
+```{r}
+source("../R/feature_definitions.R")
+
+training_set <- read.csv("../preprocessed_training_data.csv", row.names = 1, as.is = TRUE)
+
+columns <- colnames(training_set)
+features_with_categorical_variable_prefix <- lapply(categorical_features,
+                                                    function(x) {
+                                                      columns[columns %>% startsWith(x)]
+                                                    })
+
+dummy_features <- unique(unlist(features_with_categorical_variable_prefix))
+features <- c(numeric_features, dummy_features)
+training_set <- training_set[, features, drop = FALSE]
+
+training_set <- write.csv(training_set, "../contracted_training_data.csv", row.names = TRUE)
+```
