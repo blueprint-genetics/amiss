@@ -7,6 +7,8 @@ output: html_notebook
 
 The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier.
 ```{r}
+library(magrittr)
+
 source("../R/feature_definitions.R")
 
 training_set <- read.csv("../preprocessed_training_data.csv", row.names = 1, as.is = TRUE)
