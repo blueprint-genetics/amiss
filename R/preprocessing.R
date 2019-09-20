@@ -43,6 +43,8 @@ missingness_indicators <- function(dataframe) {
 #' Compute numeric labels from ClinVar classifications
 #'
 #' @param class_vector Character vector containing ClinVar classifications
+#' @param positive_classes Character vector designating the classifications that are considered positive
+#' @param negative_classes Character vector designating the classifications that are considered negative
 #'
 #' @return Numeric vector containing 1.0 for each pathogenic classification and 
 #' 0.0 for each non-pathogenic classification.
