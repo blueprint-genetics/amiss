@@ -16,7 +16,7 @@ training_set <- read.csv("../preprocessed_training_data.csv", row.names = 1, as.
 columns <- colnames(training_set)
 features_with_categorical_variable_prefix <- lapply(categorical_features,
                                                     function(x) {
-                                                      columns[columns %>% startsWith(x)]
+                                                      columns[columns %>% startsWith(x) & !columns %in% x]
                                                     })
 
 dummy_features <- unique(unlist(features_with_categorical_variable_prefix))
