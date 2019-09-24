@@ -19,11 +19,6 @@ outcome <- read.csv("../outcomes.csv", row.names = 1)[,1]
 stopifnot(row.names(training_set) == row.names(outcome))
 
 features <- colnames(training_set)
-features_with_categorical_variable_prefix <- lapply(categorical_features, 
-                                                    function(x) {
-                                                      features[features %>% startsWith(x)]
-                                                    })
-dummy_features <- unique(unlist(features_with_categorical_variable_prefix))
 ```
 
 ## Correlations 
