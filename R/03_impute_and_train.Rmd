@@ -14,12 +14,10 @@ library(doParallel)
 ```
 
 ```{r}
-training_data <- read.csv("../preprocessed_training_data.csv", as.is = TRUE)
+training_data <- read.csv("../contracted_training_data.csv", row.names=1, as.is = TRUE) 
+outcome <- read.csv("../outcomes.csv", as.is = TRUE)
 
-outcome_col_index <- which(colnames(training_data) == "outcome")
-outcome <- factor(training_data$outcome, levels = c("1", "0"), labels = c("positive", "negative"))
-
-training_data <- training_data[, -outcome_col_index]
+outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
 ```
 
 ## Exploratory computations
