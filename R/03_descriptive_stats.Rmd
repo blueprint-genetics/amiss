@@ -21,7 +21,7 @@ stopifnot(row.names(training_set) == row.names(outcome))
 features <- colnames(training_set)
 ```
 
-## Correlations 
+## Correlations
 
 Plot correlation matrices of missingness indicators against missingness indicators, observed values against observed values, and missingness indicators against observed values.
 ```{r fig.height=10, fig.width=10}
@@ -57,18 +57,18 @@ table_with_margin <- function(...) {
 table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame
 table_with_margin(training_set$Consequence.x, outcome, useNA = "always") %>% as.data.frame
 ```
-Indeed they do not. One might consider e.g. removing all stop-gain variants in the test set to avoid biasing the result. Any stop-gain variants in the ClinGen dataset will almost certainly be from genes with disease association, and thus all stop-gain variants will also be pathogenic in the test set. The model will then guess correctly looking at the consequence, something that could also be programmed deterministically.
+Indeed they do not. One might consider e.g. removing all stop-gain variants in the test set to avoid biasing the result. Since the training / test set was random, the distributions should be similar in the test set, and thus any stop-gain variants will likely also all be pathogenic in the test set. The model will then guess correctly looking at the consequence, something that could also be programmed deterministically and thus is not interesting in a machine-learning perspective.
 
 ## Feature value distributions
 
 Next, plot distributions of each feature. Are they normal or linear?
 ```{r}
-feature_distribution_plots <- lapply(numeric_features, 
+feature_distribution_plots <- lapply(numeric_features,
                                      function(column) {
                                        ggplot2::quickplot(
-                                         na.omit(training_set[,column]),  
-                                         main = column,  
-                                         xlab = "",  
+                                         na.omit(training_set[,column]),
+                                         main = column,
+                                         xlab = "",
                                          bins = 30
                                        )
                                      })
@@ -112,16 +112,55 @@ Stop-gained and non-synonymous variants have much less missingness in certain va
 The number of observed missingness patterns over the data influences the feasibility of using reduced-feature models; in the strict form, you need exactly as many models as you have missingness patterns.
 ```{r}
 missingness_patterns <- training_set[, c(numeric_features, categorical_features)] %>% is.na
-num_missingness_patterns <- missingness_patterns %>% unique %>% nrow
+unique_missingness_patterns <- missingness_patterns %>% unique
+num_missingness_patterns <- unique_missingness_patterns %>% nrow
 print(paste(num_missingness_patterns, "out of", 2^length(c(numeric_features, categorical_features)), "possible missingness patterns."))
 ```
 The number is not as bad as it could be, but still large.
 
-The most important thing is of course whether the different patterns contain sufficiently many samples to train a model on each one. 
+The most important thing is of course whether the different patterns contain sufficiently many samples to train a model on each one.
 ```{r}
 missingness_pattern_factor <- apply(missingness_patterns, MARGIN = 1, function(x) paste0(as.integer(x), collapse = "")) %>% factor
 rows_per_missingness_pattern <- table(missingness_pattern_factor)
 rows_per_missingness_pattern <- rows_per_missingness_pattern %>% as.data.frame
 rows_per_missingness_pattern[order(rows_per_missingness_pattern$Freq, decreasing = TRUE),]
 ```
-The quick answer is definitely no. In the ideal form, reduced-feature models are not applicable. The hybrid forms (i.e. impute values to obtain more common patterns and fewer models) could still work.
+Looking at it this way, it seems that most patterns would not have enough data to train a useful classifier.
+
+However, the above computation counts only exact occurrences of missing patterns, i.e. rows where the missingness pattern for that row exactly matches the missingness pattern in question.
+
+In truth, when training a classifier for a missingness pattern `m`, we can use any row for which we have *at least* those features indicated present in pattern `m`.
+For example, for a pattern `00110`, we can use also rows with pattern `00010`, `00100` or `00000`.
+```{r}
+# We form a matrix where a value in cell (x,y) will be `TRUE` iff every available value of
+# missingness pattern y is also available in missingness pattern x, and thus the examples
+# that fit pattern x could be used to train a model on pattern y.
+#
+# Note that in the output, the x's are rows, and y's are columns.
+pattern_intersects <- apply(unique_missingness_patterns, MARGIN = 1, function(row_x) {
+  apply(unique_missingness_patterns, MARGIN = 1, function(row_y) {
+    # `row_x` is the indicator vector of *missing* values of `x`,
+    # and `!row_y` is the indicator vector of *available* values of `y`.
+    # Since we are trying to apply rows with pattern `x` for a model for pattern `y`,
+    # there musn't be any value for which `y` is available and `x` is not.
+    !any((row_x & !row_y))
+  })
+})
+unique_missingness_patterns_strings <- unique_missingness_patterns %>% apply(MARGIN = 1, FUN = . %>% as.integer %>% paste0(collapse = ""))
+row.names(pattern_intersects) <- unique_missingness_patterns_strings
+colnames(pattern_intersects) <- unique_missingness_patterns_strings
+
+# Since we're thinking about training a model for y, we must sum the over the columns.
+pattern_counts <- apply(pattern_intersects, MARGIN = 2, function(x) {
+  # The counts of examples fitting a pattern is read from the previously computed table.
+  sum(rows_per_missingness_pattern[x, "Freq"])
+})
+pattern_counts <- data.frame(missingness_pattern = factor(names(pattern_counts)), Freq = pattern_counts, row.names = NULL)
+pattern_counts[order(pattern_counts$Freq, decreasing = TRUE), , drop = FALSE]
+```
+Looking at this table, the situation is less bad.
+
+```{r}
+sum(pattern_counts$Freq < 100) / nrow(pattern_counts)
+```
+Indeed, less than 20 % of patterns have less than 100 examples.
