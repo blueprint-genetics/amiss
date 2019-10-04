@@ -1,0 +1,54 @@
+---
+title: "Preprocess data"
+output: html_notebook
+---
+
+## Setup
+
+```{r}
+library(magrittr)
+
+source("../R/preprocessing.R")
+
+training_set <- read.csv("../training_data.csv", as.is = TRUE)
+
+source("../R/feature_definitions.R")
+```
+
+```{r}
+id_cols <- c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID")
+rownames(training_set) <- apply(
+  training_set[, id_cols],
+  MARGIN = 1,
+  function(x) paste0(x, collapse = ":")
+)
+```
+
+The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive). 
+```{r}
+positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", "Pathogenic/Likely_pathogenic,_drug_response")
+negative_classes <- c("Benign", "Likely_benign", "Uncertain_significance")
+outcome <- compute_numeric_labels(training_set$CLNSIG, positive_classes, negative_classes)
+names(outcome) <- row.names(training_set)
+table(outcome)
+```
+
+Categorical variables are processed into sets of dummy variables. Note that here each category is represented by a dummy variable. An extra category could be represented using these variables by leaving each value for an observation as `0`; this is one strategy for handling missing values in categorical variables. However, missing values are left as missing values at this point so that predictive mean matching can be also experimented on.
+```{r}
+dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
+head(dummy_categoricals)
+```
+
+Next, the new dummy variables are bound to the `data.frame`. We keep also the original categorical variables, since they are easier to use for certain statistics computations.
+```{r}
+training_set <- cbind(
+  training_set,
+  dummy_categoricals
+)
+```
+
+Finally, write out the processed data CSV file.
+```{r}
+write.csv(training_set, "../preprocessed_training_data.csv", row.names = TRUE)
+write.csv(outcome, "../outcomes.csv", row.names = TRUE)
+```
