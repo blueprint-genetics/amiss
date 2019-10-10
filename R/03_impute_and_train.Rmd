@@ -11,6 +11,8 @@ library(caret)
 library(mice)
 library(foreach)
 library(doParallel)
+
+source("R/imputation_definitions.R")
 ```
 
 ```{r}
@@ -54,9 +56,51 @@ if(highly_correlated_variables %>% length > 0) {
 
 ## Imputation
 ```{r}
-imputed_training_data <- mice::mice(data = training_data)
+lapply(imputation_hyperparameter_grids, nrow)
+```
 
-completed_training_data <- mice::complete(imputed_training_data, action = "all")
+```{r}
+run_imputation_method <- function(data, method, hyperparams, times, iterations) {
+
+  print(paste0("Starting with ", paste0(hyperparams, collapse = ", "), ", imputing ", times, " times"))
+
+  imputation_object <- mice::mice(data = data, method = method,  m = times, maxit = iterations, ... = hyperparams)
+
+  print("done with imputation")
+
+  completed_datasets <- mice::complete(imputation_object, action = "all")
+
+  print("done with forming datasets")
+
+  return(list(completed_datasets = completed_datasets, imputation_object = imputation_object))
+}
+
+times <- 2
+iters <- 5
+
+imputation_result_per_imp_method <- list()
+timings <- list()
+
+for (method in names(imputation_hyperparameter_grids)) {
+
+  hyperparams <- imputation_hyperparameter_grids[[method]]
+
+  timings[[method]] <- list()
+  imputation_result_per_imp_method[[method]] <- list()
+
+  for (hp_set in 1:nrow(hyperparams)) {
+    timings[[method]][[hp_set]] <- system.time(
+      imputation_result_per_imp_method[[method]][[hp_set]] <- tryCatch(
+        run_imputation_method(data = training_data, method = method, iterations = iters, hyperparams = unlist(hyperparams[hp_set,]), times = times), 
+        error = function(e) {
+          print(e)
+          return(NULL)
+        }
+      )
+    )
+  }
+  timings[[method]] = do.call(rbind, timings[[method]])
+}
 ```
 
 ## Training
@@ -68,19 +112,25 @@ training_settings <- trainControl(classProbs = TRUE,
                                   method = "oob",
                                   returnResamp = "all")
 
-models <- foreach(imputed_data = completed_training_data) %dopar% {
+models <- foreach(imputed_data_per_method = imputation_result_per_imp_method) %do% {
 
-  train_args <- list(x = imputed_data,
-                     y = outcome,
-                     method = "rf",
-                     preProcess = c("center", "scale"),
-                     trControl = training_settings,
-                     tuneGrid = hyperparameter_grid)
+  models_per_imp_method <- foreach(imputed_dataset_per_hyperparameter = imputed_data_per_method) %do% {
 
-  rf_model <- do.call(caret::train, train_args)
+    models_per_imp_rep <- foreach(imputed_dataset_per_imp_rep = imputed_dataset_per_hyperparameter$completed_datasets) %do% {
 
-  rf_model
+      train_args <- list(x = imputed_dataset_per_imp_rep,
+                         y = outcome,
+                         method = "rf",
+                         preProcess = c("center", "scale"),
+                         trControl = training_settings,
+                         tuneGrid = hyperparameter_grid)
 
+      rf_model <- do.call(caret::train, train_args)
+
+      rf_model
+
+    }
+  }
 }
 ```
 
