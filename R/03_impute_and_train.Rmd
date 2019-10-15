@@ -12,7 +12,7 @@ library(mice)
 library(foreach)
 library(doParallel)
 
-source("R/imputation_definitions.R")
+source("imputation_definitions.R")
 ```
 
 ```{r}
@@ -64,7 +64,7 @@ run_imputation_method <- function(data, method, hyperparams, times, iterations) 
 
   print(paste0("Starting with ", paste0(hyperparams, collapse = ", "), ", imputing ", times, " times"))
 
-  imputation_object <- mice::mice(data = data, method = method,  m = times, maxit = iterations, ... = hyperparams)
+  imputation_object <- mice::mice(data = data, method = method,  m = times, maxit = iterations, printFlag = FALSE, ... = hyperparams)
 
   print("done with imputation")
 
@@ -78,19 +78,17 @@ run_imputation_method <- function(data, method, hyperparams, times, iterations) 
 times <- 2
 iters <- 5
 
-imputation_result_per_imp_method <- list()
 timings <- list()
 
-for (method in names(imputation_hyperparameter_grids)) {
+imputation_result_per_imp_method <- foreach(method = names(imputation_hyperparameter_grids)) %do% {
 
   hyperparams <- imputation_hyperparameter_grids[[method]]
 
   timings[[method]] <- list()
-  imputation_result_per_imp_method[[method]] <- list()
 
-  for (hp_set in 1:nrow(hyperparams)) {
+  imputation_result_per_hp_set <- foreach(hp_set = 1:nrow(hyperparams)) %do% {
     timings[[method]][[hp_set]] <- system.time(
-      imputation_result_per_imp_method[[method]][[hp_set]] <- tryCatch(
+      imputation_result <- tryCatch(
         run_imputation_method(data = training_data, method = method, iterations = iters, hyperparams = unlist(hyperparams[hp_set,]), times = times), 
         error = function(e) {
           print(e)
@@ -98,26 +96,64 @@ for (method in names(imputation_hyperparameter_grids)) {
         }
       )
     )
+    return(imputation_result)
   }
+  names(imputation_result_per_hp_set) <- 1:nrow(hyperparams)
   timings[[method]] = do.call(rbind, timings[[method]])
+
+  return(imputation_result_per_hp_set)
 }
+names(imputation_result_per_imp_method) <- names(imputation_hyperparameter_grids)
 ```
 
+```{r}
+recursive_apply <- function(x, fun, x_class) {
+  if (x_class %in% class(x)) {
+    result <- fun(x)
+  }
+  else {
+    if ("list" %in% class(x)) {
+      result <- lapply(x, function(y) recursive_apply(y, fun, x_class))
+      names(result) <- names(x)
+      result <- result[sapply(result, Negate(is.null))]
+    }
+    else {
+      result <- NULL
+    }
+  }
+
+  return(result)
+}
+leaf_apply <- function(x, fun, docall) {
+  if (class(x) == "list" && all(sapply(x, class) != "list")) {
+    if (docall) {
+      do.call(fun, x)
+    }
+    else {
+      fun(x)
+    }
+  }
+  else {
+    lapply(x, function(y) leaf_apply(y, fun, docall))
+  }
+}
+pair_up <- function(name, value) {
+  list(name = name,  value = value)
+}
+enumerate <- function(x) {
+  mapply(FUN = pair_up, names(x), x, SIMPLIFY = FALSE)
+}
+```
 ## Training
 ```{r}
 hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
 
 training_settings <- trainControl(classProbs = TRUE,
-                                  verboseIter = TRUE,
+                                  verboseIter = FALSE,
                                   method = "oob",
-                                  returnResamp = "all")
+                                  returnResamp = "final")
 
-models <- foreach(imputed_data_per_method = imputation_result_per_imp_method) %do% {
-
-  models_per_imp_method <- foreach(imputed_dataset_per_hyperparameter = imputed_data_per_method) %do% {
-
-    models_per_imp_rep <- foreach(imputed_dataset_per_imp_rep = imputed_dataset_per_hyperparameter$completed_datasets) %do% {
-
+train_on_imp_rep <- function(imputed_dataset_per_imp_rep) {
       train_args <- list(x = imputed_dataset_per_imp_rep,
                          y = outcome,
                          method = "rf",
@@ -126,30 +162,31 @@ models <- foreach(imputed_data_per_method = imputation_result_per_imp_method) %d
                          tuneGrid = hyperparameter_grid)
 
       rf_model <- do.call(caret::train, train_args)
-
-      rf_model
-
-    }
-  }
+      return(rf_model)
 }
+
+models <- recursive_apply(x = imputation_result_per_imp_method, fun = train_on_imp_rep, x_class = "data.frame")
 ```
 
 ```{r}
-for (m in models) {
-  print(plot(m))
-}
-```
+library(ModelMetrics)
 
-```{r}
-for (m in models) {
-  plot(m$finalModel$err.rate[,"OOB"], type = "l")
+extract_oob_performance <- function(model) {
+  model$finalModel$err.rate[, "OOB"] %>% tail(1)
 }
-```
 
-```{r}
-accs <- foreach(m = models, .combine='c') %do% m$results[row.names(m$bestTune), "Accuracy"]
-mean(accs)
-sd(accs)
+oobs <- recursive_apply(models, extract_oob_performance, "train")
+best_rf_per_method_per_hp_per_completed_means <- leaf_apply(oobs, . %>% unlist %>% mean, docall = FALSE)
+best_rf_per_method_per_hp_per_completed_means <- leaf_apply(best_rf_per_method_per_hp_per_completed_means, . %>% unlist, docall = FALSE)
+best_hp_sets_per_method <- leaf_apply(best_rf_per_method_per_hp_per_completed_means, which.min, docall = FALSE)
+
+best_models_per_method <- lapply(enumerate(best_hp_sets_per_method), function(x) with(x, models[[name]][[value]]))
+best_imputers_per_method <- lapply(enumerate(best_hp_sets_per_method), function(x) with(x, imputation_result_per_imp_method[[name]][[value]]))
+best_hp_configs_per_method <- lapply(enumerate(best_hp_sets_per_method), function(x) with(x, imputation_hyperparameter_grids[[name]][value, ]))
+
+imputation_convergence_plots <- lapply(best_imputers_per_method, function(x) recursive_apply(x, plot, "mids"))
+
+classifier_oob_plots <- recursive_apply(best_models_per_method, plot, x_class = "train")
 ```
 
 ## Saving model
@@ -157,9 +194,11 @@ sd(accs)
 if (!dir.exists("../output")) {
   dir_creation_success <- dir.create("../output", showWarnings = TRUE)
   if (!dir_creation_success) {
-    stop("Failed to create directory for saving model.")
+    stop("Failed to create directory for saving output.")
   }
 }
 
-saveRDS(rf_model, file = "../output/rf_model.rds")
+saveRDS(best_models_per_method, file = "../output/classifier_models.rds")
+saveRDS(best_imputers_per_method, file = "../output/imputers_models.rds")
+saveRDS(best_hp_configs_per_method, file = "../output/hp_configs_models.rds")
 ```
