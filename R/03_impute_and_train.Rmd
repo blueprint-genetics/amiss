@@ -23,13 +23,6 @@ outcome <- read.csv("../outcomes.csv", as.is = TRUE)
 outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
 ```
 
-## Exploratory computations
-```{r}
-sum(training_data$Type.SNV)
-sum(training_data$Type.INS)
-sum(training_data$Type.DEL)
-```
-
 ## Removal of problematic features
 
 ### Near-zero variance
