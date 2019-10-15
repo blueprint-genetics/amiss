@@ -13,6 +13,7 @@ library(foreach)
 library(doParallel)
 
 source("imputation_definitions.R")
+source("functionals.R")
 ```
 
 ```{r}
@@ -79,7 +80,6 @@ times <- 2
 iters <- 5
 
 timings <- list()
-imputation_hyperparameter_grids <- list(pmm = imputation_hyperparameter_grids[[1]][1:2, ])
 
 imputation_result_per_imp_method <- foreach(method = enumerate(imputation_hyperparameter_grids)) %do% {
 
@@ -107,44 +107,6 @@ imputation_result_per_imp_method <- foreach(method = enumerate(imputation_hyperp
 names(imputation_result_per_imp_method) <- names(imputation_hyperparameter_grids)
 ```
 
-```{r}
-recursive_apply <- function(x, fun, x_class) {
-  if (x_class %in% class(x)) {
-    result <- fun(x)
-  }
-  else {
-    if ("list" %in% class(x)) {
-      result <- lapply(x, function(y) recursive_apply(y, fun, x_class))
-      names(result) <- names(x)
-      result <- result[sapply(result, Negate(is.null))]
-    }
-    else {
-      result <- NULL
-    }
-  }
-
-  return(result)
-}
-leaf_apply <- function(x, fun, docall) {
-  if (class(x) == "list" && all(sapply(x, class) != "list")) {
-    if (docall) {
-      do.call(fun, x)
-    }
-    else {
-      fun(x)
-    }
-  }
-  else {
-    lapply(x, function(y) leaf_apply(y, fun, docall))
-  }
-}
-pair_up <- function(name, value) {
-  list(name = name,  value = value)
-}
-enumerate <- function(x) {
-  mapply(FUN = pair_up, names(x), x, SIMPLIFY = FALSE)
-}
-```
 ## Training
 ```{r}
 hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
