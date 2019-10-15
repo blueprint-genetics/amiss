@@ -79,17 +79,18 @@ times <- 2
 iters <- 5
 
 timings <- list()
+imputation_hyperparameter_grids <- list(pmm = imputation_hyperparameter_grids[[1]][1:2, ])
 
-imputation_result_per_imp_method <- foreach(method = names(imputation_hyperparameter_grids)) %do% {
+imputation_result_per_imp_method <- foreach(method = enumerate(imputation_hyperparameter_grids)) %do% {
 
-  hyperparams <- imputation_hyperparameter_grids[[method]]
+  hyperparams <- method$value
 
-  timings[[method]] <- list()
+  timings[[method$name]] <- list()
 
   imputation_result_per_hp_set <- foreach(hp_set = 1:nrow(hyperparams)) %do% {
-    timings[[method]][[hp_set]] <- system.time(
+    timings[[method$name]][[hp_set]] <- system.time(
       imputation_result <- tryCatch(
-        run_imputation_method(data = training_data, method = method, iterations = iters, hyperparams = unlist(hyperparams[hp_set,]), times = times), 
+        run_imputation_method(data = training_data, method = method$name, iterations = iters, hyperparams = unlist(hyperparams[hp_set,]), times = times), 
         error = function(e) {
           print(e)
           return(NULL)
@@ -99,7 +100,7 @@ imputation_result_per_imp_method <- foreach(method = names(imputation_hyperparam
     return(imputation_result)
   }
   names(imputation_result_per_hp_set) <- 1:nrow(hyperparams)
-  timings[[method]] = do.call(rbind, timings[[method]])
+  timings[[method$name]] = do.call(rbind, timings[[method$name]])
 
   return(imputation_result_per_hp_set)
 }
