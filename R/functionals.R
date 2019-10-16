@@ -14,6 +14,7 @@
 #'
 #' @return A tree, containing all branches of `x` that lead to leaves of type `x_class`, now with `fun` applied.
 recursive_apply <- function(x, fun, x_class) {
+
   if (x_class %in% class(x)) {
     result <- fun(x)
   }
@@ -21,7 +22,13 @@ recursive_apply <- function(x, fun, x_class) {
     if ("list" %in% class(x)) {
       result <- lapply(x, function(y) recursive_apply(y, fun, x_class))
       names(result) <- names(x)
-      result <- result[sapply(result, Negate(is.null))]
+
+      non_null_elements <- sapply(result, Negate(is.null))
+
+      if (length(non_null_elements) > 0)
+        result <- result[non_null_elements]
+      else result <- NULL
+
     }
     else {
       result <- NULL
