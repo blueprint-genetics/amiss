@@ -66,6 +66,9 @@ recursive_apply <- function(x, fun, x_class) {
 #'
 #' @return A (list) tree with the lowest ancestors of leaves replaced by the result of `fun` over the leaves.
 leaf_apply <- function(x, fun, docall) {
+  
+  if (length(x) < 1) return (NULL)
+  
   if (class(x) == "list" && all(sapply(x, class) != "list")) {
     if (docall) {
       do.call(fun, x)
