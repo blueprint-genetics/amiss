@@ -166,8 +166,11 @@ best_model_index <- leaf_apply(oob_means, .%>% inf_NULLs %>% which.min, docall =
 
 # Extract the best models, best imputers and their best hyperparameters for each method
 best_models <- lapply(enumerate(best_model_index), . %>% with(models[[name]][[value]]))
+best_models <- lapply(best_models, . %>% head(1))
 best_imputers <- lapply(enumerate(best_model_index), . %>% with(imputations[[name]][[value]]))
+best_imputers <- lapply(best_imputers, . %>% head(1))
 best_hyperparams <- lapply(enumerate(best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
+best_best_hyperparams <- lapply(best_hyperparams, . %>% head(1))
 ```
 
 ## Model diagnostics
@@ -191,4 +194,5 @@ if (!dir.exists("../output")) {
 saveRDS(best_models, file = "../output/classifier_models.rds")
 saveRDS(best_imputers, file = "../output/imputers_models.rds")
 saveRDS(best_hyperparams, file = "../output/hp_configs_models.rds")
+saveRDS(colnames(training_data), "../output/final_features.rds")
 ```
