@@ -1,0 +1,75 @@
+---
+title: "Prediction on test set"
+output: html_notebook
+---
+
+```{r}
+library(magrittr)
+library(mice)
+library(caret)
+
+source("recursive_application.R")
+
+test_data <- read.csv("../contracted_test_data.csv", row.names = 1, as.is = TRUE)
+outcome <- read.csv("../test_outcomes.csv", as.is = TRUE)
+final_features <- readRDS("../output/final_features.rds")
+test_data <- test_data[, final_features]
+
+# Recode outcomes as 1 -> "positive", 0 -> "negative"
+outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
+head(outcome)
+```
+
+```{r}
+imputers <- readRDS("../output/imputers_models.rds")
+hyperparams <- readRDS("../output/hp_configs_models.rds")
+
+times <- 1
+iters <- 1
+
+mice_w_hps <- function(method, hps) {
+  
+  imputation_object <- mice::mice(data = test_data,
+                                  method = method,
+                                  m = times,
+                                  maxit = iters,
+                                  printFlag = FALSE,
+                                  ... = hps)
+  
+  completed_datasets <- mice::complete(data = imputation_object, "all")
+  
+  return(list(completed_datasets = completed_datasets, imputation_object = imputation_object))
+}
+bind_hps <- function(hps) {
+  return(function(method) mice_w_hps(method, hps))
+}
+
+imputation_functions <- lapply(hyperparams, FUN = bind_hps)
+imputations <- lapply(names(imputation_functions), function(method) recursive_apply(imputation_functions[[method]], fun = function(x) x(method), "function"))
+names(imputations) <- names(imputation_functions)
+```
+
+```{r}
+models <- readRDS("../output/classifier_models.rds")
+
+predictions <- lapply(names(models), function(method) {
+  pred_per_model <- lapply(models[[method]], function(model) {
+    pred_per_completion <- lapply(imputations[[method]][["completed_datasets"]], function(completed_dataset) {
+      cd <- completed_dataset
+      cd[,] <- lapply(cd, function(col) {
+        if (any(is.na(col))) {
+          col[is.na(col)] <- median(col, na.rm = TRUE)
+        }
+        col
+      })
+      predict(model, cd)
+    })
+    names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
+    pred_per_completion
+  })
+  names(pred_per_model) <- paste0("model_", 1:length(pred_per_model))
+  pred_per_model
+})
+names(predictions) <- names(models)
+confusion_matrices <- recursive_apply(predictions, function(pred) confusionMatrix(pred, outcome), x_class = "factor")
+```
