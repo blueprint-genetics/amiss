@@ -24,7 +24,7 @@ head(outcome)
 imputers <- readRDS("../output/imputers_models.rds")
 hyperparams <- readRDS("../output/hp_configs_models.rds")
 
-times <- 1
+times <- 5
 iters <- 1
 
 mice_w_hps <- function(method, hps) {
@@ -50,19 +50,20 @@ names(imputations) <- names(imputation_functions)
 ```
 
 ```{r}
+median_imp <- function(col) {
+  if (any(is.na(col))) {
+    col[is.na(col)] <- median(col, na.rm = TRUE)
+  }
+  return(col)
+}
+
 models <- readRDS("../output/classifier_models.rds")
 
 predictions <- lapply(names(models), function(method) {
   pred_per_model <- lapply(models[[method]], function(model) {
     pred_per_completion <- lapply(imputations[[method]][["completed_datasets"]], function(completed_dataset) {
-      cd <- completed_dataset
-      cd[,] <- lapply(cd, function(col) {
-        if (any(is.na(col))) {
-          col[is.na(col)] <- median(col, na.rm = TRUE)
-        }
-        col
-      })
-      predict(model, cd)
+      cd <- data.frame(lapply(completed_dataset, median_imp))
+      predict(model, cd, type = "prob")[,"positive", drop = TRUE]
     })
     names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
     pred_per_completion
@@ -71,5 +72,24 @@ predictions <- lapply(names(models), function(method) {
   pred_per_model
 })
 names(predictions) <- names(models)
-confusion_matrices <- recursive_apply(predictions, function(pred) confusionMatrix(pred, outcome), x_class = "factor")
+
+confusion_matrices <- recursive_apply(predictions, function(pred) {
+  pred <- factor(c("positive", "negative")[2 - (pred > 0.5)], c("positive", "negative"))
+  caret::confusionMatrix(pred, outcome)
+}, x_class = "numeric")
+
+mccs <- recursive_apply(predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
+aucs <- recursive_apply(predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
+
+mean_mccs <- leaf_apply(mccs, . %>% unlist %>% mean, FALSE)
+mean_aucs <- leaf_apply(aucs, . %>% unlist %>% mean, FALSE)
+
+sd_mccs <- leaf_apply(mccs, . %>% unlist %>% sd, FALSE)
+sd_aucs <- leaf_apply(aucs, . %>% unlist %>% sd, FALSE)
+
+mean_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% mean, FALSE)
+mean_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% mean, FALSE)
+
+sd_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% sd, FALSE)
+sd_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% sd, FALSE)
 ```
