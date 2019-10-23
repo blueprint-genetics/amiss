@@ -9,97 +9,174 @@ library(magrittr)
 library(futile.logger)
 library(caret)
 library(mice)
-library(foreach)
-library(doParallel)
+
+source("imputation_definitions.R")
+source("recursive_application.R")
 ```
 
 ```{r}
-training_data <- read.csv("../contracted_training_data.csv", row.names=1, as.is = TRUE) 
+training_data <- read.csv("../contracted_training_data.csv", row.names = 1, as.is = TRUE)
 outcome <- read.csv("../outcomes.csv", as.is = TRUE)
 
+# Recode outcomes as 1 -> "positive", 0 -> "negative"
 outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
-```
-
-## Exploratory computations
-```{r}
-sum(training_data$Type.SNV)
-sum(training_data$Type.INS)
-sum(training_data$Type.DEL)
+head(outcome)
 ```
 
 ## Removal of problematic features
 
-### Near-zero variance
-```{r}
-nearzerovariance <- caret::nearZeroVar(training_data, saveMetrics = TRUE)
-print(nearzerovariance[nearzerovariance$nzv, ])
+Some imputation methods cannot deal with features that have certain unwanted properties, and thus they must be removed prior to imputation.
 
-if (any(nearzerovariance$nzv)) {
-  training_data <- training_data[, !nearzerovariance$nzv]
+### Near-zero variance
+
+```{r}
+nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE)
+print(nzv_features[nzv_features$nzv, ])
+
+if (any(nzv_features$nzv)) {
+  training_data <- training_data[, !nzv_features$nzv]
 }
 ```
 
 ### Highly correlated features
+
 ```{r}
 correlations <- cor(training_data, use = "pairwise.complete.obs")
 correlations[is.na(correlations)] <- 0.0
 
-highly_correlated_variables <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
-print(highly_correlated_variables)
+highly_correlated_features <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
+print(highly_correlated_features)
 
-if(highly_correlated_variables %>% length > 0) {
-  training_data <- training_data[, !colnames(training_data) %in% highly_correlated_variables]
+if(highly_correlated_features %>% length > 0) {
+  training_data <- training_data[, !colnames(training_data) %in% highly_correlated_features]
 }
 ```
 
 ## Imputation
-```{r}
-imputed_training_data <- mice::mice(data = training_data)
 
-completed_training_data <- mice::complete(imputed_training_data, action = "all")
+Check the number of hyperparameter configurations for each imputation method:
+```{r}
+lapply(imputation_hyperparameter_grids, nrow)
 ```
 
-## Training
+### MICE
+
+```{r}
+run_mice <- function(data, method, hyperparams, times, iterations) {
+
+  imputation_object <- NULL
+  completed_datasets <- rep(list(NULL), iterations)
+
+  timing <- system.time(
+    tryCatch({
+
+      imputation_object <- mice::mice(data = data,
+                                      method = method,
+                                      m = times,
+                                      maxit = iterations,
+                                      printFlag = FALSE,
+                                      ... = hyperparams)
+
+      completed_datasets <- mice::complete(imputation_object, action = "all")
+
+    }, error = function(e) print(e))
+  )
+
+  result <- list(
+    completed_datasets = completed_datasets,
+    imputation_object = imputation_object
+  )
+  attr(result, "timing") <- timing
+
+  return(result)
+}
+
+times <- 1
+iters <- 1
+
+imputations <- lapply(enumerate(imputation_hyperparameter_grids), function(method) {
+
+  hyperparams <- method$value
+
+  imputations <- lapply(1:nrow(hyperparams),
+                        function(x) run_mice(training_data, method$name, unlist(hyperparams[x,]), times, iters))
+
+  # Combine timings of different hyperparameter configs
+  timings <- do.call(rbind, lapply(imputations, . %>% attr("timing")))
+  # Return them along with the imputation object
+  attr(imputations, "timings") <- timings
+
+  return(imputations)
+})
+```
+
+## Training classifier
 ```{r}
 hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
 
 training_settings <- trainControl(classProbs = TRUE,
-                                  verboseIter = TRUE,
-                                  method = "oob",
-                                  returnResamp = "all")
+                                  verboseIter = FALSE,
+                                  method = "oob",  # Use out-of-bag error estimate for model selection
+                                  returnResamp = "final")
 
-models <- foreach(imputed_data = completed_training_data) %dopar% {
+train_rf <- function(dataset) {
 
-  train_args <- list(x = imputed_data,
-                     y = outcome,
-                     method = "rf",
-                     preProcess = c("center", "scale"),
-                     trControl = training_settings,
-                     tuneGrid = hyperparameter_grid)
+  rf_model <- NULL
+  tryCatch({
+    rf_model <- caret::train(x = dataset,
+                             y = outcome,
+                             method = "rf",
+                             preProcess = c("center", "scale"),
+                             trControl = training_settings,
+                             tuneGrid = hyperparameter_grid)
+  }, error = function(e) print(e))
 
-  rf_model <- do.call(caret::train, train_args)
-
-  rf_model
-
+  return(rf_model)
 }
+
+# Train on every completed dataset
+models <- recursive_apply(x = imputations,
+                          fun = train_rf,
+                          x_class = "data.frame")
 ```
 
+## Model selection
 ```{r}
-for (m in models) {
-  print(plot(m))
+extract_oob_performance <- function(model) {
+  model$finalModel$err.rate[, "OOB"] %>% tail(1)
 }
+
+# Get the OOB error estimate from each leaf of the tree (i.e. all trained models)
+oobs <- recursive_apply(models, extract_oob_performance, "train")
+
+# The OOB estimates are in lists with one value per completed dataset.
+# Unlisting that list before mean gives mean the desired input type (numeric vector).
+oob_means <- leaf_apply(oobs, . %>% unlist %>% mean, docall = FALSE)
+
+# The means are now inside lists with a single component "completed_datasets" which then contains the mean.
+# We can remove that redundant node with unlist.
+oob_means <- leaf_apply(oob_means, unlist, docall = FALSE)
+
+# Find index of model with best mean OOB error
+inf_NULLs <- function(x) {
+  x[sapply(x, is.null)] <- Inf
+  return(x)
+}
+best_model_index <- leaf_apply(oob_means, .%>% inf_NULLs %>% which.min, docall = FALSE)
+
+# Extract the best models, best imputers and their best hyperparameters for each method
+best_models <- lapply(enumerate(best_model_index), . %>% with(models[[name]][[value]]))
+best_imputers <- lapply(enumerate(best_model_index), . %>% with(imputations[[name]][[value]]))
+best_hyperparams <- lapply(enumerate(best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
 ```
 
+## Model diagnostics
 ```{r}
-for (m in models) {
-  plot(m$finalModel$err.rate[,"OOB"], type = "l")
-}
-```
+# Produce convergence plots for imputation methods
+imputation_convergence_plots <- lapply(best_imputers, . %>% recursive_apply(plot, "mids"))
 
-```{r}
-accs <- foreach(m = models, .combine='c') %do% m$results[row.names(m$bestTune), "Accuracy"]
-mean(accs)
-sd(accs)
+# Produce convergence plots for classifiers
+classifier_oob_plots <- recursive_apply(best_models, plot, x_class = "train")
 ```
 
 ## Saving model
@@ -107,9 +184,11 @@ sd(accs)
 if (!dir.exists("../output")) {
   dir_creation_success <- dir.create("../output", showWarnings = TRUE)
   if (!dir_creation_success) {
-    stop("Failed to create directory for saving model.")
+    stop("Failed to create directory for saving output.")
   }
 }
 
-saveRDS(rf_model, file = "../output/rf_model.rds")
+saveRDS(best_models, file = "../output/classifier_models.rds")
+saveRDS(best_imputers, file = "../output/imputers_models.rds")
+saveRDS(best_hyperparams, file = "../output/hp_configs_models.rds")
 ```
