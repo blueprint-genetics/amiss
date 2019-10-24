@@ -110,6 +110,21 @@ imputations <- lapply(enumerate(imputation_hyperparameter_grids), function(metho
 })
 ```
 
+### List and drop imputation methods that failed completely
+```{r}
+valid_methods <- sapply(names(imputations), function(method) {
+  
+  null_hpsets <- sapply(imputations[[method]], function(x) x[["imputation_object"]] %>% is.null)
+  
+  if (all(null_hpsets)) {
+    print(paste("Imputation method", method, "did not successfully produce any datasets"))
+    return(FALSE)
+  }
+  return(TRUE)
+})
+imputations <- imputations[valid_methods]
+```
+
 ## Training classifier
 ```{r}
 hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
