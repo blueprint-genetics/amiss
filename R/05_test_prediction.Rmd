@@ -21,8 +21,10 @@ head(outcome)
 ```
 
 ```{r}
-imputers <- readRDS("../output/imputers_models.rds")
-hyperparams <- readRDS("../output/hp_configs_models.rds")
+rf_imputers <- readRDS("../output/rf_imputers_models.rds")
+rf_hyperparams <- readRDS("../output/rf_hp_configs_models.rds")
+lr_imputers <- readRDS("../output/lr_imputers_models.rds")
+lr_hyperparams <- readRDS("../output/lr_hp_configs_models.rds")
 
 times <- 5
 iters <- 1
@@ -44,9 +46,13 @@ bind_hps <- function(hps) {
   return(function(method) mice_w_hps(method, hps))
 }
 
-imputation_functions <- lapply(hyperparams, FUN = bind_hps)
-imputations <- lapply(names(imputation_functions), function(method) recursive_apply(imputation_functions[[method]], fun = function(x) x(method), "function"))
-names(imputations) <- names(imputation_functions)
+rf_imputation_functions <- lapply(rf_hyperparams, FUN = bind_hps)
+rf_imputations <- lapply(names(rf_imputation_functions), function(method) recursive_apply(rf_imputation_functions[[method]], fun = function(x) x(method), "function"))
+names(rf_imputations) <- names(rf_imputation_functions)
+
+lr_imputation_functions <- lapply(lr_hyperparams, FUN = bind_hps)
+lr_imputations <- lapply(names(lr_imputation_functions), function(method) recursive_apply(lr_imputation_functions[[method]], fun = function(x) x(method), "function"))
+names(lr_imputations) <- names(lr_imputation_functions)
 ```
 
 ```{r}
@@ -57,39 +63,64 @@ median_imp <- function(col) {
   return(col)
 }
 
-models <- readRDS("../output/classifier_models.rds")
+rf_models <- readRDS("../output/rf_classifier_models.rds")
+lr_models <- readRDS("../output/lr_classifier_models.rds")
 
-predictions <- lapply(names(models), function(method) {
-  pred_per_model <- lapply(models[[method]], function(model) {
-    pred_per_completion <- lapply(imputations[[method]][["completed_datasets"]], function(completed_dataset) {
-      cd <- data.frame(lapply(completed_dataset, median_imp))
-      predict(model, cd, type = "prob")[,"positive", drop = TRUE]
+prediction <- function(models, imputations) {
+  predictions <- lapply(names(models), function(method) {
+    pred_per_model <- lapply(models[[method]], function(model) {
+      pred_per_completion <- lapply(imputations[[method]][["completed_datasets"]], function(completed_dataset) {
+        cd <- data.frame(lapply(completed_dataset, median_imp))
+        predict(model, cd, type = "prob")[,"positive", drop = TRUE]
+      })
+      names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
+      pred_per_completion
     })
-    names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
-    pred_per_completion
+    names(pred_per_model) <- paste0("model_", 1:length(pred_per_model))
+    pred_per_model
   })
-  names(pred_per_model) <- paste0("model_", 1:length(pred_per_model))
-  pred_per_model
-})
-names(predictions) <- names(models)
+  names(predictions) <- names(models)
+  return(predictions)
+}
+rf_predictions <- prediction(rf_models, rf_imputations)
+lr_predictions <- prediction(lr_models, lr_imputations)
 
-confusion_matrices <- recursive_apply(predictions, function(pred) {
+rf_confusion_matrices <- recursive_apply(rf_predictions, function(pred) {
+  pred <- factor(c("positive", "negative")[2 - (pred > 0.5)], c("positive", "negative"))
+  caret::confusionMatrix(pred, outcome)
+}, x_class = "numeric")
+lr_confusion_matrices <- recursive_apply(lr_predictions, function(pred) {
   pred <- factor(c("positive", "negative")[2 - (pred > 0.5)], c("positive", "negative"))
   caret::confusionMatrix(pred, outcome)
 }, x_class = "numeric")
 
-mccs <- recursive_apply(predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
-aucs <- recursive_apply(predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
+rf_mccs <- recursive_apply(rf_predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
+rf_aucs <- recursive_apply(rf_predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
 
-mean_mccs <- leaf_apply(mccs, . %>% unlist %>% mean, FALSE)
-mean_aucs <- leaf_apply(aucs, . %>% unlist %>% mean, FALSE)
+rf_mean_mccs <- leaf_apply(rf_mccs, . %>% unlist %>% mean, FALSE)
+rf_mean_aucs <- leaf_apply(rf_aucs, . %>% unlist %>% mean, FALSE)
 
-sd_mccs <- leaf_apply(mccs, . %>% unlist %>% sd, FALSE)
-sd_aucs <- leaf_apply(aucs, . %>% unlist %>% sd, FALSE)
+rf_sd_mccs <- leaf_apply(rf_mccs, . %>% unlist %>% sd, FALSE)
+rf_sd_aucs <- leaf_apply(rf_aucs, . %>% unlist %>% sd, FALSE)
 
-mean_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% mean, FALSE)
-mean_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% mean, FALSE)
+rf_mean_mean_mccs <- leaf_apply(rf_mean_mccs, . %>% unlist %>% mean, FALSE)
+rf_mean_mean_aucs <- leaf_apply(rf_mean_aucs, . %>% unlist %>% mean, FALSE)
 
-sd_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% sd, FALSE)
-sd_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% sd, FALSE)
+rf_sd_mean_mccs <- leaf_apply(rf_mean_mccs, . %>% unlist %>% sd, FALSE)
+rf_sd_mean_aucs <- leaf_apply(rf_mean_aucs, . %>% unlist %>% sd, FALSE)
+
+lr_mccs <- recursive_apply(lr_predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
+lr_aucs <- recursive_apply(lr_predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
+
+lr_mean_mccs <- leaf_apply(lr_mccs, . %>% unlist %>% mean, FALSE)
+lr_mean_aucs <- leaf_apply(lr_aucs, . %>% unlist %>% mean, FALSE)
+
+lr_sd_mccs <- leaf_apply(lr_mccs, . %>% unlist %>% sd, FALSE)
+lr_sd_aucs <- leaf_apply(lr_aucs, . %>% unlist %>% sd, FALSE)
+
+lr_mean_mean_mccs <- leaf_apply(lr_mean_mccs, . %>% unlist %>% mean, FALSE)
+lr_mean_mean_aucs <- leaf_apply(lr_mean_aucs, . %>% unlist %>% mean, FALSE)
+
+lr_sd_mean_mccs <- leaf_apply(lr_mean_mccs, . %>% unlist %>% sd, FALSE)
+lr_sd_mean_aucs <- leaf_apply(lr_mean_aucs, . %>% unlist %>% sd, FALSE)
 ```

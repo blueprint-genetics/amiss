@@ -91,8 +91,8 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
   return(result)
 }
 
-times <- 1
-iters <- 1
+times <- 2
+iters <- 2
 
 imputations <- lapply(enumerate(imputation_hyperparameter_grids), function(method) {
 
@@ -129,10 +129,12 @@ imputations <- imputations[valid_methods]
 ```{r}
 hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
 
-training_settings <- trainControl(classProbs = TRUE,
-                                  verboseIter = FALSE,
-                                  method = "oob",  # Use out-of-bag error estimate for model selection
-                                  returnResamp = "final")
+rf_training_settings <- trainControl(classProbs = TRUE,
+                                     verboseIter = FALSE,
+                                     method = "oob",  # Use out-of-bag error estimate for model selection
+                                     returnResamp = "final")
+lr_training_settings <- trainControl(classProbs = TRUE,
+                                     verboseIter = FALSE)
 
 train_rf <- function(dataset) {
 
@@ -142,16 +144,31 @@ train_rf <- function(dataset) {
                              y = outcome,
                              method = "rf",
                              preProcess = c("center", "scale"),
-                             trControl = training_settings,
+                             trControl = rf_training_settings,
                              tuneGrid = hyperparameter_grid)
   }, error = function(e) print(e))
 
   return(rf_model)
 }
+train_lr <- function(dataset) {
 
+  lr_model <- NULL
+  tryCatch({
+    lr_model <- caret::train(x = dataset,
+                             y = outcome,
+                             method = "glm",
+                             preProcess = c("center", "scale"),
+                             trControl = lr_training_settings)
+  }, error = function(e) print(e))
+
+  return(lr_model)
+}
 # Train on every completed dataset
-models <- recursive_apply(x = imputations,
+rf_models <- recursive_apply(x = imputations,
                           fun = train_rf,
+                          x_class = "data.frame")
+lr_models <- recursive_apply(x = imputations,
+                          fun = train_lr,
                           x_class = "data.frame")
 ```
 
@@ -160,31 +177,50 @@ models <- recursive_apply(x = imputations,
 extract_oob_performance <- function(model) {
   model$finalModel$err.rate[, "OOB"] %>% tail(1)
 }
+library(ModelMetrics)
+extract_mcc_performance <- function(model) {
+  #pred <- rep("negative", nrow(model$trainingData))
+  #pred[model$finalModel$fitted.values > 0.5, "positive"]
+  ModelMetrics::mcc(1 - as.integer(outcome == "positive"), model$finalModel$fitted.values, 0.5)
+}
 
 # Get the OOB error estimate from each leaf of the tree (i.e. all trained models)
-oobs <- recursive_apply(models, extract_oob_performance, "train")
+rf_oobs <- recursive_apply(rf_models, extract_oob_performance, "train")
+lr_mccs <- recursive_apply(lr_models, extract_mcc_performance, "train")
 
 # The OOB estimates are in lists with one value per completed dataset.
 # Unlisting that list before mean gives mean the desired input type (numeric vector).
-oob_means <- leaf_apply(oobs, . %>% unlist %>% mean, docall = FALSE)
+rf_oob_means <- leaf_apply(rf_oobs, . %>% unlist %>% mean, docall = FALSE)
+lr_mcc_means <- leaf_apply(lr_mccs, . %>% unlist %>% mean, docall = FALSE)
 
 # The means are now inside lists with a single component "completed_datasets" which then contains the mean.
 # We can remove that redundant node with unlist.
-oob_means <- leaf_apply(oob_means, unlist, docall = FALSE)
+rf_oob_means <- leaf_apply(rf_oob_means, unlist, docall = FALSE)
+lr_mcc_means <- leaf_apply(lr_mcc_means, unlist, docall = FALSE)
 
 # Find index of model with best mean OOB error
-inf_NULLs <- function(x) {
-  x[sapply(x, is.null)] <- Inf
+inf_NULLs <- function(x, positive = TRUE) {
+  x[sapply(x, is.null)] <- ifelse(positive, Inf, -Inf)
   return(x)
 }
-best_model_index <- leaf_apply(oob_means, . %>% inf_NULLs %>% which.min, docall = FALSE)
+rf_best_model_index <- leaf_apply(rf_oob_means, . %>% inf_NULLs %>% which.min, docall = FALSE)
+lr_best_model_index <- leaf_apply(lr_mcc_means, . %>% inf_NULLs(positive = FALSE) %>% which.max, docall = FALSE)
 
 # Extract the best models, best imputers and their best hyperparameters for each method
-best_models <- lapply(enumerate(best_model_index), . %>% with(models[[name]][[value]]))
-best_models <- lapply(best_models, . %>% extract2(1))
-best_imputers <- lapply(enumerate(best_model_index), . %>% with(imputations[[name]][[value]]))
-best_imputers <- lapply(best_imputers, . %>% extract2(1))
-best_hyperparams <- lapply(enumerate(best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
+rf_best_models <- lapply(enumerate(rf_best_model_index), . %>% with(rf_models[[name]][[value]]))
+rf_best_models <- lapply(rf_best_models, . %>% extract2(1))
+
+lr_best_models <- lapply(enumerate(lr_best_model_index), . %>% with(lr_models[[name]][[value]]))
+lr_best_models <- lapply(lr_best_models, . %>% extract2(1))
+
+rf_best_imputers <- lapply(enumerate(rf_best_model_index), . %>% with(imputations[[name]][[value]]))
+rf_best_imputers <- lapply(rf_best_imputers, . %>% extract2(1))
+
+lr_best_imputers <- lapply(enumerate(lr_best_model_index), . %>% with(imputations[[name]][[value]]))
+lr_best_imputers <- lapply(lr_best_imputers, . %>% extract2(1))
+
+rf_best_hyperparams <- lapply(enumerate(rf_best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
+lr_best_hyperparams <- lapply(enumerate(lr_best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
 ```
 
 ## Model diagnostics
@@ -192,7 +228,7 @@ best_hyperparams <- lapply(enumerate(best_model_index), . %>% with(imputation_hy
 # Produce convergence plots for imputation methods
 imputation_convergence_plots <- lapply(best_imputers, . %>% recursive_apply(plot, "mids"))
 
-# Produce convergence plots for classifiers
+# Produce convergence plots for random forest classifiers
 classifier_oob_plots <- recursive_apply(best_models, plot, x_class = "train")
 ```
 
@@ -205,8 +241,13 @@ if (!dir.exists("../output")) {
   }
 }
 
-saveRDS(best_models, file = "../output/classifier_models.rds")
-saveRDS(best_imputers, file = "../output/imputers_models.rds")
-saveRDS(best_hyperparams, file = "../output/hp_configs_models.rds")
+saveRDS(rf_best_models, file = "../output/rf_classifier_models.rds")
+saveRDS(rf_best_imputers, file = "../output/rf_imputers_models.rds")
+saveRDS(rf_best_hyperparams, file = "../output/rf_hp_configs_models.rds")
+
+saveRDS(lr_best_models, file = "../output/lr_classifier_models.rds")
+saveRDS(lr_best_imputers, file = "../output/lr_imputers_models.rds")
+saveRDS(lr_best_hyperparams, file = "../output/lr_hp_configs_models.rds")
+
 saveRDS(colnames(training_data), "../output/final_features.rds")
 ```
