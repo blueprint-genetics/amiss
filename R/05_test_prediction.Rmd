@@ -3,15 +3,19 @@ title: "Prediction on test set"
 output: html_notebook
 ---
 
+## Read data
 ```{r}
 library(magrittr)
 library(mice)
 library(caret)
 
 source("recursive_application.R")
+source("imputation.R")
 
 test_data <- read.csv("../contracted_test_data.csv", row.names = 1, as.is = TRUE)
 outcome <- read.csv("../test_outcomes.csv", as.is = TRUE)
+
+# Keep exactly those features that were kept in training data
 final_features <- readRDS("../output/final_features.rds")
 test_data <- test_data[, final_features]
 
@@ -20,6 +24,7 @@ outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "neg
 head(outcome)
 ```
 
+## Multiply impute the test set using the best hyperparameter configurations from the training set
 ```{r}
 rf_imputers <- readRDS("../output/rf_imputers_models.rds")
 rf_hyperparams <- readRDS("../output/rf_hp_configs_models.rds")
@@ -29,66 +34,75 @@ lr_hyperparams <- readRDS("../output/lr_hp_configs_models.rds")
 times <- 5
 iters <- 1
 
-mice_w_hps <- function(method, hps) {
-  
-  imputation_object <- mice::mice(data = test_data,
-                                  method = method,
-                                  m = times,
-                                  maxit = iters,
-                                  printFlag = FALSE,
-                                  ... = hps)
-  
-  completed_datasets <- mice::complete(data = imputation_object, "all")
-  
-  return(list(completed_datasets = completed_datasets, imputation_object = imputation_object))
-}
-bind_hps <- function(hps) {
-  return(function(method) mice_w_hps(method, hps))
-}
-
-rf_imputation_functions <- lapply(rf_hyperparams, FUN = bind_hps)
-rf_imputations <- lapply(names(rf_imputation_functions), function(method) recursive_apply(rf_imputation_functions[[method]], fun = function(x) x(method), "function"))
+# Create a tree of functions with hyperparameter configurations fixed by currying the
+# mice function; i.e. create new functions with all arguments besides `method` fixed
+rf_imputation_functions <- lapply(rf_hyperparams, FUN = function(hps) {
+  function(method) run_mice(test_data, method, hps, times, iters)
+})
+# Run each function in the tree using the method designated by the subtree
+rf_imputations <- lapply(names(rf_imputation_functions), 
+                         function(method) {
+                           recursive_apply(rf_imputation_functions[[method]], 
+                                           fun = function(x) x(method), 
+                                           "function")
+                         })
 names(rf_imputations) <- names(rf_imputation_functions)
 
-lr_imputation_functions <- lapply(lr_hyperparams, FUN = bind_hps)
-lr_imputations <- lapply(names(lr_imputation_functions), function(method) recursive_apply(lr_imputation_functions[[method]], fun = function(x) x(method), "function"))
+lr_imputation_functions <- lapply(lr_hyperparams, FUN = function(hps) {
+  function(method) run_mice(test_data, method, hps, times, iters)
+})
+lr_imputations <- lapply(names(lr_imputation_functions), 
+                         function(method) {
+                           recursive_apply(lr_imputation_functions[[method]], 
+                                           fun = function(x) x(method), 
+                                           "function")
+                         })
 names(lr_imputations) <- names(lr_imputation_functions)
+
+# In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
+rf_completions <- recursive_apply(rf_imputations, function(df) lapply(df, median_imp) %>% data.frame, "data.frame")
+lr_completions <- recursive_apply(lr_imputations, function(df) lapply(df, median_imp) %>% data.frame, "data.frame")
 ```
 
+## Predict on test set completions using best classifier models
 ```{r}
-median_imp <- function(col) {
-  if (any(is.na(col))) {
-    col[is.na(col)] <- median(col, na.rm = TRUE)
-  }
-  return(col)
-}
-
 rf_models <- readRDS("../output/rf_classifier_models.rds")
 lr_models <- readRDS("../output/lr_classifier_models.rds")
 
-prediction <- function(models, imputations) {
+prediction <- function(models, completions) {
+  
   predictions <- lapply(names(models), function(method) {
+    
     pred_per_model <- lapply(models[[method]], function(model) {
-      pred_per_completion <- lapply(imputations[[method]][["completed_datasets"]], function(completed_dataset) {
-        cd <- data.frame(lapply(completed_dataset, median_imp))
-        predict(model, cd, type = "prob")[,"positive", drop = TRUE]
-      })
+      
+      pred_per_completion <- recursive_apply(completions, function(completed_dataset) {
+        predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
+      }, "data.frame")
+      
       names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
       pred_per_completion
+      
     })
+    
     names(pred_per_model) <- paste0("model_", 1:length(pred_per_model))
     pred_per_model
+    
   })
   names(predictions) <- names(models)
   return(predictions)
 }
-rf_predictions <- prediction(rf_models, rf_imputations)
-lr_predictions <- prediction(lr_models, lr_imputations)
 
+rf_predictions <- prediction(rf_models, rf_completions)
+lr_predictions <- prediction(lr_models, lr_completions)
+```
+
+## Compute performance statistics on the test set
+```{r}
 rf_confusion_matrices <- recursive_apply(rf_predictions, function(pred) {
   pred <- factor(c("positive", "negative")[2 - (pred > 0.5)], c("positive", "negative"))
   caret::confusionMatrix(pred, outcome)
 }, x_class = "numeric")
+
 lr_confusion_matrices <- recursive_apply(lr_predictions, function(pred) {
   pred <- factor(c("positive", "negative")[2 - (pred > 0.5)], c("positive", "negative"))
   caret::confusionMatrix(pred, outcome)

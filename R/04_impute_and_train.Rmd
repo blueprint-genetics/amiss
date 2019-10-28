@@ -12,6 +12,7 @@ library(mice)
 
 source("imputation_definitions.R")
 source("recursive_application.R")
+source("imputation.R")
 ```
 
 ```{r}
@@ -62,35 +63,6 @@ lapply(imputation_hyperparameter_grids, nrow)
 ### MICE
 
 ```{r}
-run_mice <- function(data, method, hyperparams, times, iterations) {
-
-  imputation_object <- NULL
-  completed_datasets <- rep(list(NULL), iterations)
-
-  timing <- system.time(
-    tryCatch({
-
-      imputation_object <- mice::mice(data = data,
-                                      method = method,
-                                      m = times,
-                                      maxit = iterations,
-                                      printFlag = FALSE,
-                                      ... = hyperparams)
-
-      completed_datasets <- mice::complete(imputation_object, action = "all")
-
-    }, error = function(e) print(e))
-  )
-
-  result <- list(
-    completed_datasets = completed_datasets,
-    imputation_object = imputation_object
-  )
-  attr(result, "timing") <- timing
-
-  return(result)
-}
-
 times <- 2
 iters <- 2
 
@@ -214,10 +186,8 @@ lr_best_models <- lapply(enumerate(lr_best_model_index), . %>% with(lr_models[[n
 lr_best_models <- lapply(lr_best_models, . %>% extract2(1))
 
 rf_best_imputers <- lapply(enumerate(rf_best_model_index), . %>% with(imputations[[name]][[value]]))
-rf_best_imputers <- lapply(rf_best_imputers, . %>% extract2(1))
 
 lr_best_imputers <- lapply(enumerate(lr_best_model_index), . %>% with(imputations[[name]][[value]]))
-lr_best_imputers <- lapply(lr_best_imputers, . %>% extract2(1))
 
 rf_best_hyperparams <- lapply(enumerate(rf_best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
 lr_best_hyperparams <- lapply(enumerate(lr_best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
@@ -226,10 +196,11 @@ lr_best_hyperparams <- lapply(enumerate(lr_best_model_index), . %>% with(imputat
 ## Model diagnostics
 ```{r}
 # Produce convergence plots for imputation methods
-imputation_convergence_plots <- lapply(best_imputers, . %>% recursive_apply(plot, "mids"))
+rf_imputation_convergence_plots <- lapply(rf_best_imputers, . %>% recursive_apply(plot, "mids"))
+lr_imputation_convergence_plots <- lapply(lr_best_imputers, . %>% recursive_apply(plot, "mids"))
 
 # Produce convergence plots for random forest classifiers
-classifier_oob_plots <- recursive_apply(best_models, plot, x_class = "train")
+rf_classifier_oob_plots <- recursive_apply(rf_best_models, plot, x_class = "train")
 ```
 
 ## Saving model
