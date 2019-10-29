@@ -17,7 +17,7 @@ source("imputation.R")
 
 ```{r}
 training_data <- read.csv("../contracted_training_data.csv", row.names = 1, as.is = TRUE)
-outcome <- read.csv("../outcomes.csv", as.is = TRUE)
+outcome <- read.csv("../training_outcomes.csv", as.is = TRUE)
 
 # Recode outcomes as 1 -> "positive", 0 -> "negative"
 outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
