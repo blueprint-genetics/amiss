@@ -155,7 +155,6 @@ best_model_index <- leaf_apply(oob_means, . %>% inf_NULLs %>% which.min, docall 
 best_models <- lapply(enumerate(best_model_index), . %>% with(models[[name]][[value]]))
 best_models <- lapply(best_models, . %>% extract2(1))
 best_imputers <- lapply(enumerate(best_model_index), . %>% with(imputations[[name]][[value]]))
-best_imputers <- lapply(best_imputers, . %>% extract2(1))
 best_hyperparams <- lapply(enumerate(best_model_index), . %>% with(imputation_hyperparameter_grids[[name]][value, ]))
 ```
 
