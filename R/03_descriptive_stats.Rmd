@@ -13,8 +13,7 @@ source("../R/visualizations.R")
 source("../R/feature_definitions.R")
 
 training_set <- read.csv("../preprocessed_training_data.csv", row.names = 1, as.is = TRUE)
-#training_set <- read.csv("../training_data.csv", as.is = TRUE)
-outcome <- read.csv("../outcomes.csv", row.names = 1)[,1]
+outcome <- read.csv("../training_outcomes.csv", row.names = 1)[,1]
 
 stopifnot(row.names(training_set) == row.names(outcome))
 
