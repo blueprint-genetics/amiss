@@ -26,8 +26,8 @@ head(outcome)
 
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
 ```{r}
-rf_hyperparams <- readRDS("../output/rf_hp_configs_models.rds")
-lr_hyperparams <- readRDS("../output/lr_hp_configs_models.rds")
+rf_hyperparams <- readRDS("../output/rf_hp_configs.rds")
+lr_hyperparams <- readRDS("../output/lr_hp_configs.rds")
 
 times <- 5
 iters <- 1
