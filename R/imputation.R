@@ -16,6 +16,7 @@ produce_outlier <- function(x) {
 max_imp <- single_value_univariate_imputation(max)
 min_imp <- single_value_univariate_imputation(min)
 mean_imp <- single_value_univariate_imputation(mean)
+median_imp <- single_value_univariate_imputation(median)
 zero_imp <- single_value_univariate_imputation(function(x) 0.0)
 outlier_imp <- single_value_univariate_imputation(produce_outlier)
 
@@ -65,9 +66,9 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 #' @param col Numeric vector
 #'
 #' @return The original vector, but with missing values replaced by the vector's median value
-median_imp <- function(col) {
-  if (any(is.na(col))) {
-    col[is.na(col)] <- median(col, na.rm = TRUE)
-  }
-  return(col)
-}
+# median_imp <- function(col) {
+#   if (any(is.na(col))) {
+#     col[is.na(col)] <- median(col, na.rm = TRUE)
+#   }
+#   return(col)
+# }

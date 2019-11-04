@@ -17,3 +17,12 @@ other_imputation_hyperparameters <- list(
 )
 
 other_hyperparameter_grids <- lapply(other_imputation_hyperparameters, expand.grid)
+
+single_value_imputation_hyperparameter_grids <- list(
+  max_imp = "max_imp",
+  min_imp = "min_imp",
+  mean_imp = "mean_imp",
+  median_imp = "median_imp",
+  zero_imp = "zero_imp",
+  outlier_imp = "outlier_imp"
+) %>% lapply(expand.grid)

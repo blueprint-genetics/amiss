@@ -138,10 +138,17 @@ other_imputations <- lapply(enumerate(other_hyperparameter_grids), function(meth
   }
 })
 ```
+### Single value imputations
+```{r}
+single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
+  list(`1` = list(completed_datasets = list(data.frame(get(method$name)(training_data)))))
+})
+names(single_value_imputations) <- names(single_value_imputation_hyperparameter_grids)
+```
 
 ### List and drop imputation methods that failed completely
 ```{r}
-imputations <- c(mice_imputations, other_imputations)
+imputations <- c(mice_imputations, other_imputations, single_value_imputations)
 ```
 ```{r}
 valid_methods <- sapply(names(imputations), function(method) {
@@ -242,8 +249,8 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
   return(list(ix = best_model_ix, models = best_models, imputers = best_imputers, hyperparams = best_hyperparams))
 }
 
-rf_bests <- select_best(rf_models, imputations, mice_hyperparameter_grids, performance_function = extract_oob_performance, TRUE)
-lr_bests <- select_best(lr_models, imputations, mice_hyperparameter_grids, performance_function = extract_mcc_performance, FALSE)
+rf_bests <- select_best(rf_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_oob_performance, TRUE)
+lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance, FALSE)
 ```
 
 ## Model diagnostics
