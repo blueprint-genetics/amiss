@@ -64,11 +64,14 @@ lapply(mice_hyperparameter_grids, nrow)
 lapply(other_hyperparameter_grids, nrow)
 ```
 
-### MICE
-
 ```{r}
 times <- 2
 iters <- 2
+```
+
+### MICE
+
+```{r}
 
 mice_imputations <- lapply(enumerate(mice_hyperparameter_grids), function(method) {
 
@@ -104,13 +107,34 @@ other_imputations <- lapply(enumerate(other_hyperparameter_grids), function(meth
     data <- scale(as.matrix(data), TRUE, TRUE)
     imputation_object <- lapply(1:nrow(hyperparams), function(x) {
       imps <- lapply(times, function(i) {
-        do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), x))
+        result <- NULL
+        tryCatch({
+          result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), x))
+        }, error = function(e) {
+          print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
+        })
+        return(result)
       })
       dat <- lapply(imps, function(imp) data.frame(imp@completeObs))
       return(list(completed_datasets = dat, imputation_object = imps))
     })
 
     return(imputation_object)
+  }
+  else {
+    imputation_object <- lapply(1:nrow(hyperparams), function(x) {
+      dats <- lapply(times, function(i) {
+        result <- NULL
+        method_function <- base::get(method$name)
+        tryCatch({
+          result <- do.call(method_function, c(list(quote(training_data)), x))
+        }, error = function(e) {
+          print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
+        })
+        return(result)
+      })
+      return(list(completed_datasets = dats, imputation_object = NULL))
+    })
   }
 })
 ```
@@ -122,8 +146,7 @@ imputations <- c(mice_imputations, other_imputations)
 ```{r}
 valid_methods <- sapply(names(imputations), function(method) {
 
-  null_hpsets <- sapply(imputations[[method]], function(x) x[["imputation_object"]] %>% is.null)
-
+  null_hpsets <- sapply(imputations[[method]], function(x) x[["completed_datasets"]] %>% unlist %>% is.null)
   if (all(null_hpsets)) {
     print(paste("Imputation method", method, "did not successfully produce any datasets"))
     return(FALSE)

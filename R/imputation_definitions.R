@@ -12,6 +12,7 @@ mice_imputation_hyperparameters <- list(
 mice_hyperparameter_grids <- lapply(mice_imputation_hyperparameters, expand.grid)
 
 other_imputation_hyperparameters <- list(
+  knnImputation = list(k = 1:20),
   bpca = list(nPcs = 2:30, maxSteps = 1:10*20)
 )
 
