@@ -29,8 +29,8 @@ outlier_imp <- single_value_univariate_imputation(produce_outlier)
 #' @param iterations How many iterations to run mice for
 #'
 #' @return A named two-element list, where
-#' first element is a list of completed datasets (of length `times`), 
-#' second element is the `mice`-returned `mids` object. 
+#' first element is a list of completed datasets (of length `times`),
+#' second element is the `mice`-returned `mids` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_mice <- function(data, method, hyperparams, times, iterations) {
 
@@ -72,3 +72,49 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 #   }
 #   return(col)
 # }
+
+run_bpca <- function(data, hyperparams, times, ...) {
+
+    data <- scale(as.matrix(data), TRUE, TRUE)
+
+    imputation_object <- lapply(1:nrow(hyperparams), function(x) {
+
+      imps <- lapply(times, function(i) {
+
+        result <- NULL
+
+        tryCatch({
+          result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), x))
+        }, error = function(e) {
+          print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
+        })
+
+        return(result)
+      })
+
+      dat <- lapply(imps, function(imp) data.frame(imp@completeObs))
+
+      return(list(completed_datasets = dat, imputation_object = imps))
+
+    })
+
+}
+run_knn <- function(data, hyperparams, times) {
+
+  lapply(1:nrow(hyperparams), function(x) {
+
+    dats <- lapply(times, function(i) {
+      result <- NULL
+      tryCatch({
+        result <- do.call(knnImputation, c(list(quote(training_data)), x))
+      }, error = function(e) {
+        print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
+      })
+      return(result)
+    })
+
+    return(list(completed_datasets = dats, imputation_object = NULL))
+
+  })
+
+}

@@ -10,6 +10,7 @@ library(mice)
 library(caret)
 
 source("recursive_application.R")
+source("imputation_definitions.R")
 source("imputation.R")
 
 test_data <- read.csv("../contracted_test_data.csv", row.names = 1, as.is = TRUE)
@@ -26,8 +27,8 @@ head(outcome)
 
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
 ```{r}
-rf_hyperparams <- readRDS("../output/rf_hp_configs_models.rds")
-lr_hyperparams <- readRDS("../output/lr_hp_configs_models.rds")
+rf_hyperparams <- readRDS("../output/rf_hp_configs.rds")
+lr_hyperparams <- readRDS("../output/lr_hp_configs.rds")
 
 times <- 5
 iters <- 1
@@ -37,7 +38,25 @@ impute_w_hps <- function(data, hp_tree){
   # Create a tree of functions with hyperparameter configurations fixed by currying the
   # mice function; i.e. create new functions with all arguments besides `method` fixed
   imputation_functions <- lapply(hp_tree, FUN = function(hps) {
-    function(method) run_mice(data, method, hps, times, iters)
+    function(method) {
+      if (method %in% names(mice_imputation_hyperparameters)) {
+
+        run_mice(data, method, hps, times, iters)
+
+      } else if (method == "bpca") {
+
+        run_bpca(data, hps, times)
+
+      } else if (method == "knn") {
+
+        run_knn(data, hps, times)
+
+      } else if (method %in% single_value_imputation_hyperparameter_grids) {
+
+        get(method)(data)
+
+      }
+    }
   })
 
   # Run each function in the tree using the method designated by the subtree
@@ -50,7 +69,7 @@ impute_w_hps <- function(data, hp_tree){
   names(imputations) <- names(imputation_functions)
 
   # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, function(df) lapply(df, median_imp) %>% data.frame, "data.frame")
+  completions <- recursive_apply(imputations, . %>% median_imp %>% data.frame, "data.frame")
 
   return(completions)
 }
@@ -70,7 +89,9 @@ prediction <- function(models, completions) {
     pred_per_model <- lapply(models[[method]], function(model) {
 
       pred_per_completion <- recursive_apply(completions, function(completed_dataset) {
+        tryCatch({
         predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
+        }, error = function(e) browser())
       }, "data.frame")
 
       names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
