@@ -77,36 +77,53 @@ run_bpca <- function(data, hyperparams, times, ...) {
 
   data <- scale(as.matrix(data), TRUE, TRUE)
 
-  imps <- lapply(times, function(i) {
+  timing <- system.time({
+    imps <- lapply(times, function(i) {
 
-    result <- NULL
+      result <- NULL
 
-    tryCatch({
-      result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
-    }, error = function(e) {
-      print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
+      tryCatch({
+        result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
+      }, error = function(e) {
+        print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
+      })
+
+      return(result)
+
     })
 
-    return(result)
+    dat <- lapply(imps, function(imp) data.frame(imp@completeObs))
   })
 
-  dat <- lapply(imps, function(imp) data.frame(imp@completeObs))
+  result <- list(
+    completed_datasets = dat,
+    imputation_object = imps
+  )
+  attr(result, "timing") <- timing
 
-  return(list(completed_datasets = dat, imputation_object = imps))
-
+  return(result)
 }
+
 run_knn <- function(data, hyperparams, times) {
 
-  dats <- lapply(times, function(i) {
-    result <- NULL
-    tryCatch({
-      result <- do.call(knnImputation, c(list(quote(training_data)), hyperparams))
-    }, error = function(e) {
-      print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
+  timing <- system.time({
+    dats <- lapply(times, function(i) {
+      result <- NULL
+      tryCatch({
+        result <- do.call(knnImputation, c(list(quote(training_data)), hyperparams))
+      }, error = function(e) {
+        print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
+      })
+      return(result)
     })
-    return(result)
   })
 
-  return(list(completed_datasets = dats, imputation_object = NULL))
+  result <- list(
+    completed_datasets = dats,
+    imputation_object = NULL
+  )
+  attr(result, "timing") <- timing
+
+  return(result)
 
 }

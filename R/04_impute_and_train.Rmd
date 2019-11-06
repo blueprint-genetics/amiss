@@ -103,19 +103,25 @@ other_imputations <- lapply(enumerate(other_hyperparameter_grids), function(meth
 
   # TODO Implement timing
   if (method$name == "bpca") {
-    imputation_object <- lapply(1:nrow(hyperparams), function(x) {
+    imputations <- lapply(1:nrow(hyperparams), function(x) {
       run_bpca(data = training_data, hyperparams = hyperparams[x, ], times = times)
     })
   }
   else if (method$name == "knnImputation") {
-    imputation_object <- lapply(1:nrow(hyperparams), function(x) {
+    imputations <- lapply(1:nrow(hyperparams), function(x) {
       run_knn(data = training_data, hyperparams = hyperparams[x, ], times = times)
     })
   } else {
     print("Method " %>% paste0(method$name, " is not implemented"))
-    imputation_object <- NULL
+    imputations <- NULL
   }
-  return(imputation_object)
+
+  # Combine timings of different hyperparameter configs
+  timings <- do.call(rbind, lapply(imputations, . %>% attr("timing")))
+  # Return them along with the imputation object
+  attr(imputations, "timings") <- timings
+
+  return(imputations)
 })
 ```
 
@@ -227,7 +233,7 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
   best_imputers <- lapply(enumerate(best_model_ix), . %>% with(imputations[[name]][[value]]))
   best_hyperparams <- lapply(enumerate(best_model_ix), . %>% with(hyperparams[[name]][value, ]))
 
-  # We can drop the now extraneous level "completed_datasets" of the tree
+  # We can drop the now superfluous level "completed_datasets" of the tree
   best_models <- lapply(best_models, . %>% extract2(1))
 
   return(list(ix = best_model_ix, models = best_models, imputers = best_imputers, hyperparams = best_hyperparams))
