@@ -27,7 +27,7 @@ This project conforms to the principles of open science:
   - The source code is freely available under the [MIT license](https://github.com/blueprint-genetics/amiss/blob/master/LICENSE) at [GitHub](https://github.com/blueprint-genetics/amiss)
 - Open notebook:
   - You can follow development from the start on GitHub at https://github.com/blueprint-genetics/amiss
-  - The research plan is available [in the GitHub repository](https://github.com/blueprint-genetics/amiss/blob/master/docs/research_plan/research_plan.md) (see [section above][Description] for producing a PDF version)
+  - The research plan is available [in the GitHub repository](https://github.com/blueprint-genetics/amiss/blob/master/docs/research_plan/research_plan.md) (see [section above](#description) for producing a PDF version)
 - Open access:
   - We will upload a preprint of the resulting paper(s) on [biorXiv](https://www.biorxiv.org/)
   - We will submit the results for publication in a peer-reviewed open access journal
