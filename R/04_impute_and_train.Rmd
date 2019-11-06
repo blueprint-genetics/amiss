@@ -103,13 +103,19 @@ other_imputations <- lapply(enumerate(other_hyperparameter_grids), function(meth
 
   # TODO Implement timing
   if (method$name == "bpca") {
-    return(run_bpca(data = training_data, hyperparams = hyperparams, times = times))
+    imputation_object <- lapply(1:nrow(hyperparams), function(x) {
+      run_bpca(data = training_data, hyperparams = hyperparams[x, ], times = times)
+    })
   }
   else if (method$name == "knnImputation") {
-    return(run_knn(data = training_data, hyperparams = hyperparams, times = times))
+    imputation_object <- lapply(1:nrow(hyperparams), function(x) {
+      run_knn(data = training_data, hyperparams = hyperparams[x, ], times = times)
+    })
   } else {
     print("Method " %>% paste0(method$name, " is not implemented"))
+    imputation_object <- NULL
   }
+  return(imputation_object)
 })
 ```
 

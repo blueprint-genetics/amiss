@@ -75,46 +75,38 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 
 run_bpca <- function(data, hyperparams, times, ...) {
 
-    data <- scale(as.matrix(data), TRUE, TRUE)
+  data <- scale(as.matrix(data), TRUE, TRUE)
 
-    imputation_object <- lapply(1:nrow(hyperparams), function(x) {
+  imps <- lapply(times, function(i) {
 
-      imps <- lapply(times, function(i) {
+    result <- NULL
 
-        result <- NULL
-
-        tryCatch({
-          result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), x))
-        }, error = function(e) {
-          print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
-        })
-
-        return(result)
-      })
-
-      dat <- lapply(imps, function(imp) data.frame(imp@completeObs))
-
-      return(list(completed_datasets = dat, imputation_object = imps))
-
+    tryCatch({
+      result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
+    }, error = function(e) {
+      print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
     })
+
+    return(result)
+  })
+
+  dat <- lapply(imps, function(imp) data.frame(imp@completeObs))
+
+  return(list(completed_datasets = dat, imputation_object = imps))
 
 }
 run_knn <- function(data, hyperparams, times) {
 
-  lapply(1:nrow(hyperparams), function(x) {
-
-    dats <- lapply(times, function(i) {
-      result <- NULL
-      tryCatch({
-        result <- do.call(knnImputation, c(list(quote(training_data)), x))
-      }, error = function(e) {
-        print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
-      })
-      return(result)
+  dats <- lapply(times, function(i) {
+    result <- NULL
+    tryCatch({
+      result <- do.call(knnImputation, c(list(quote(training_data)), hyperparams))
+    }, error = function(e) {
+      print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
     })
-
-    return(list(completed_datasets = dats, imputation_object = NULL))
-
+    return(result)
   })
+
+  return(list(completed_datasets = dats, imputation_object = NULL))
 
 }
