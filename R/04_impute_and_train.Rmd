@@ -129,7 +129,7 @@ other_imputations <- lapply(enumerate(other_hyperparameter_grids), function(meth
 
 ```{r}
 single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
-  list(`1` = list(completed_datasets = list(data.frame(get(method$name)(training_data)))))
+  list(`1` = list(completed_datasets = list(get(method$name)(training_data))))
 })
 names(single_value_imputations) <- names(single_value_imputation_hyperparameter_grids)
 ```

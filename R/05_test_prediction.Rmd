@@ -69,7 +69,7 @@ impute_w_hps <- function(data, hp_tree){
   names(imputations) <- names(imputation_functions)
 
   # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, . %>% median_imp %>% data.frame, "data.frame")
+  completions <- recursive_apply(imputations, median_imp, "data.frame")
 
   return(completions)
 }
@@ -91,7 +91,7 @@ prediction <- function(models, completions) {
       pred_per_completion <- recursive_apply(completions, function(completed_dataset) {
         tryCatch({
         predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
-        }, error = function(e) browser())
+        }, error = function(e) print(e))
       }, "data.frame")
 
       names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))

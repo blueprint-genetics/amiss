@@ -1,4 +1,15 @@
 
+#' Produce a function that replaces all missing values
+#' with column-specific outputs
+#'
+#' This function is intended to be used to produce univariate
+#' imputation functions that produce a single value.
+#'
+#' @param f Function that accepts a numeric vector as input
+#'
+#' @return A function that takes a data.frame and replaces
+#' each missing value in each column with the output of `f`
+#' on that column.
 single_value_univariate_imputation <- function(f) {
   replace_na <- function(column) {
     missing <- is.na(column)
@@ -6,7 +17,7 @@ single_value_univariate_imputation <- function(f) {
     column[missing] <- rep(impute_value, sum(missing))
     return(column)
   }
-  return(function(dataframe) lapply(dataframe, replace_na))
+  return(function(dataframe) data.frame(lapply(dataframe, replace_na)))
 }
 
 produce_outlier <- function(x) {
@@ -61,19 +72,17 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
   return(result)
 }
 
-#' Impute a numeric vector with its median
+#' Run and time BPCA
 #'
-#' @param col Numeric vector
+#' @param data A data.frame to impute
+#' @param hyperparams list of named values that will be fed as arguments to `pcaMethods::pca`
+#' @param times Number of imputed datasets to produce
 #'
-#' @return The original vector, but with missing values replaced by the vector's median value
-# median_imp <- function(col) {
-#   if (any(is.na(col))) {
-#     col[is.na(col)] <- median(col, na.rm = TRUE)
-#   }
-#   return(col)
-# }
-
-run_bpca <- function(data, hyperparams, times, ...) {
+#' @return A named two-element list, where
+#' first element is a list of completed datasets (of length `times`),
+#' second element is the `pca`-returned `pcaRes` object.
+#' The list has an additional attribute `timing`, which contains the timing information.
+run_bpca <- function(data, hyperparams, times) {
 
   data <- scale(as.matrix(data), TRUE, TRUE)
 
@@ -85,7 +94,7 @@ run_bpca <- function(data, hyperparams, times, ...) {
       tryCatch({
         result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
       }, error = function(e) {
-        print("Trying to execute " %>% paste0(method$name, " the following error occurred: ", e$message))
+        print("Trying to execute BPCA, the following error occurred: " %>% paste0(e$message))
       })
 
       return(result)
@@ -104,6 +113,16 @@ run_bpca <- function(data, hyperparams, times, ...) {
   return(result)
 }
 
+#' Run and time kNN
+#'
+#' @param data A data.frame to impute
+#' @param hyperparams list of named values that will be fed as arguments to `DMwR::knnImputation`
+#' @param times Number of imputed datasets to produce
+#'
+#' @return A named two-element list, where
+#' first element is a list of completed datasets (of length `times`),
+#' second element is `NULL`.
+#' The list has an additional attribute `timing`, which contains the timing information.
 run_knn <- function(data, hyperparams, times) {
 
   timing <- system.time({
