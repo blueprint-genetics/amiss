@@ -45,11 +45,11 @@ impute_w_hps <- function(data, hp_tree){
 
       } else if (method == "bpca") {
 
-        run_bpca(data, hps, times)
+        run_bpca(data, hps)
 
       } else if (method == "knn") {
 
-        run_knn(data, hps, times)
+        run_knn(data, hps)
 
       } else if (method %in% single_value_imputation_hyperparameter_grids) {
 

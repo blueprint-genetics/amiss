@@ -11,12 +11,12 @@ mice_imputation_hyperparameters <- list(
 
 mice_hyperparameter_grids <- lapply(mice_imputation_hyperparameters, expand.grid)
 
-other_imputation_hyperparameters <- list(
+deterministic_imputation_hyperparameters <- list(
   knnImputation = list(k = 1:20),
   bpca = list(nPcs = 2:30, maxSteps = 1:10*20)
 )
 
-other_hyperparameter_grids <- lapply(other_imputation_hyperparameters, expand.grid)
+other_hyperparameter_grids <- lapply(deterministic_imputation_hyperparameters, expand.grid)
 
 single_value_imputation_hyperparameter_grids <- list(
   max_imp = "max_imp",

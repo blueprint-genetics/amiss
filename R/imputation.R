@@ -82,31 +82,27 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 #' first element is a list of completed datasets (of length `times`),
 #' second element is the `pca`-returned `pcaRes` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
-run_bpca <- function(data, hyperparams, times) {
+run_bpca <- function(data, hyperparams) {
 
   data <- scale(as.matrix(data), TRUE, TRUE)
 
   timing <- system.time({
-    imps <- lapply(times, function(i) {
 
-      result <- NULL
+    imputation <- NULL
 
-      tryCatch({
-        result <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
-      }, error = function(e) {
-        print("Trying to execute BPCA, the following error occurred: " %>% paste0(e$message))
-      })
-
-      return(result)
-
+    tryCatch({
+      imputation <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
+    }, error = function(e) {
+      print("Trying to execute BPCA, the following error occurred: " %>% paste0(e$message))
     })
 
-    dat <- lapply(imps, function(imp) data.frame(imp@completeObs))
   })
 
+  dat <- data.frame(imputation@completeObs)
+
   result <- list(
-    completed_datasets = dat,
-    imputation_object = imps
+    completed_datasets = list(`1` = dat),
+    imputation_object = list(`1` = imputation)
   )
   attr(result, "timing") <- timing
 
@@ -123,22 +119,19 @@ run_bpca <- function(data, hyperparams, times) {
 #' first element is a list of completed datasets (of length `times`),
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
-run_knn <- function(data, hyperparams, times) {
+run_knn <- function(data, hyperparams) {
 
   timing <- system.time({
-    dats <- lapply(times, function(i) {
-      result <- NULL
-      tryCatch({
-        result <- do.call(knnImputation, c(list(quote(training_data)), hyperparams))
-      }, error = function(e) {
-        print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
-      })
-      return(result)
+    imputation <- NULL
+    tryCatch({
+      imputation <- do.call(knnImputation, c(list(quote(training_data)), hyperparams))
+    }, error = function(e) {
+      print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
     })
   })
 
   result <- list(
-    completed_datasets = dats,
+    completed_datasets = list(`1` = imputation),
     imputation_object = NULL
   )
   attr(result, "timing") <- timing

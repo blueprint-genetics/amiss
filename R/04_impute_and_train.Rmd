@@ -97,19 +97,19 @@ mice_imputations <- lapply(enumerate(mice_hyperparameter_grids), function(method
 ### Non-MICE imputations
 
 ```{r}
-other_imputations <- lapply(enumerate(other_hyperparameter_grids), function(method) {
+deterministic_imputations <- lapply(enumerate(other_hyperparameter_grids), function(method) {
 
   hyperparams <- method$value
 
   # TODO Implement timing
   if (method$name == "bpca") {
     imputations <- lapply(1:nrow(hyperparams), function(x) {
-      run_bpca(data = training_data, hyperparams = hyperparams[x, ], times = times)
+      run_bpca(data = training_data, hyperparams = hyperparams[x, ])
     })
   }
   else if (method$name == "knnImputation") {
     imputations <- lapply(1:nrow(hyperparams), function(x) {
-      run_knn(data = training_data, hyperparams = hyperparams[x, ], times = times)
+      run_knn(data = training_data, hyperparams = hyperparams[x, ])
     })
   } else {
     print("Method " %>% paste0(method$name, " is not implemented"))
@@ -137,7 +137,7 @@ names(single_value_imputations) <- names(single_value_imputation_hyperparameter_
 ### List and drop imputation methods that failed completely
 
 ```{r}
-imputations <- c(mice_imputations, other_imputations, single_value_imputations)
+imputations <- c(mice_imputations, deterministic_imputations, single_value_imputations)
 ```
 
 ```{r}
