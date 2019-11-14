@@ -8,6 +8,7 @@ output: html_notebook
 library(magrittr)
 library(mice)
 library(caret)
+library(stringr)
 
 source("recursive_application.R")
 source("imputation_definitions.R")
@@ -123,33 +124,39 @@ performance_stats <- function(predictions) {
   mccs <- recursive_apply(predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
   aucs <- recursive_apply(predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
 
-  mean_mccs <- leaf_apply(mccs, . %>% unlist %>% mean, FALSE)
-  mean_aucs <- leaf_apply(aucs, . %>% unlist %>% mean, FALSE)
-
-  sd_mccs <- leaf_apply(mccs, . %>% unlist %>% sd, FALSE)
-  sd_aucs <- leaf_apply(aucs, . %>% unlist %>% sd, FALSE)
-
-  mean_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% mean, FALSE)
-  mean_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% mean, FALSE)
-
-  sd_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% sd, FALSE)
-  sd_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% sd, FALSE)
-
   perfs <- list(mccs = mccs,
-                mean_mccs = mean_mccs,
-                sd_mccs = sd_mccs,
-                mean_mean_mccs =  mean_mean_mccs,
-                sd_mean_mccs = sd_mean_mccs,
-
-                aucs = aucs,
-                mean_aucs = mean_aucs,
-                sd_aucs = sd_aucs,
-                mean_mean_aucs = mean_mean_aucs,
-                sd_mean_aucs = sd_mean_aucs)
+                aucs = aucs)
 
   return(perfs)
 
 }
 rf_perf <- performance_stats(rf_predictions)
 lr_perf <- performance_stats(lr_predictions)
+```
+
+```{r}
+turn_table <- function(perf_tree) {
+
+  perf_values_names <- perf_tree %>% recursive_apply(function(x, name_list) return(name_list), x_class = "numeric", pass_node_names = TRUE) %>% leaf_apply(. %>% paste0(collapse = ":"), docall = FALSE) %>% unlist(use.names = FALSE)
+  perf_values <- perf_tree %>% unlist(use.names = FALSE)
+  names(perf_values) <- perf_values_names
+  perf_df <- lapply(names(perf_values), function(name) {
+    stringr::str_split(string = name, pattern = stringr::fixed(":"), simplify = TRUE)
+  })
+  perf_df <- data.frame(do.call(rbind, perf_df), value = perf_values)
+  perf_df[["X4"]] <- NULL
+  colnames(perf_df) <- c("method", "model_index", "test_realization", "training_realization", "value")
+  return(perf_df)
+}
+
+tables <- list(
+  rf_mcc = turn_table(rf_perf$mccs),
+  rf_auc = turn_table(rf_perf$aucs),
+  lr_mcc = turn_table(lr_perf$mccs),
+  lr_auc = turn_table(lr_perf$aucs)
+)
+
+all_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization", "training_realization")), tables)
+colnames(all_table) <- c("method", "model_index", "test_realization", "training_realization", names(tables))
+all_table
 ```
