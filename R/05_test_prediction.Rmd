@@ -52,9 +52,9 @@ impute_w_hps <- function(data, hp_tree){
 
         run_knn(data, hps)
 
-      } else if (method %in% single_value_imputation_hyperparameter_grids) {
+      } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
 
-        get(method)(data)
+        list(completed_datasets = list(`1` = get(method)(data)))
 
       }
     }
@@ -70,7 +70,7 @@ impute_w_hps <- function(data, hp_tree){
   names(imputations) <- names(imputation_functions)
 
   # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, median_imp, "data.frame")
+  completions <- recursive_apply(imputations, median_imp, "data.frame") %>% lapply(. %>% extract2(1))
 
   return(completions)
 }
@@ -89,7 +89,7 @@ prediction <- function(models, completions) {
 
     pred_per_model <- lapply(models[[method]], function(model) {
 
-      pred_per_completion <- recursive_apply(completions, function(completed_dataset) {
+      pred_per_completion <- recursive_apply(completions[[method]], function(completed_dataset) {
         tryCatch({
         predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
         }, error = function(e) print(e))
@@ -144,8 +144,7 @@ turn_table <- function(perf_tree) {
     stringr::str_split(string = name, pattern = stringr::fixed(":"), simplify = TRUE)
   })
   perf_df <- data.frame(do.call(rbind, perf_df), value = perf_values)
-  perf_df[["X4"]] <- NULL
-  colnames(perf_df) <- c("method", "model_index", "test_realization", "training_realization", "value")
+  colnames(perf_df) <- c("method", "model_index", "test_realization", "value")
   return(perf_df)
 }
 
@@ -156,7 +155,7 @@ tables <- list(
   lr_auc = turn_table(lr_perf$aucs)
 )
 
-all_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization", "training_realization")), tables)
-colnames(all_table) <- c("method", "model_index", "test_realization", "training_realization", names(tables))
+all_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization")), tables)
+colnames(all_table) <- c("method", "model_index", "test_realization", names(tables))
 all_table
 ```
