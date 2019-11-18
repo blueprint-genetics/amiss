@@ -18,6 +18,19 @@ source("imputation.R")
 
 test_data <- read.csv("../contracted_test_data.csv", row.names = 1, as.is = TRUE)
 outcome <- read.csv("../test_outcomes.csv", as.is = TRUE)
+```
+
+```{r}
+results_dir_path <- "../output/results/"
+if (!dir.exists(results_dir_path)) {
+  dir_creation_success <- dir.create(results_dir_path, showWarnings = TRUE)
+  if (!dir_creation_success) {
+    stop("Failed to create directory for saving results.")
+  }
+}
+```
+
+```{r}
 
 # Keep exactly those features that were kept in training data
 final_features <- readRDS("../output/final_features.rds")
@@ -170,8 +183,8 @@ merge_tables <- function(tables) {
 }
 rf_perf_table <- merge_tables(rf_tables)
 lr_perf_table <- merge_tables(lr_tables)
-rf_perf_table
-lr_perf_table
+write.csv(x = rf_perf_table, file = paste0(results_dir_path, "rf_performance.csv"), row.names = FALSE)
+write.csv(x = lr_perf_table, file = paste0(results_dir_path, "lr_performance.csv"), row.names = FALSE)
 ```
 
 ```{r}
@@ -190,34 +203,45 @@ aggregate_over_perf_table <- function(perf_table) {
 }
 rf_perf_aggregations <- aggregate_over_perf_table(rf_perf_table)
 lr_perf_aggregations <- aggregate_over_perf_table(lr_perf_table)
+
+for (name in names(rf_perf_aggregations)) {
+  write.csv(x = rf_perf_aggregations[[name]], file = paste0(results_dir_path, "rf_", name, ".csv"), row.names = FALSE)
+}
+for (name in names(lr_perf_aggregations)) {
+  write.csv(x = lr_perf_aggregations[[name]], file = paste0(results_dir_path, "lr_", name, ".csv"), row.names = FALSE)
+}
 ```
 
 ```{r}
 # RF MCC
-grid.arrange(
+rf_mcc_boxplots <- arrangeGrob(
   ggplot(rf_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier"),
   ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over test set realizations"),
   ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over training set realizations")
 )
+ggsave(filename =  "rf_mcc_boxplots.pdf", plot = rf_mcc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 
 # RF AUC-ROC
-grid.arrange(
+rf_roc_boxplots <- arrangeGrob(
   ggplot(rf_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier"),
   ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over test set realizations"),
   ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over training set realizations")
 )
+ggsave(filename =  "rf_roc_boxplots.pdf", plot = rf_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 
 # LR MCC
-grid.arrange(
+lr_mcc_boxplots <- arrangeGrob(
   ggplot(lr_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier"),
   ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
   ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
 )
+ggsave(filename =  "lr_roc_boxplots.pdf", plot = rf_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 
 # RF AUC-ROC
-grid.arrange(
+lr_roc_boxplots <- arrangeGrob(
   ggplot(lr_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier"),
   ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
   ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
 )
+ggsave(filename =  "lr_roc_boxplots.pdf", plot = lr_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 ```
