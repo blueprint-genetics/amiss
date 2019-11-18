@@ -11,7 +11,6 @@ library(caret)
 library(stringr)
 library(ggplot2)
 library(gridExtra)
-library(tidyr)
 
 source("recursive_application.R")
 source("imputation_definitions.R")
@@ -124,11 +123,21 @@ performance_stats <- function(predictions) {
     caret::confusionMatrix(pred, outcome)
   }, x_class = "numeric")
 
-  mccs <- recursive_apply(predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
-  aucs <- recursive_apply(predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
+  mcc <- recursive_apply(predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
+  auc <- recursive_apply(predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
+  sensitivity <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Sensitivity"], x_class = "confusionMatrix")
+  specificity <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Specificity"], x_class = "confusionMatrix")
+  f1 <- recursive_apply(confusion_matrices, function(cm) cm$byClass["F1"], x_class = "confusionMatrix")
+  precision <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Precision"], x_class = "confusionMatrix")
+  recall <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Recall"], x_class = "confusionMatrix")
 
-  perfs <- list(mccs = mccs,
-                aucs = aucs)
+  perfs <- list(mcc = mcc,
+                auc = auc,
+                sensitivity = sensitivity,
+                specificity = specificity,
+                f1 = f1,
+                precision = precision,
+                recall = recall)
 
   return(perfs)
 
@@ -151,54 +160,64 @@ turn_table <- function(perf_tree) {
   return(perf_df)
 }
 
-tables <- list(
-  rf_mcc = turn_table(rf_perf$mccs),
-  rf_auc = turn_table(rf_perf$aucs),
-  lr_mcc = turn_table(lr_perf$mccs),
-  lr_auc = turn_table(lr_perf$aucs)
-)
+rf_tables <- lapply(rf_perf, turn_table)
+lr_tables <- lapply(lr_perf, turn_table)
 
-perf_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization")), tables)
-colnames(perf_table) <- c("method", "model_index", "test_realization", names(tables))
-perf_table
+merge_tables <- function(tables) {
+  perf_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization")), tables)
+  colnames(perf_table) <- c("method", "model_index", "test_realization", names(tables))
+  perf_table
+}
+rf_perf_table <- merge_tables(rf_tables)
+lr_perf_table <- merge_tables(lr_tables)
+rf_perf_table
+lr_perf_table
 ```
 
 ```{r}
-perf_stats <- perf_table[, c("rf_mcc", "rf_auc", "lr_mcc", "lr_auc")]
-perf_model_mean_table <- aggregate(perf_stats, perf_table["method"], mean)
-perf_model_sd_table <- aggregate(perf_stats, perf_table["method"], sd)
-perf_over_test_mean_table <- aggregate(perf_stats, perf_table[c("method", "model_index")], mean)
-perf_over_test_sd_table <- aggregate(perf_stats, perf_table[c("method", "model_index")], sd)
-perf_over_train_mean_table <- aggregate(perf_stats, perf_table[c("method", "test_realization")], mean)
-perf_over_train_sd_table <- aggregate(perf_stats, perf_table[c("method", "test_realization")], sd)
+aggregate_over_perf_table <- function(perf_table) {
+
+  perf_stats <- perf_table[, !colnames(perf_table) %in% c("method", "model_index", "test_realization")]
+  return(list(
+    model_mean = aggregate(perf_stats, perf_table["method"], mean),
+    model_sd = aggregate(perf_stats, perf_table["method"], sd),
+    over_test_mean = aggregate(perf_stats, perf_table[c("method", "model_index")], mean),
+    over_test_sd = aggregate(perf_stats, perf_table[c("method", "model_index")], sd),
+    over_train_mean = aggregate(perf_stats, perf_table[c("method", "test_realization")], mean),
+    over_train_sd = aggregate(perf_stats, perf_table[c("method", "test_realization")], sd)
+  ))
+
+}
+rf_perf_aggregations <- aggregate_over_perf_table(rf_perf_table)
+lr_perf_aggregations <- aggregate_over_perf_table(lr_perf_table)
 ```
 
 ```{r}
 # RF MCC
 grid.arrange(
-  ggplot(perf_table, aes(x = method, y = rf_mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier"),
-  ggplot(perf_over_test_mean_table, aes(x = method, y = rf_mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over test set realizations"),
-  ggplot(perf_over_train_mean_table, aes(x = method, y = rf_mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over training set realizations")
+  ggplot(rf_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier"),
+  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over training set realizations")
 )
 
 # RF AUC-ROC
 grid.arrange(
-  ggplot(perf_table, aes(x = method, y = rf_auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier"),
-  ggplot(perf_over_test_mean_table, aes(x = method, y = rf_auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over test set realizations"),
-  ggplot(perf_over_train_mean_table, aes(x = method, y = rf_auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over training set realizations")
+  ggplot(rf_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier"),
+  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over training set realizations")
 )
 
 # LR MCC
 grid.arrange(
-  ggplot(perf_table, aes(x = method, y = lr_mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier"),
-  ggplot(perf_over_test_mean_table, aes(x = method, y = lr_mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
-  ggplot(perf_over_train_mean_table, aes(x = method, y = lr_mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
+  ggplot(lr_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier"),
+  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
 )
 
 # RF AUC-ROC
 grid.arrange(
-  ggplot(perf_table, aes(x = method, y = lr_auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier"),
-  ggplot(perf_over_test_mean_table, aes(x = method, y = lr_auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
-  ggplot(perf_over_train_mean_table, aes(x = method, y = lr_auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
+  ggplot(lr_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier"),
+  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
 )
 ```
