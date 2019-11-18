@@ -155,7 +155,17 @@ tables <- list(
   lr_auc = turn_table(lr_perf$aucs)
 )
 
-all_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization")), tables)
-colnames(all_table) <- c("method", "model_index", "test_realization", names(tables))
-all_table
+perf_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization")), tables)
+colnames(perf_table) <- c("method", "model_index", "test_realization", names(tables))
+perf_table
+```
+
+```{r}
+perf_stats <- perf_table[, c("rf_mcc", "rf_auc", "lr_mcc", "lr_auc")]
+perf_model_mean_table <- aggregate(perf_stats, perf_table["method"], mean)
+perf_model_sd_table <- aggregate(perf_stats, perf_table["method"], sd)
+perf_over_test_mean_table <- aggregate(perf_stats, perf_table[c("method", "model_index")], mean)
+perf_over_test_sd_table <- aggregate(perf_stats, perf_table[c("method", "model_index")], sd)
+perf_over_train_mean_table <- aggregate(perf_stats, perf_table[c("method", "test_realization")], mean)
+perf_over_train_sd_table <- aggregate(perf_stats, perf_table[c("method", "test_realization")], sd)
 ```
