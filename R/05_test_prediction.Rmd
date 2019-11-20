@@ -7,6 +7,7 @@ output: html_notebook
 ```{r}
 library(magrittr)
 library(mice)
+library(ModelMetrics)
 library(caret)
 library(stringr)
 library(ggplot2)
@@ -31,7 +32,6 @@ if (!dir.exists(results_dir_path)) {
 ```
 
 ```{r}
-
 # Keep exactly those features that were kept in training data
 final_features <- readRDS("../output/final_features.rds")
 test_data <- test_data[, final_features]
@@ -131,18 +131,25 @@ lr_predictions <- prediction(lr_models, lr_completions)
 ```{r}
 performance_stats <- function(predictions) {
 
-  confusion_matrices <- recursive_apply(predictions, function(pred) {
+  confusion_matrices <- recursive_apply_numeric(predictions, function(pred) {
     pred <- factor(c("positive", "negative")[2 - (pred > 0.5)], c("positive", "negative"))
     caret::confusionMatrix(pred, outcome)
-  }, x_class = "numeric")
+  })
 
-  mcc <- recursive_apply(predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
-  auc <- recursive_apply(predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
-  sensitivity <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Sensitivity"], x_class = "confusionMatrix")
-  specificity <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Specificity"], x_class = "confusionMatrix")
-  f1 <- recursive_apply(confusion_matrices, function(cm) cm$byClass["F1"], x_class = "confusionMatrix")
-  precision <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Precision"], x_class = "confusionMatrix")
-  recall <- recursive_apply(confusion_matrices, function(cm) cm$byClass["Recall"], x_class = "confusionMatrix")
+  extract_stat <- function(stat) function(x) x %>% use_series("byClass") %>% extract(stat)
+
+  positive_outcome_indicator <- as.integer(outcome == "positive")
+
+  mcc <- recursive_apply_numeric(predictions, . %>% mcc(actual = positive_outcome_indicator, predicted = ., cutoff = 0.5))
+  auc <- recursive_apply_numeric(predictions, . %>% auc(actual = positive_outcome_indicator, predicted = .))
+
+  recursive_apply_cm <- function(x, fun) recursive_apply(x = x, fun = fun, x_class = "confusionMatrix")
+
+  sensitivity <- recursive_apply_cm(confusion_matrices, extract_stat("Sensitivity"))
+  specificity <- recursive_apply_cm(confusion_matrices, extract_stat("Specificity"))
+  f1 <- recursive_apply_cm(confusion_matrices, extract_stat("F1"))
+  precision <- recursive_apply_cm(confusion_matrices, extract_stat("Precision"))
+  recall <- recursive_apply_cm(confusion_matrices, extract_stat("Recall"))
 
   perfs <- list(mcc = mcc,
                 auc = auc,
@@ -162,15 +169,21 @@ lr_perf <- performance_stats(lr_predictions)
 ```{r}
 turn_table <- function(perf_tree) {
 
-  perf_values_names <- perf_tree %>% recursive_apply(function(x, name_list) return(name_list), x_class = "numeric", pass_node_names = TRUE) %>% leaf_apply(. %>% paste0(collapse = ":"), docall = FALSE) %>% unlist(use.names = FALSE)
-  perf_values <- perf_tree %>% unlist(use.names = FALSE)
-  names(perf_values) <- perf_values_names
-  perf_df <- lapply(names(perf_values), function(name) {
+  tree_names <- recursive_apply_numeric(perf_tree, function(x, name_list) return(name_list), pass_node_names = TRUE)
+  tree_names %<>% leaf_apply(. %>% paste0(collapse = ":"), docall = FALSE)
+  tree_names %<>% unlist(use.names = FALSE)
+
+  values <- perf_tree %>% unlist(use.names = FALSE)
+  names(values) <- tree_names
+
+  df <- lapply(names(values), function(name) {
     stringr::str_split(string = name, pattern = stringr::fixed(":"), simplify = TRUE)
   })
-  perf_df <- data.frame(do.call(rbind, perf_df), value = perf_values)
-  colnames(perf_df) <- c("method", "model_index", "test_realization", "value")
-  return(perf_df)
+  df <- data.frame(do.call(rbind, df), value = values)
+
+  colnames(df) <- c("method", "model_index", "test_realization", "value")
+
+  return(df)
 }
 
 rf_tables <- lapply(rf_perf, turn_table)
@@ -183,6 +196,7 @@ merge_tables <- function(tables) {
 }
 rf_perf_table <- merge_tables(rf_tables)
 lr_perf_table <- merge_tables(lr_tables)
+
 write.csv(x = rf_perf_table, file = paste0(results_dir_path, "rf_performance.csv"), row.names = FALSE)
 write.csv(x = lr_perf_table, file = paste0(results_dir_path, "lr_performance.csv"), row.names = FALSE)
 ```
@@ -191,6 +205,7 @@ write.csv(x = lr_perf_table, file = paste0(results_dir_path, "lr_performance.csv
 aggregate_over_perf_table <- function(perf_table) {
 
   perf_stats <- perf_table[, !colnames(perf_table) %in% c("method", "model_index", "test_realization")]
+
   return(list(
     model_mean = aggregate(perf_stats, perf_table["method"], mean),
     model_sd = aggregate(perf_stats, perf_table["method"], sd),
@@ -205,10 +220,14 @@ rf_perf_aggregations <- aggregate_over_perf_table(rf_perf_table)
 lr_perf_aggregations <- aggregate_over_perf_table(lr_perf_table)
 
 for (name in names(rf_perf_aggregations)) {
-  write.csv(x = rf_perf_aggregations[[name]], file = paste0(results_dir_path, "rf_", name, ".csv"), row.names = FALSE)
+  write.csv(x = rf_perf_aggregations[[name]],
+            file = paste0(results_dir_path, "rf_", name, ".csv"),
+            row.names = FALSE)
 }
 for (name in names(lr_perf_aggregations)) {
-  write.csv(x = lr_perf_aggregations[[name]], file = paste0(results_dir_path, "lr_", name, ".csv"), row.names = FALSE)
+  write.csv(x = lr_perf_aggregations[[name]],
+            file = paste0(results_dir_path, "lr_", name, ".csv"),
+            row.names = FALSE)
 }
 ```
 

@@ -54,6 +54,11 @@ recursive_apply <- function(x, fun, x_class, pass_node_names = FALSE, node_names
   return(result)
 }
 
+# Common special cases
+recursive_apply_numeric <- function(x, fun, pass_node_names = FALSE)
+  recursive_apply(x = x, fun = fun, x_class = "numeric", pass_node_names = pass_node_names)
+
+
 #' A recursive application of a function to lists of leaves
 #' 
 #' This function applies `fun` to the (unique) sibling lists of each leaf.
