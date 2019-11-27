@@ -72,7 +72,7 @@ lapply(other_hyperparameter_grids, nrow)
 
 ```{r}
 times <- 2
-iters <- 2
+iters <- 1
 ```
 
 ### MICE
@@ -82,13 +82,13 @@ mice_imputations <- foreach(method = enumerate(mice_hyperparameter_grids)) %do% 
 
   hyperparams <- method$value
 
-  if(nrow(hyperparams) == 0) {
-    imputations <- list(run_mice(training_data, method$name, list(), times, iters))
+  if (nrow(hyperparams) == 0) {
+    imputations <- list(imp_hp_1 = run_mice(training_data, method$name, list(), times, iters))
   }
   else {
     imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
       run_mice(training_data, method$name, unlist(hyperparams[hp_row,]), times, iters)
-    }
+    } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
   }
 
   # Combine timings of different hyperparameter configs
@@ -112,12 +112,12 @@ deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_gri
   if (method$name == "bpca") {
     imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
       run_bpca(data = training_data, hyperparams = hyperparams[hp_row, ])
-    }
+    } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
   }
   else if (method$name == "knnImputation") {
     imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
       run_knn(data = training_data, hyperparams = hyperparams[hp_row, ])
-    }
+    } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
   } else {
     print("Method " %>% paste0(method$name, " is not implemented"))
     imputations <- NULL
@@ -129,17 +129,15 @@ deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_gri
   attr(imputations, "timings") <- timings
 
   return(imputations)
-}
-names(deterministic_imputations) <- names(other_hyperparameter_grids)
+} %>% set_names(names(other_hyperparameter_grids))
 ```
 
 ### Single value imputations
 
 ```{r}
 single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
-  list(`1` = list(completed_datasets = list(get(method$name)(training_data))))
-})
-names(single_value_imputations) <- names(single_value_imputation_hyperparameter_grids)
+  list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
+}) %>% set_names(names(single_value_imputation_hyperparameter_grids))
 ```
 
 ### List and drop imputation methods that failed completely
@@ -203,30 +201,20 @@ train_lr <- function(dataset) {
 }
 # Train on every completed dataset
 rf_models <- foreach(method = imputations) %do% {
-  y <- foreach(mi_iter = method, .options.RNG = seed) %dorng% {
-    z <- foreach(data = mi_iter$completed_datasets) %do% {
+  foreach(mi_iter = method, .options.RNG = seed) %dorng% {
+    foreach(data = mi_iter$completed_datasets) %do% {
       return(train_rf(data))
-    }
-    names(z) <- names(mi_iter$completed_datasets)
-    return(z)
-  }
-  names(y) <- names(method)
-  return(y)
-}
-names(rf_models) <- names(imputations)
+    } %>% set_names(names(mi_iter$completed_datasets))
+  } %>% set_names(names(method))
+} %>% set_names(names(imputations))
 
 lr_models <- foreach(method = imputations) %do% {
-  y <- foreach(mi_iter = method, .options.RNG = seed) %dorng% {
-    z <- foreach(data = mi_iter$completed_datasets) %do% {
+  foreach(mi_iter = method, .options.RNG = seed) %dorng% {
+    foreach(data = mi_iter$completed_datasets) %do% {
       return(train_lr(data))
-    }
-    names(z) <- names(mi_iter$completed_datasets)
-    return(z)
-  }
-  names(y) <- names(method)
-  return(y)
-}
-names(lr_models) <- names(imputations)
+    } %>% set_names(names(mi_iter$completed_datasets))
+  } %>% set_names(names(method))
+} %>% set_names(names(imputations))
 ```
 
 ## Model selection
