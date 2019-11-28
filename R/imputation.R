@@ -1,3 +1,36 @@
+
+#' Produce a function that replaces all missing values
+#' with column-specific outputs
+#'
+#' This function is intended to be used to produce univariate
+#' imputation functions that produce a single value.
+#'
+#' @param f Function that accepts a numeric vector as input
+#'
+#' @return A function that takes a data.frame and replaces
+#' each missing value in each column with the output of `f`
+#' on that column.
+single_value_univariate_imputation <- function(f) {
+  replace_na <- function(column) {
+    missing <- is.na(column)
+    impute_value <- f(column[!missing])
+    column[missing] <- rep(impute_value, sum(missing))
+    return(column)
+  }
+  return(function(dataframe) data.frame(lapply(dataframe, replace_na)))
+}
+
+produce_outlier <- function(x) {
+  abs(max(x, na.rm = TRUE) - min(x, na.rm = TRUE)) * 10
+}
+
+max_imp <- single_value_univariate_imputation(max)
+min_imp <- single_value_univariate_imputation(min)
+mean_imp <- single_value_univariate_imputation(mean)
+median_imp <- single_value_univariate_imputation(median)
+zero_imp <- single_value_univariate_imputation(function(x) 0.0)
+outlier_imp <- single_value_univariate_imputation(produce_outlier)
+
 #' Run and time `mice `
 #'
 #' @param data data.frame to impute
@@ -7,8 +40,8 @@
 #' @param iterations How many iterations to run mice for
 #'
 #' @return A named two-element list, where
-#' first element is a list of completed datasets (of length `times`), 
-#' second element is the `mice`-returned `mids` object. 
+#' first element is a list of completed datasets (of length `times`),
+#' second element is the `mice`-returned `mids` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_mice <- function(data, method, hyperparams, times, iterations) {
 
@@ -39,14 +72,70 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
   return(result)
 }
 
-#' Impute a numeric vector with its median
+#' Run and time BPCA
 #'
-#' @param col Numeric vector
+#' @param data A data.frame to impute
+#' @param hyperparams list of named values that will be fed as arguments to `pcaMethods::pca`
+#' @param times Number of imputed datasets to produce
 #'
-#' @return The original vector, but with missing values replaced by the vector's median value
-median_imp <- function(col) {
-  if (any(is.na(col))) {
-    col[is.na(col)] <- median(col, na.rm = TRUE)
-  }
-  return(col)
+#' @return A named two-element list, where
+#' first element is a list of completed datasets (of length `times`),
+#' second element is the `pca`-returned `pcaRes` object.
+#' The list has an additional attribute `timing`, which contains the timing information.
+run_bpca <- function(data, hyperparams) {
+
+  data <- scale(as.matrix(data), TRUE, TRUE)
+
+  timing <- system.time({
+
+    imputation <- NULL
+
+    tryCatch({
+      imputation <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
+    }, error = function(e) {
+      print("Trying to execute BPCA, the following error occurred: " %>% paste0(e$message))
+    })
+
+  })
+
+  dat <- data.frame(imputation@completeObs)
+
+  result <- list(
+    completed_datasets = list(`1` = dat),
+    imputation_object = list(`1` = imputation)
+  )
+  attr(result, "timing") <- timing
+
+  return(result)
+}
+
+#' Run and time kNN
+#'
+#' @param data A data.frame to impute
+#' @param hyperparams list of named values that will be fed as arguments to `DMwR::knnImputation`
+#' @param times Number of imputed datasets to produce
+#'
+#' @return A named two-element list, where
+#' first element is a list of completed datasets (of length `times`),
+#' second element is `NULL`.
+#' The list has an additional attribute `timing`, which contains the timing information.
+run_knn <- function(data, hyperparams) {
+
+  timing <- system.time({
+    imputation <- NULL
+    tryCatch({
+      imputation <- do.call(knnImputation, c(list(quote(training_data)), hyperparams))
+    }, error = function(e) {
+      print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
+    })
+  })
+
+  result <- list(
+    completed_datasets = list(`1` = imputation),
+    imputation_object = NULL
+  )
+  attr(result, "timing") <- timing
+
+  return(result)
+
 }

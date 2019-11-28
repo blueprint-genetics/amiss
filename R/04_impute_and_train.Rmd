@@ -1,5 +1,5 @@
 ---
-title: "03: Impute data and train model"
+title: "04: Impute data and train model"
 output: html_notebook
 ---
 
@@ -10,6 +10,8 @@ library(futile.logger)
 library(caret)
 library(mice)
 library(ModelMetrics)
+library(DMwR)
+library(pcaMethods)
 
 source("imputation_definitions.R")
 source("recursive_application.R")
@@ -58,21 +60,30 @@ if(highly_correlated_features %>% length > 0) {
 
 Check the number of hyperparameter configurations for each imputation method:
 ```{r}
-lapply(imputation_hyperparameter_grids, nrow)
+lapply(mice_hyperparameter_grids, nrow)
+lapply(other_hyperparameter_grids, nrow)
+```
+
+```{r}
+times <- 2
+iters <- 2
 ```
 
 ### MICE
 
 ```{r}
-times <- 2
-iters <- 2
 
-imputations <- lapply(enumerate(imputation_hyperparameter_grids), function(method) {
+mice_imputations <- lapply(enumerate(mice_hyperparameter_grids), function(method) {
 
   hyperparams <- method$value
 
+  if(nrow(hyperparams) == 0) {
+    imputations <- list(run_mice(training_data, method$name, list(), times, iters))
+  }
+  else {
   imputations <- lapply(1:nrow(hyperparams),
                         function(x) run_mice(training_data, method$name, unlist(hyperparams[x,]), times, iters))
+  }
 
   # Combine timings of different hyperparameter configs
   timings <- do.call(rbind, lapply(imputations, . %>% attr("timing")))
@@ -83,12 +94,56 @@ imputations <- lapply(enumerate(imputation_hyperparameter_grids), function(metho
 })
 ```
 
+### Non-MICE imputations
+
+```{r}
+deterministic_imputations <- lapply(enumerate(other_hyperparameter_grids), function(method) {
+
+  hyperparams <- method$value
+
+  # TODO Implement timing
+  if (method$name == "bpca") {
+    imputations <- lapply(1:nrow(hyperparams), function(x) {
+      run_bpca(data = training_data, hyperparams = hyperparams[x, ])
+    })
+  }
+  else if (method$name == "knnImputation") {
+    imputations <- lapply(1:nrow(hyperparams), function(x) {
+      run_knn(data = training_data, hyperparams = hyperparams[x, ])
+    })
+  } else {
+    print("Method " %>% paste0(method$name, " is not implemented"))
+    imputations <- NULL
+  }
+
+  # Combine timings of different hyperparameter configs
+  timings <- do.call(rbind, lapply(imputations, . %>% attr("timing")))
+  # Return them along with the imputation object
+  attr(imputations, "timings") <- timings
+
+  return(imputations)
+})
+```
+
+### Single value imputations
+
+```{r}
+single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
+  list(`1` = list(completed_datasets = list(get(method$name)(training_data))))
+})
+names(single_value_imputations) <- names(single_value_imputation_hyperparameter_grids)
+```
+
 ### List and drop imputation methods that failed completely
+
+```{r}
+imputations <- c(mice_imputations, deterministic_imputations, single_value_imputations)
+```
+
 ```{r}
 valid_methods <- sapply(names(imputations), function(method) {
 
-  null_hpsets <- sapply(imputations[[method]], function(x) x[["imputation_object"]] %>% is.null)
-
+  null_hpsets <- sapply(imputations[[method]], function(x) x[["completed_datasets"]] %>% unlist %>% is.null)
   if (all(null_hpsets)) {
     print(paste("Imputation method", method, "did not successfully produce any datasets"))
     return(FALSE)
@@ -178,14 +233,14 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
   best_imputers <- lapply(enumerate(best_model_ix), . %>% with(imputations[[name]][[value]]))
   best_hyperparams <- lapply(enumerate(best_model_ix), . %>% with(hyperparams[[name]][value, ]))
 
-  # We can drop the now extraneous level "completed_datasets" of the tree
+  # We can drop the now superfluous level "completed_datasets" of the tree
   best_models <- lapply(best_models, . %>% extract2(1))
 
   return(list(ix = best_model_ix, models = best_models, imputers = best_imputers, hyperparams = best_hyperparams))
 }
 
-rf_bests <- select_best(rf_models, imputations, imputation_hyperparameter_grids, performance_function = extract_oob_performance, TRUE)
-lr_bests <- select_best(lr_models, imputations, imputation_hyperparameter_grids, performance_function = extract_mcc_performance, FALSE)
+rf_bests <- select_best(rf_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_oob_performance, TRUE)
+lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance, FALSE)
 ```
 
 ## Model diagnostics
