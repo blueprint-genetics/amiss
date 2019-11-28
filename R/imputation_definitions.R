@@ -5,7 +5,7 @@ mice_imputation_hyperparameters <- list(
   norm.predict = list(),
   norm = list(),
   rf = list(ntree = 0:10 * 2 + 1),
-  ri = list(ri.maxit = 0:10 * 2 + 1),
+  #ri = list(ri.maxit = 0:10 * 2 + 1), # very slow, and fails very often.
   midastouch = list(ridge = c(1e-03, 1e-04, 1e-05, 1e-06, 1e-07, 1e-08), output = FALSE)
 )
 
