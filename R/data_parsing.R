@@ -191,6 +191,7 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
 #' to contain the value matching the row's transcript id.
 split_dbnsfp_values <- function(variant_dataframe) {
   
+  old_df <- variant_dataframe
   stopifnot(class(variant_dataframe) == "data.frame")
   
   process_columns <- c(
@@ -221,18 +222,31 @@ split_dbnsfp_values <- function(variant_dataframe) {
                           x = variant_dataframe$Feature,
                           table = etsplits$Ensembl_transcriptid)
   
+  # Next we pick a value matching the transcript for each of the columns, of course selecting
+  # from the multiple values that were stored in dbNSFP.
+  # There is an additional complication that stops us from simply picking the value purely by the index:
+  # sometimes there is exactly one value, even though there are multiple transcripts. For MutationTaster,
+  # this is somewhat expected, since its transcripts do not necessarily match rest of dbNSFP. For other tools,
+  # this is probably meant to imply that the value is the same for each transcript. In such instances,
+  # we must return the first (and only) value regardless of chosen transcript (otherwise we would return
+  # a missing value). In addition, we must guard against picking a value at all when no transcript match has
+  # been found.
+  pick_value_for_transcript <- function(x, i) {
+    if (length(x) == 1 && !is.na(i)) return(x[1])
+    else return(x[i])
+  }
+
   picked_values <- lapply(X = etsplits, 
                           FUN = function(column) 
                             mapply(
-                              FUN = `[`,
+                              FUN = pick_value_for_transcript,
                               x = column,
-                              i = match_indices, 
+                              i = match_indices,
                               SIMPLIFY = TRUE
                             )
                           )
   
   variant_dataframe[, process_columns] <- picked_values
-  
   return(variant_dataframe)
   
 }
@@ -292,7 +306,6 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
     batch_df <- split_dbnsfp_values(batch_df)
     
     if (!nrow(batch_df) > 0) return(NULL)
-    
     
     return(batch_df)
     
