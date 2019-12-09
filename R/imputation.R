@@ -124,7 +124,7 @@ run_knn <- function(data, hyperparams) {
   timing <- system.time({
     imputation <- NULL
     tryCatch({
-      imputation <- do.call(knnImputation, c(list(quote(training_data)), hyperparams))
+      imputation <- do.call(knnImputation, c(list(I(data)), hyperparams))
     }, error = function(e) {
       print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
     })
