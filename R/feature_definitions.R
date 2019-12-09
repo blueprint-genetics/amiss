@@ -80,7 +80,16 @@ categorical_features <- make.names(c(
   "LRT_pred",
 
   # From CADD annotations
-  "Type",
   "Dst2SplType",
   "Consequence.x"
 ))
+
+default_imputations <- list(
+  motifECount = 0,
+  motifEScoreChng = 0,
+  motifEHIPos = FALSE,
+  tOverlapMotifs = 0,
+  motifDist = 0,
+  gnomAD_genomes_AF = 0,
+  gnomAD_exomes_AF = 0
+)
