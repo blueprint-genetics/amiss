@@ -16,6 +16,16 @@ training_data <- read.csv("contracted_training_data.csv", as.is = TRUE, row.name
 repeats <- 3
 ampute_params <- ampute_params[sample(1:NROW(ampute_params), 10), ]
 
+directories <- sapply(1:repeats, function(i) {
+  paste0("output/simulated_data/repeat_", i, "/")
+})
+
+dir_creation_success <- sapply(directories, function(d) {
+  dir.create(d, showWarnings = TRUE, recursive = TRUE)
+})
+if (!all(dir_creation_success)) {
+  stop("Failed to create director(y/ies) for saving output.")
+}
 
 # TODO: informative missingness simulation
 
@@ -35,22 +45,16 @@ ampute_per_pattern <- function(data, ...) {
 }
 
 repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
-  amputs <- foreach(params = 1:NROW(ampute_params)) %do% {
-    do.call(ampute_per_pattern, 
-            c(list(training_data), 
-              ampute_params[params, , drop = TRUE])
+  for (params_i in 1:NROW(ampute_params)) {
+    d <- do.call(
+      ampute_per_pattern,
+      c(list(training_data),
+        ampute_params[params_i, , drop = TRUE])
     )
+    # Save the files immediately to avoid aggregating them uselessly in memory
+    attr(d, "params") <- ampute_params[params_i, , drop = TRUE]
+    filename <- paste0(directories[[r]], paste0(attr(d, "params"), collapse = "_"), ".RDS")
+    saveRDS(d, file = filename)
   }
-}
-
-if (!dir.exists("output/simulated_data")) {
-  dir_creation_success <- dir.create("output/simulated_data", showWarnings = TRUE)
-  if (!dir_creation_success) {
-    stop("Failed to create directory for saving output.")
-  }
-}
-for (i in seq_along(amputs)) {
-  attr(amputs[[i]], "params") <- ampute_params[i, , drop = TRUE]
-  filename <- paste0("output/simulated_data/", paste0(attr(amputs[[i]], "params"), collapse = "_"), ".RDS")
-  saveRDS(amputs[[i]], filename)
+  return(NULL)
 }
