@@ -10,6 +10,7 @@ The features are selected to be values from tools in dbNSFP that are not themsel
 library(magrittr)
 
 source("../R/feature_definitions.R")
+source("../R/utils.R")
 
 training_set <- read.csv("../preprocessed_training_data.csv", row.names = 1, as.is = TRUE)
 test_set <- read.csv("../preprocessed_test_data.csv", row.names = 1, as.is = TRUE)
@@ -17,10 +18,7 @@ test_set <- read.csv("../preprocessed_test_data.csv", row.names = 1, as.is = TRU
 drop_original_categorical_features <- function(data, categorical_features) {
 
   columns <- colnames(data)
-  features_with_categorical_variable_prefix <- lapply(categorical_features,
-                                                      function(x) {
-                                                        columns[columns %>% startsWith(x) & !columns %in% x]
-                                                      })
+  features_with_categorical_variable_prefix <- lapply(categorical_features, . %>% find_dummies(columns))
 
   dummy_features <- unique(unlist(features_with_categorical_variable_prefix))
   features <- c(numeric_features, dummy_features)
