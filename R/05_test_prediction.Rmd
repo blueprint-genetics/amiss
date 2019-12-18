@@ -253,9 +253,9 @@ lr_mcc_boxplots <- arrangeGrob(
   ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
   ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
 )
-ggsave(filename =  "lr_mcc_boxplots.pdf", plot = rf_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
+ggsave(filename =  "lr_mcc_boxplots.pdf", plot = lr_mcc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 
-# RF AUC-ROC
+# LR AUC-ROC
 lr_roc_boxplots <- arrangeGrob(
   ggplot(lr_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier"),
   ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
