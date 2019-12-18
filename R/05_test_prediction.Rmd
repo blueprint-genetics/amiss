@@ -58,9 +58,9 @@ iters <- 1
 
 impute_w_hps <- function(data, hp_tree){
 
-  # Create a tree of functions with hyperparameter configurations fixed by currying the
-  # mice function; i.e. create new functions with all arguments besides `method` fixed
   imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
+
+    estimates <- attr(hps$value, "imputation_estimates")
 
     method <- hps$name
     if (method %in% names(mice_imputation_hyperparameters)) {
@@ -75,9 +75,14 @@ impute_w_hps <- function(data, hp_tree){
 
       run_knn(data, hps$value)
 
+    } else if (method == "missingness_indicators") {
+
+      remove_vector <- colnames(data) %in% estimates
+      list(completed_datasets = list(`1` = missingness_indicators(data, remove_vector = remove_vector)))
+
     } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
 
-      list(completed_datasets = list(`1` = get(method)(data)))
+      list(completed_datasets = list(`1` = reimpute(dataframe = data, value = estimates)))
 
     }
   }
@@ -105,7 +110,7 @@ prediction <- function(models, completions) {
 
       pred_per_completion <- foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
         tryCatch({
-        predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
+          predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
         }, error = function(e) print(e))
       }
 

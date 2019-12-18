@@ -15,9 +15,18 @@ single_value_univariate_imputation <- function(f) {
     missing <- is.na(column)
     impute_value <- f(column[!missing])
     column[missing] <- rep(impute_value, sum(missing))
+    attr(column, "imputation_estimates") <- impute_value
     return(column)
   }
-  return(function(dataframe) data.frame(lapply(dataframe, replace_na)))
+  imp_func <- function(dataframe) {
+    imp_data <- lapply(dataframe, replace_na)
+    estimates <- lapply(imp_data, function(col) attr(col, "imputation_estimates"))
+    names(estimates) <- colnames(dataframe)
+    df <- data.frame(imp_data)
+    attr(df, "imputation_estimates") <- estimates
+    return(df)
+  }
+  return(imp_func)
 }
 
 produce_outlier <- function(x) {
@@ -30,6 +39,11 @@ mean_imp <- single_value_univariate_imputation(mean)
 median_imp <- single_value_univariate_imputation(median)
 zero_imp <- single_value_univariate_imputation(function(x) 0.0)
 outlier_imp <- single_value_univariate_imputation(produce_outlier)
+
+reimpute <- function(dataframe, value) data.frame(lapply(enumerate(dataframe), function(col) {
+  col$value[is.na(col$value)] <- value[[col$name]]
+  return(col$value)
+}))
 
 #' Run and time `mice `
 #'
@@ -76,7 +90,6 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 #'
 #' @param data A data.frame to impute
 #' @param hyperparams list of named values that will be fed as arguments to `pcaMethods::pca`
-#' @param times Number of imputed datasets to produce
 #'
 #' @return A named two-element list, where
 #' first element is a list of completed datasets (of length `times`),
@@ -113,18 +126,23 @@ run_bpca <- function(data, hyperparams) {
 #'
 #' @param data A data.frame to impute
 #' @param hyperparams list of named values that will be fed as arguments to `DMwR::knnImputation`
-#' @param times Number of imputed datasets to produce
+#' @param old_data Completed training set to use for finding neighbors
 #'
 #' @return A named two-element list, where
 #' first element is a list of completed datasets (of length `times`),
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
-run_knn <- function(data, hyperparams) {
+run_knn <- function(data, hyperparams, old_data = NULL) {
 
   timing <- system.time({
     imputation <- NULL
     tryCatch({
-      imputation <- do.call(knnImputation, c(list(I(data)), hyperparams))
+      if (!is.null(old_data)) {
+        imputation <- do.call(knnImputation, c(list(I(data)), hyperparams, distData = list(old_data)))
+      }
+      else {
+        imputation <- do.call(knnImputation, c(list(I(data)), hyperparams))
+      }
     }, error = function(e) {
       print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
     })
@@ -138,4 +156,32 @@ run_knn <- function(data, hyperparams) {
 
   return(result)
 
+}
+
+#' Run and time addition of missingness indicators
+#'
+#' For missingness indicators which are perfect copies of each other, only one is kept.
+#'
+#' @param data A data.frame to add indicators into
+#'
+#' @return A data.frame
+missingness_indicators <- function(data, remove_vector = NULL) {
+
+  timing <- system.time({
+
+    miss_inds <- is.na(data)
+    if (is.null(remove_vector)) {
+      remove_vector <- miss_inds %>% t %>% duplicated
+    }
+    remove_names <- colnames(miss_inds)[remove_vector]
+    miss_inds <- miss_inds[, !remove_vector]
+    colnames(miss_inds) <- paste0(colnames(miss_inds), "_missing")
+
+    data <- zero_imp(data)
+    data <- cbind(data, miss_inds)
+
+    attr(data, "imputation_estimates") <- remove_names
+  })
+  attr(data, "timing") <- timing
+  return(data)
 }
