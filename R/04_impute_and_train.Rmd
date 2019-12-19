@@ -40,7 +40,7 @@ Some imputation methods cannot deal with features that have certain unwanted pro
 ### Near-zero variance
 
 ```{r}
-nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE)
+nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = 1)
 print(nzv_features[nzv_features$nzv, ])
 
 if (any(nzv_features$nzv)) {
