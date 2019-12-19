@@ -42,10 +42,4 @@ merged_data <- merge(x = cadd_data,
                      by.x = c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID"),
                      by.y = c("CHROM", "POS", "REF", "ALT", "Feature"))
 
-data_split <- split_train_test(merged_data, 0.7)
-
-training <- data_split$training_set
-test <- data_split$test_set
-
-write.csv(file = "training_data.csv", x = training, row.names = FALSE)
-write.csv(file = "test_data.csv", x = test, row.names = FALSE)
+write.csv(file = "merged_data.csv", x = merged_data, row.names = FALSE)
