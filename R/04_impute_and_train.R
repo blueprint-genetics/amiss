@@ -11,15 +11,15 @@ library(foreach)
 library(doParallel)
 library(doRNG)
 
-source("imputation_definitions.R")
-source("recursive_application.R")
-source("imputation.R")
+source("R/imputation_definitions.R")
+source("R/recursive_application.R")
+source("R/imputation.R")
 
 registerDoParallel(3)
 seed <- 42
 
-training_data <- read.csv("../contracted_training_data.csv", row.names = 1, as.is = TRUE)
-outcome <- read.csv("../training_outcomes.csv", as.is = TRUE)
+training_data <- read.csv("contracted_training_data.csv", row.names = 1, as.is = TRUE)
+outcome <- read.csv("training_outcomes.csv", as.is = TRUE)
 
 # Recode outcomes as 1 -> "positive", 0 -> "negative"
 outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
@@ -27,7 +27,7 @@ head(outcome)
 
 ## Removal of problematic features
 
-Some imputation methods cannot deal with features that have certain unwanted properties, and thus they must be removed prior to imputation.
+# Some imputation methods cannot deal with features that have certain unwanted properties, and thus they must be removed prior to imputation.
 
 ### Near-zero variance
 
@@ -53,7 +53,6 @@ if(highly_correlated_features %>% length > 0) {
 ## Imputation
 
 # Check the number of hyperparameter configurations for each imputation method:
-  
 lapply(mice_hyperparameter_grids, nrow)
 lapply(other_hyperparameter_grids, nrow)
 
@@ -219,11 +218,19 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
   best_models <- map(enumerate(best_model_ix), . %>% with(models[[name]][[value]]))
   best_imputers <- map(enumerate(best_model_ix), . %>% with(imputations[[name]][[value]]))
   best_hyperparams <- map(enumerate(best_model_ix), . %>% with(hyperparams[[name]][value, ]))
-  for(h in names(best_hyperparams)) {
-    if (h == "knnImputation")
+
+  # For the methods that properly accept them, we should store parameters from the training set
+  # to use in imputing the test set.
+  for (h in names(best_hyperparams)) {
+    # kNN allows use of another dataset to find the neighbors. Thus, let's store the completed dataset.
+    if (h == "knnImputation") {
       attr(best_hyperparams[[h]], "imputation_estimates") <- best_imputers[[h]][["completed_datasets"]][[1]]
-    if (h %in% names(single_value_imputation_hyperparameter_grids))
+    }
+    # E.g. median imputations should impute the test set with the median of the training set instead of
+    # the median of the test set. Thus such values must be stored.
+    if (h %in% names(single_value_imputation_hyperparameter_grids)) {
       attr(best_hyperparams[[h]], "imputation_estimates") <- attr(best_imputers[[h]][["completed_datasets"]][[1]], "imputation_estimates")
+    }
   }
 
   return(list(ix = best_model_ix, models = best_models, imputers = best_imputers, hyperparams = best_hyperparams))
@@ -242,24 +249,24 @@ lr_imputation_convergence_plots <- lapply(lr_bests$imputers, . %>% recursive_app
 rf_classifier_oob_plots <- recursive_apply(rf_bests$models, plot, x_class = "train")
 
 ## Saving model
-if (!dir.exists("../output")) {
-  dir_creation_success <- dir.create("../output", showWarnings = TRUE)
+if (!dir.exists("output")) {
+  dir_creation_success <- dir.create("output", showWarnings = TRUE)
   if (!dir_creation_success) {
     stop("Failed to create directory for saving output.")
   }
 }
 
-saveRDS(rf_bests$models, file = "../output/rf_classifiers.rds")
-saveRDS(rf_bests$imputers, file = "../output/rf_imputers.rds")
-saveRDS(rf_bests$hyperparams, file = "../output/rf_hp_configs.rds")
+saveRDS(rf_bests$models, file = "output/rf_classifiers.rds")
+saveRDS(rf_bests$imputers, file = "output/rf_imputers.rds")
+saveRDS(rf_bests$hyperparams, file = "output/rf_hp_configs.rds")
 
 # glm models in R contain references to environments, but for prediction it doesn't seem that 
 # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
 # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).
 # See https://stackoverflow.com/questions/54144239/how-to-use-saverds-refhook-parameter for an example of
 # using the `refhook`.
-saveRDS(lr_bests$models, file = "../output/lr_classifiers.rds", refhook = function(x) "")
-saveRDS(lr_bests$imputers, file = "../output/lr_imputers.rds")
-saveRDS(lr_bests$hyperparams, file = "../output/lr_hp_configs.rds")
+saveRDS(lr_bests$models, file = "output/lr_classifiers.rds", refhook = function(x) "")
+saveRDS(lr_bests$imputers, file = "output/lr_imputers.rds")
+saveRDS(lr_bests$hyperparams, file = "output/lr_hp_configs.rds")
 
-saveRDS(colnames(training_data), "../output/final_features.rds")
+saveRDS(colnames(training_data), "output/final_features.rds")

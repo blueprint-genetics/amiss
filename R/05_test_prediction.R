@@ -12,17 +12,17 @@ library(doParallel)
 library(doRNG)
 library(DMwR)
 
-source("recursive_application.R")
-source("imputation_definitions.R")
-source("imputation.R")
+source("R/recursive_application.R")
+source("R/imputation_definitions.R")
+source("R/imputation.R")
 
 seed <- 42
 registerDoParallel(3)
 
-test_data <- read.csv("../contracted_test_data.csv", row.names = 1, as.is = TRUE)
-outcome <- read.csv("../test_outcomes.csv", as.is = TRUE)
+test_data <- read.csv("contracted_test_data.csv", row.names = 1, as.is = TRUE)
+outcome <- read.csv("test_outcomes.csv", as.is = TRUE)
 
-results_dir_path <- "../output/results/"
+results_dir_path <- "output/results/"
 if (!dir.exists(results_dir_path)) {
   dir_creation_success <- dir.create(results_dir_path, showWarnings = TRUE)
   if (!dir_creation_success) {
@@ -31,7 +31,7 @@ if (!dir.exists(results_dir_path)) {
 }
 
 # Keep exactly those features that were kept in training data
-final_features <- readRDS("../output/final_features.rds")
+final_features <- readRDS("output/final_features.rds")
 test_data <- test_data[, final_features]
 
 # Recode outcomes as 1 -> "positive", 0 -> "negative"
@@ -39,8 +39,9 @@ outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "neg
 head(outcome)
 
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
-rf_hyperparams <- readRDS("../output/rf_hp_configs.rds")
-lr_hyperparams <- readRDS("../output/lr_hp_configs.rds")
+
+rf_hyperparams <- readRDS("output/rf_hp_configs.rds")
+lr_hyperparams <- readRDS("output/lr_hp_configs.rds")
 
 times <- 5
 iters <- 1
@@ -49,6 +50,8 @@ impute_w_hps <- function(data, hp_tree){
 
   imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
 
+    # The imputation parameters estimated from the training set should be used 
+    # where possible.
     estimates <- attr(hps$value, "imputation_estimates")
 
     method <- hps$name
@@ -62,7 +65,7 @@ impute_w_hps <- function(data, hp_tree){
 
     } else if (method == "knnImputation") {
 
-      run_knn(data, hps$value, estimates)
+      run_knn(data, hps$value, old_data = estimates)
 
     } else if (method == "missingness_indicators") {
 
@@ -77,18 +80,18 @@ impute_w_hps <- function(data, hp_tree){
   }
   names(imputations) <- names(hp_tree)
 
-  # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, median_imp, "data.frame") %>% lapply(. %>% extract2(1))
+  completions <- imputations %>% lapply(. %>% extract2(1))
 
   return(completions)
 }
-
 rf_completions <- impute_w_hps(test_data, rf_hyperparams)
 lr_completions <- impute_w_hps(test_data, lr_hyperparams)
 
+
 ## Predict on test set completions using best classifier models
-rf_models <- readRDS("../output/rf_classifiers.rds")
-lr_models <- readRDS("../output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
+
+rf_models <- readRDS("output/rf_classifiers.rds")
+lr_models <- readRDS("output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
 
 prediction <- function(models, completions) {
 
@@ -118,7 +121,9 @@ prediction <- function(models, completions) {
 rf_predictions <- prediction(rf_models, rf_completions)
 lr_predictions <- prediction(lr_models, lr_completions)
 
+
 ## Compute performance statistics on the test set
+
 performance_stats <- function(predictions) {
 
   confusion_matrices <- recursive_apply_numeric(predictions, function(pred) {
@@ -155,6 +160,8 @@ performance_stats <- function(predictions) {
 rf_perf <- performance_stats(rf_predictions)
 lr_perf <- performance_stats(lr_predictions)
 
+
+
 turn_table <- function(perf_tree) {
 
   tree_names <- recursive_apply_numeric(perf_tree, function(x, name_list) return(name_list), pass_node_names = TRUE)
@@ -188,6 +195,8 @@ lr_perf_table <- merge_tables(lr_tables)
 write.csv(x = rf_perf_table, file = paste0(results_dir_path, "rf_performance.csv"), row.names = FALSE)
 write.csv(x = lr_perf_table, file = paste0(results_dir_path, "lr_performance.csv"), row.names = FALSE)
 
+
+
 aggregate_over_perf_table <- function(perf_table) {
 
   perf_stats <- perf_table[, !colnames(perf_table) %in% c("method", "model_index", "test_realization")]
@@ -215,6 +224,8 @@ for (name in names(lr_perf_aggregations)) {
             file = paste0(results_dir_path, "lr_", name, ".csv"),
             row.names = FALSE)
 }
+
+
 
 # RF MCC
 rf_mcc_boxplots <- arrangeGrob(
