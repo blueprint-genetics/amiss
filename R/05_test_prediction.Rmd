@@ -15,6 +15,7 @@ library(gridExtra)
 library(foreach)
 library(doParallel)
 library(doRNG)
+library(DMwR)
 
 source("recursive_application.R")
 source("imputation_definitions.R")
@@ -70,9 +71,9 @@ impute_w_hps <- function(data, hp_tree){
 
       run_bpca(data, hps$value)
 
-    } else if (method == "knn") {
+    } else if (method == "knnImputation") {
 
-      run_knn(data, hps)
+      run_knn(data, hps$value)
 
     } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
 
@@ -108,12 +109,12 @@ prediction <- function(models, completions) {
         }, error = function(e) print(e))
       }
 
-      names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
+      names(pred_per_completion) <- paste0("imp_", seq_along(pred_per_completion))
       pred_per_completion
 
     })
 
-    names(pred_per_model) <- paste0("model_", 1:length(pred_per_model))
+    names(pred_per_model) <- paste0("model_", seq_along(pred_per_model))
     pred_per_model
 
   })
