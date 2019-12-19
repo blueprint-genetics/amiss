@@ -200,16 +200,16 @@ train_lr <- function(dataset) {
   return(lr_model)
 }
 # Train on every completed dataset
-rf_models <- foreach(method = imputations) %do% {
-  foreach(mi_iter = method, .options.RNG = seed) %dorng% {
+rf_models <- foreach(method = imputations, .options.RNG = seed) %dorng% {
+  foreach(mi_iter = method) %do% {
     foreach(data = mi_iter$completed_datasets) %do% {
       return(train_rf(data))
     } %>% set_names(names(mi_iter$completed_datasets))
   } %>% set_names(names(method))
 } %>% set_names(names(imputations))
 
-lr_models <- foreach(method = imputations) %do% {
-  foreach(mi_iter = method, .options.RNG = seed) %dorng% {
+lr_models <- foreach(method = imputations, .options.RNG = seed) %dorng% {
+  foreach(mi_iter = method) %do% {
     foreach(data = mi_iter$completed_datasets) %do% {
       return(train_lr(data))
     } %>% set_names(names(mi_iter$completed_datasets))
@@ -247,6 +247,20 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
   best_models <- map(enumerate(best_model_ix), . %>% with(models[[name]][[value]]))
   best_imputers <- map(enumerate(best_model_ix), . %>% with(imputations[[name]][[value]]))
   best_hyperparams <- map(enumerate(best_model_ix), . %>% with(hyperparams[[name]][value, ]))
+
+  # For the methods that properly accept them, we should store parameters from the training set
+  # to use in imputing the test set.
+  for (h in names(best_hyperparams)) {
+    # kNN allows use of another dataset to find the neighbors. Thus, let's store the completed dataset.
+    if (h == "knnImputation") {
+      attr(best_hyperparams[[h]], "imputation_estimates") <- best_imputers[[h]][["completed_datasets"]][[1]]
+    }
+    # E.g. median imputations should impute the test set with the median of the training set instead of
+    # the median of the test set. Thus such values must be stored.
+    if (h %in% names(single_value_imputation_hyperparameter_grids)) {
+      attr(best_hyperparams[[h]], "imputation_estimates") <- attr(best_imputers[[h]][["completed_datasets"]][[1]], "imputation_estimates")
+    }
+  }
 
   return(list(ix = best_model_ix, models = best_models, imputers = best_imputers, hyperparams = best_hyperparams))
 }

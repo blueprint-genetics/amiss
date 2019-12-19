@@ -51,16 +51,18 @@ head(outcome)
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
 ```{r}
 rf_hyperparams <- readRDS("../output/rf_hp_configs.rds")
-lr_hyperparams <- readRDS("../output/lr_hp_configs.rds", refhook = function(x) .GlobalEnv)
+lr_hyperparams <- readRDS("../output/lr_hp_configs.rds")
 
 times <- 5
 iters <- 1
 
 impute_w_hps <- function(data, hp_tree){
 
-  # Create a tree of functions with hyperparameter configurations fixed by currying the
-  # mice function; i.e. create new functions with all arguments besides `method` fixed
   imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
+
+    # The imputation parameters estimated from the training set should be used 
+    # where possible.
+    estimates <- attr(hps$value, "imputation_estimates")
 
     method <- hps$name
     if (method %in% names(mice_imputation_hyperparameters)) {
@@ -73,18 +75,22 @@ impute_w_hps <- function(data, hp_tree){
 
     } else if (method == "knnImputation") {
 
-      run_knn(data, hps$value)
+      run_knn(data, hps$value, old_data = estimates)
+
+    } else if (method == "missingness_indicators") {
+
+      remove_vector <- colnames(data) %in% estimates
+      list(completed_datasets = list(`1` = missingness_indicators(data, remove_vector = remove_vector)))
 
     } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
 
-      list(completed_datasets = list(`1` = get(method)(data)))
+      list(completed_datasets = list(`1` = reimpute(dataframe = data, value = estimates)))
 
     }
   }
   names(imputations) <- names(hp_tree)
 
-  # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, median_imp, "data.frame") %>% lapply(. %>% extract2(1))
+  completions <- imputations %>% lapply(. %>% extract2(1))
 
   return(completions)
 }
@@ -95,7 +101,7 @@ lr_completions <- impute_w_hps(test_data, lr_hyperparams)
 ## Predict on test set completions using best classifier models
 ```{r}
 rf_models <- readRDS("../output/rf_classifiers.rds")
-lr_models <- readRDS("../output/lr_classifiers.rds")
+lr_models <- readRDS("../output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
 
 prediction <- function(models, completions) {
 
@@ -105,7 +111,7 @@ prediction <- function(models, completions) {
 
       pred_per_completion <- foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
         tryCatch({
-        predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
+          predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
         }, error = function(e) print(e))
       }
 
@@ -253,9 +259,9 @@ lr_mcc_boxplots <- arrangeGrob(
   ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
   ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
 )
-ggsave(filename =  "lr_roc_boxplots.pdf", plot = rf_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
+ggsave(filename =  "lr_mcc_boxplots.pdf", plot = lr_mcc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 
-# RF AUC-ROC
+# LR AUC-ROC
 lr_roc_boxplots <- arrangeGrob(
   ggplot(lr_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier"),
   ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
