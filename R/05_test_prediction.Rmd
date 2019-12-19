@@ -60,6 +60,8 @@ impute_w_hps <- function(data, hp_tree){
 
   imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
 
+    # The imputation parameters estimated from the training set should be used 
+    # where possible.
     estimates <- attr(hps$value, "imputation_estimates")
 
     method <- hps$name
@@ -73,7 +75,7 @@ impute_w_hps <- function(data, hp_tree){
 
     } else if (method == "knnImputation") {
 
-      run_knn(data, hps$value, estimates)
+      run_knn(data, hps$value, old_data = estimates)
 
     } else if (method == "missingness_indicators") {
 
@@ -88,8 +90,7 @@ impute_w_hps <- function(data, hp_tree){
   }
   names(imputations) <- names(hp_tree)
 
-  # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, median_imp, "data.frame") %>% lapply(. %>% extract2(1))
+  completions <- imputations %>% lapply(. %>% extract2(1))
 
   return(completions)
 }
