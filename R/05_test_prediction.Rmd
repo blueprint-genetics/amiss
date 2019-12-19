@@ -51,7 +51,7 @@ head(outcome)
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
 ```{r}
 rf_hyperparams <- readRDS("../output/rf_hp_configs.rds")
-lr_hyperparams <- readRDS("../output/lr_hp_configs.rds", refhook = function(x) .GlobalEnv)
+lr_hyperparams <- readRDS("../output/lr_hp_configs.rds")
 
 times <- 5
 iters <- 1
@@ -60,6 +60,8 @@ impute_w_hps <- function(data, hp_tree){
 
   imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
 
+    # The imputation parameters estimated from the training set should be used 
+    # where possible.
     estimates <- attr(hps$value, "imputation_estimates")
 
     method <- hps$name
@@ -73,7 +75,7 @@ impute_w_hps <- function(data, hp_tree){
 
     } else if (method == "knnImputation") {
 
-      run_knn(data, hps$value)
+      run_knn(data, hps$value, old_data = estimates)
 
     } else if (method == "missingness_indicators") {
 
@@ -88,8 +90,7 @@ impute_w_hps <- function(data, hp_tree){
   }
   names(imputations) <- names(hp_tree)
 
-  # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, median_imp, "data.frame") %>% lapply(. %>% extract2(1))
+  completions <- imputations %>% lapply(. %>% extract2(1))
 
   return(completions)
 }
@@ -100,7 +101,7 @@ lr_completions <- impute_w_hps(test_data, lr_hyperparams)
 ## Predict on test set completions using best classifier models
 ```{r}
 rf_models <- readRDS("../output/rf_classifiers.rds")
-lr_models <- readRDS("../output/lr_classifiers.rds")
+lr_models <- readRDS("../output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
 
 prediction <- function(models, completions) {
 

@@ -191,7 +191,6 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
 #' to contain the value matching the row's transcript id.
 split_dbnsfp_values <- function(variant_dataframe) {
   
-  old_df <- variant_dataframe
   stopifnot(class(variant_dataframe) == "data.frame")
   
   process_columns <- c(
