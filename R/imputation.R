@@ -163,6 +163,8 @@ run_knn <- function(data, hyperparams, old_data = NULL) {
 #' For missingness indicators which are perfect copies of each other, only one is kept.
 #'
 #' @param data A data.frame to add indicators into
+#' @param remove_vector The variables whose missingness indicators should not be kept.
+#' Used to get matching feature sets between training and test sets.
 #'
 #' @return A data.frame
 missingness_indicators <- function(data, remove_vector = NULL) {
