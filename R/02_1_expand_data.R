@@ -5,12 +5,12 @@ library(magrittr)
 
 set.seed(10)
 
-source("../R/preprocessing.R")
+source("R/preprocessing.R")
 
-merged_data <- read.csv("../merged_data.csv", as.is = TRUE)
+merged_data <- read.csv("merged_data.csv", as.is = TRUE)
 
-source("../R/feature_definitions.R")
-source("../R/recursive_application.R")
+source("R/feature_definitions.R")
+source("R/recursive_application.R")
 
 ## Name data rows by strings identifying variants
 form_variant_ids <- function(data) {
@@ -144,7 +144,7 @@ nrow(training_set)
 nrow(test_set)
 
 # Finally, write out the processed data CSV file.
-write.csv(training_set, "../preprocessed_training_data.csv", row.names = TRUE)
-write.csv(test_set, "../preprocessed_test_data.csv", row.names = TRUE)
-write.csv(training_outcome, "../training_outcomes.csv", row.names = TRUE)
-write.csv(test_outcome, "../test_outcomes.csv", row.names = TRUE)
+write.csv(training_set, "preprocessed_training_data.csv", row.names = TRUE)
+write.csv(test_set, "preprocessed_test_data.csv", row.names = TRUE)
+write.csv(training_outcome, "training_outcomes.csv", row.names = TRUE)
+write.csv(test_outcome, "test_outcomes.csv", row.names = TRUE)
