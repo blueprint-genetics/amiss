@@ -51,7 +51,7 @@ head(outcome)
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
 ```{r}
 rf_hyperparams <- readRDS("../output/rf_hp_configs.rds")
-lr_hyperparams <- readRDS("../output/lr_hp_configs.rds", refhook = function(x) .GlobalEnv)
+lr_hyperparams <- readRDS("../output/lr_hp_configs.rds")
 
 times <- 5
 iters <- 1
@@ -73,7 +73,7 @@ impute_w_hps <- function(data, hp_tree){
 
     } else if (method == "knnImputation") {
 
-      run_knn(data, hps$value)
+      run_knn(data, hps$value, estimates)
 
     } else if (method == "missingness_indicators") {
 
@@ -100,7 +100,7 @@ lr_completions <- impute_w_hps(test_data, lr_hyperparams)
 ## Predict on test set completions using best classifier models
 ```{r}
 rf_models <- readRDS("../output/rf_classifiers.rds")
-lr_models <- readRDS("../output/lr_classifiers.rds")
+lr_models <- readRDS("../output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
 
 prediction <- function(models, completions) {
 
