@@ -45,31 +45,18 @@ numeric_features <- make.names(c(
   "tOverlapMotifs",
   "motifDist",
   "EncodeH3K4me1-sum",
-  "EncodeH3K4me1-max",
   "EncodeH3K4me2-sum",
-  "EncodeH3K4me2-max",
   "EncodeH3K4me3-sum",
-  "EncodeH3K4me3-max",
   "EncodeH3K9ac-sum",
-  "EncodeH3K9ac-max",
   "EncodeH3K9me3-sum",
-  "EncodeH3K9me3-max",
   "EncodeH3K27ac-sum",
-  "EncodeH3K27ac-max",
   "EncodeH3K27me3-sum",
-  "EncodeH3K27me3-max",
   "EncodeH3K36me3-sum",
-  "EncodeH3K36me3-max",
   "EncodeH3K79me2-sum",
-  "EncodeH3K79me2-max",
   "EncodeH4K20me1-sum",
-  "EncodeH4K20me1-max",
   "EncodeH2AFZ-sum",
-  "EncodeH2AFZ-max",
   "EncodeDNase-sum",
-  "EncodeDNase-max",
   "EncodetotalRNA-sum",
-  "EncodetotalRNA-max",
   # "Grantham",
   "RemapOverlapTF",
   "RemapOverlapCL"
@@ -80,7 +67,16 @@ categorical_features <- make.names(c(
   "LRT_pred",
 
   # From CADD annotations
-  "Type",
   "Dst2SplType",
   "Consequence.x"
 ))
+
+default_imputations <- list(
+  motifECount = 0,
+  motifEScoreChng = 0,
+  motifEHIPos = FALSE,
+  tOverlapMotifs = 0,
+  motifDist = 0,
+  gnomAD_genomes_AF = 0,
+  gnomAD_exomes_AF = 0
+)

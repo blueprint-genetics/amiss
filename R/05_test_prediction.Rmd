@@ -7,15 +7,38 @@ output: html_notebook
 ```{r}
 library(magrittr)
 library(mice)
+library(ModelMetrics)
 library(caret)
+library(stringr)
+library(ggplot2)
+library(gridExtra)
+library(foreach)
+library(doParallel)
+library(doRNG)
+library(DMwR)
 
 source("recursive_application.R")
 source("imputation_definitions.R")
 source("imputation.R")
 
+seed <- 42
+registerDoParallel(3)
+
 test_data <- read.csv("../contracted_test_data.csv", row.names = 1, as.is = TRUE)
 outcome <- read.csv("../test_outcomes.csv", as.is = TRUE)
+```
 
+```{r}
+results_dir_path <- "../output/results/"
+if (!dir.exists(results_dir_path)) {
+  dir_creation_success <- dir.create(results_dir_path, showWarnings = TRUE)
+  if (!dir_creation_success) {
+    stop("Failed to create directory for saving results.")
+  }
+}
+```
+
+```{r}
 # Keep exactly those features that were kept in training data
 final_features <- readRDS("../output/final_features.rds")
 test_data <- test_data[, final_features]
@@ -35,41 +58,39 @@ iters <- 1
 
 impute_w_hps <- function(data, hp_tree){
 
-  # Create a tree of functions with hyperparameter configurations fixed by currying the
-  # mice function; i.e. create new functions with all arguments besides `method` fixed
-  imputation_functions <- lapply(hp_tree, FUN = function(hps) {
-    function(method) {
-      if (method %in% names(mice_imputation_hyperparameters)) {
+  imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
 
-        run_mice(data, method, hps, times, iters)
+    # The imputation parameters estimated from the training set should be used 
+    # where possible.
+    estimates <- attr(hps$value, "imputation_estimates")
 
-      } else if (method == "bpca") {
+    method <- hps$name
+    if (method %in% names(mice_imputation_hyperparameters)) {
 
-        run_bpca(data, hps)
+      run_mice(data, method, hps$value, times, iters)
 
-      } else if (method == "knn") {
+    } else if (method == "bpca") {
 
-        run_knn(data, hps)
+      run_bpca(data, hps$value)
 
-      } else if (method %in% single_value_imputation_hyperparameter_grids) {
+    } else if (method == "knnImputation") {
 
-        get(method)(data)
+      run_knn(data, hps$value, old_data = estimates)
 
-      }
+    } else if (method == "missingness_indicators") {
+
+      remove_vector <- colnames(data) %in% estimates
+      list(completed_datasets = list(`1` = missingness_indicators(data, remove_vector = remove_vector)))
+
+    } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
+
+      list(completed_datasets = list(`1` = reimpute(dataframe = data, value = estimates)))
+
     }
-  })
+  }
+  names(imputations) <- names(hp_tree)
 
-  # Run each function in the tree using the method designated by the subtree
-  imputations <- lapply(names(imputation_functions),
-                        function(method) {
-                          recursive_apply(imputation_functions[[method]],
-                                          fun = function(x) x(method),
-                                          "function")
-                        })
-  names(imputations) <- names(imputation_functions)
-
-  # In case some variables were not otherwise imputable on the test set for whatever reason, run median imputation on them.
-  completions <- recursive_apply(imputations, median_imp, "data.frame")
+  completions <- imputations %>% lapply(. %>% extract2(1))
 
   return(completions)
 }
@@ -80,7 +101,7 @@ lr_completions <- impute_w_hps(test_data, lr_hyperparams)
 ## Predict on test set completions using best classifier models
 ```{r}
 rf_models <- readRDS("../output/rf_classifiers.rds")
-lr_models <- readRDS("../output/lr_classifiers.rds")
+lr_models <- readRDS("../output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
 
 prediction <- function(models, completions) {
 
@@ -88,18 +109,18 @@ prediction <- function(models, completions) {
 
     pred_per_model <- lapply(models[[method]], function(model) {
 
-      pred_per_completion <- recursive_apply(completions, function(completed_dataset) {
+      pred_per_completion <- foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
         tryCatch({
-        predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
+          predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
         }, error = function(e) print(e))
-      }, "data.frame")
+      }
 
-      names(pred_per_completion) <- paste0("imp_", 1:length(pred_per_completion))
+      names(pred_per_completion) <- paste0("imp_", seq_along(pred_per_completion))
       pred_per_completion
 
     })
 
-    names(pred_per_model) <- paste0("model_", 1:length(pred_per_model))
+    names(pred_per_model) <- paste0("model_", seq_along(pred_per_model))
     pred_per_model
 
   })
@@ -115,41 +136,136 @@ lr_predictions <- prediction(lr_models, lr_completions)
 ```{r}
 performance_stats <- function(predictions) {
 
-  confusion_matrices <- recursive_apply(predictions, function(pred) {
+  confusion_matrices <- recursive_apply_numeric(predictions, function(pred) {
     pred <- factor(c("positive", "negative")[2 - (pred > 0.5)], c("positive", "negative"))
     caret::confusionMatrix(pred, outcome)
-  }, x_class = "numeric")
+  })
 
-  mccs <- recursive_apply(predictions, function(pred) ModelMetrics::mcc(as.integer(outcome == "positive"), pred, 0.5), x_class = "numeric")
-  aucs <- recursive_apply(predictions, function(pred) ModelMetrics::auc(as.integer(outcome == "positive"), pred), x_class = "numeric")
+  extract_stat <- function(stat) function(x) x %>% use_series("byClass") %>% extract(stat)
 
-  mean_mccs <- leaf_apply(mccs, . %>% unlist %>% mean, FALSE)
-  mean_aucs <- leaf_apply(aucs, . %>% unlist %>% mean, FALSE)
+  positive_outcome_indicator <- as.integer(outcome == "positive")
 
-  sd_mccs <- leaf_apply(mccs, . %>% unlist %>% sd, FALSE)
-  sd_aucs <- leaf_apply(aucs, . %>% unlist %>% sd, FALSE)
+  mcc <- recursive_apply_numeric(predictions, . %>% mcc(actual = positive_outcome_indicator, predicted = ., cutoff = 0.5))
+  auc <- recursive_apply_numeric(predictions, . %>% auc(actual = positive_outcome_indicator, predicted = .))
 
-  mean_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% mean, FALSE)
-  mean_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% mean, FALSE)
+  recursive_apply_cm <- function(x, fun) recursive_apply(x = x, fun = fun, x_class = "confusionMatrix")
 
-  sd_mean_mccs <- leaf_apply(mean_mccs, . %>% unlist %>% sd, FALSE)
-  sd_mean_aucs <- leaf_apply(mean_aucs, . %>% unlist %>% sd, FALSE)
+  sensitivity <- recursive_apply_cm(confusion_matrices, extract_stat("Sensitivity"))
+  specificity <- recursive_apply_cm(confusion_matrices, extract_stat("Specificity"))
+  f1 <- recursive_apply_cm(confusion_matrices, extract_stat("F1"))
+  precision <- recursive_apply_cm(confusion_matrices, extract_stat("Precision"))
+  recall <- recursive_apply_cm(confusion_matrices, extract_stat("Recall"))
 
-  perfs <- list(mccs = mccs,
-                mean_mccs = mean_mccs,
-                sd_mccs = sd_mccs,
-                mean_mean_mccs =  mean_mean_mccs,
-                sd_mean_mccs = sd_mean_mccs,
-
-                aucs = aucs,
-                mean_aucs = mean_aucs,
-                sd_aucs = sd_aucs,
-                mean_mean_aucs = mean_mean_aucs,
-                sd_mean_aucs = sd_mean_aucs)
+  perfs <- list(mcc = mcc,
+                auc = auc,
+                sensitivity = sensitivity,
+                specificity = specificity,
+                f1 = f1,
+                precision = precision,
+                recall = recall)
 
   return(perfs)
 
 }
 rf_perf <- performance_stats(rf_predictions)
 lr_perf <- performance_stats(lr_predictions)
+```
+
+```{r}
+turn_table <- function(perf_tree) {
+
+  tree_names <- recursive_apply_numeric(perf_tree, function(x, name_list) return(name_list), pass_node_names = TRUE)
+  tree_names %<>% leaf_apply(. %>% paste0(collapse = ":"), docall = FALSE)
+  tree_names %<>% unlist(use.names = FALSE)
+
+  values <- perf_tree %>% unlist(use.names = FALSE)
+  names(values) <- tree_names
+
+  df <- lapply(names(values), function(name) {
+    stringr::str_split(string = name, pattern = stringr::fixed(":"), simplify = TRUE)
+  })
+  df <- data.frame(do.call(rbind, df), value = values)
+
+  colnames(df) <- c("method", "model_index", "test_realization", "value")
+
+  return(df)
+}
+
+rf_tables <- lapply(rf_perf, turn_table)
+lr_tables <- lapply(lr_perf, turn_table)
+
+merge_tables <- function(tables) {
+  perf_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization")), tables)
+  colnames(perf_table) <- c("method", "model_index", "test_realization", names(tables))
+  perf_table
+}
+rf_perf_table <- merge_tables(rf_tables)
+lr_perf_table <- merge_tables(lr_tables)
+
+write.csv(x = rf_perf_table, file = paste0(results_dir_path, "rf_performance.csv"), row.names = FALSE)
+write.csv(x = lr_perf_table, file = paste0(results_dir_path, "lr_performance.csv"), row.names = FALSE)
+```
+
+```{r}
+aggregate_over_perf_table <- function(perf_table) {
+
+  perf_stats <- perf_table[, !colnames(perf_table) %in% c("method", "model_index", "test_realization")]
+
+  return(list(
+    model_mean = aggregate(perf_stats, perf_table["method"], mean),
+    model_sd = aggregate(perf_stats, perf_table["method"], sd),
+    over_test_mean = aggregate(perf_stats, perf_table[c("method", "model_index")], mean),
+    over_test_sd = aggregate(perf_stats, perf_table[c("method", "model_index")], sd),
+    over_train_mean = aggregate(perf_stats, perf_table[c("method", "test_realization")], mean),
+    over_train_sd = aggregate(perf_stats, perf_table[c("method", "test_realization")], sd)
+  ))
+
+}
+rf_perf_aggregations <- aggregate_over_perf_table(rf_perf_table)
+lr_perf_aggregations <- aggregate_over_perf_table(lr_perf_table)
+
+for (name in names(rf_perf_aggregations)) {
+  write.csv(x = rf_perf_aggregations[[name]],
+            file = paste0(results_dir_path, "rf_", name, ".csv"),
+            row.names = FALSE)
+}
+for (name in names(lr_perf_aggregations)) {
+  write.csv(x = lr_perf_aggregations[[name]],
+            file = paste0(results_dir_path, "lr_", name, ".csv"),
+            row.names = FALSE)
+}
+```
+
+```{r}
+# RF MCC
+rf_mcc_boxplots <- arrangeGrob(
+  ggplot(rf_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier"),
+  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over training set realizations")
+)
+ggsave(filename =  "rf_mcc_boxplots.pdf", plot = rf_mcc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
+
+# RF AUC-ROC
+rf_roc_boxplots <- arrangeGrob(
+  ggplot(rf_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier"),
+  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over training set realizations")
+)
+ggsave(filename =  "rf_roc_boxplots.pdf", plot = rf_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
+
+# LR MCC
+lr_mcc_boxplots <- arrangeGrob(
+  ggplot(lr_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier"),
+  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
+)
+ggsave(filename =  "lr_mcc_boxplots.pdf", plot = lr_mcc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
+
+# LR AUC-ROC
+lr_roc_boxplots <- arrangeGrob(
+  ggplot(lr_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier"),
+  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations"),
+  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
+)
+ggsave(filename =  "lr_roc_boxplots.pdf", plot = lr_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 ```

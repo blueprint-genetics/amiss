@@ -43,21 +43,6 @@ plot_missingness_vs_observed_correlations(positive_data, numeric_features, "Miss
 plot_missingness_vs_observed_correlations(negative_data, numeric_features, "Missingness correlations vs. observed values (negative-labeled)")
 ```
 
-## Class distribution per consequence
-
-Next, check whether all consequences have both positive and negative examples.
-```{r}
-table_with_margin <- function(...) {
-  tabl <- table(...)
-  tabl %<>% cbind(ALL_ = rowSums(tabl))
-  tabl %<>% rbind(ALL_ = colSums(tabl))
-  return(tabl)
-}
-table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame
-table_with_margin(training_set$Consequence.x, outcome, useNA = "always") %>% as.data.frame
-```
-Indeed they do not. One might consider e.g. removing all stop-gain variants in the test set to avoid biasing the result. Since the training / test set was random, the distributions should be similar in the test set, and thus any stop-gain variants will likely also all be pathogenic in the test set. The model will then guess correctly looking at the consequence, something that could also be programmed deterministically and thus is not interesting in a machine-learning perspective.
-
 ## Feature value distributions
 
 Next, plot distributions of each feature. Are they normal or linear?

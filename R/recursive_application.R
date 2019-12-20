@@ -11,16 +11,32 @@
 #' @param x List structure to recursively apply over.
 #' @param fun Function to apply on each leaf of class `x_class`.
 #' @param x_class Class of leaf that should be applied on.
+#' @param pass_node_names Whether to pass the list of names
+#' accumulated from ancestor nodes to `fun`
+#' @param node_names List of names so far visited in this branch -
+#' *not intended to be set by user*
 #'
-#' @return A tree, containing all branches of `x` that lead to leaves of type `x_class`, now with `fun` applied.
-recursive_apply <- function(x, fun, x_class) {
+#' @return A tree, containing all branches of `x` that lead to
+#' leaves of type `x_class`, now with `fun` applied.
+recursive_apply <- function(x, fun, x_class, pass_node_names = FALSE, node_names = list()) {
 
   if (x_class %in% class(x)) {
-    result <- fun(x)
+    if (pass_node_names)
+      result <- fun(x, node_names)
+    else
+      result <- fun(x)
   }
   else {
     if ("list" %in% class(x)) {
-      result <- lapply(x, function(y) recursive_apply(y, fun, x_class))
+      if (pass_node_names) {
+        result <- lapply(seq_along(x), function(y) recursive_apply(x = x[[y]],
+                                                                   fun = fun,
+                                                                   x_class = x_class,
+                                                                   pass_node_names = pass_node_names,
+                                                                   node_names = c(node_names, names(x)[[y]])))
+      } else {
+        result <- lapply(x, function(y) recursive_apply(y, fun, x_class, pass_node_names = FALSE, node_names = list()))
+      }
       names(result) <- names(x)
 
       non_null_elements <- sapply(result, Negate(is.null))
@@ -37,6 +53,11 @@ recursive_apply <- function(x, fun, x_class) {
 
   return(result)
 }
+
+# Common special cases
+recursive_apply_numeric <- function(x, fun, pass_node_names = FALSE)
+  recursive_apply(x = x, fun = fun, x_class = "numeric", pass_node_names = pass_node_names)
+
 
 #' A recursive application of a function to lists of leaves
 #' 
@@ -77,8 +98,12 @@ leaf_apply <- function(x, fun, docall) {
       fun(x)
     }
   }
-  else {
+  else if (class(x) == "list") {
     lapply(x, function(y) leaf_apply(y, fun, docall))
+  } else {
+    warning("leaf_apply reached a node of non-list type. This should never happen. " %>% paste0(
+            "Check if the original input was a list, or if there were nodes with both list- and non-list children."))
+    return(NULL)
   }
 }
 
