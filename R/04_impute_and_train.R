@@ -29,6 +29,7 @@ set.seed(seed)
 flog.info("Reading data")
 training_data <- read.csv("contracted_training_data.csv", row.names = 1, as.is = TRUE)
 outcome <- read.csv("training_outcomes.csv", as.is = TRUE)
+outcome <- factor(outcome[,2], levels = c("positive", "negative"))
 
 flog.info("Creating output directory")
 if (!dir.exists("output")) {
@@ -51,7 +52,7 @@ if (!dir.exists("output")) {
 
 flog.info("Removing features with near-zero variance")
 cut_p <- 1
-flog.info("Uniqueness cutoff: %d %", cut_p)
+flog.info("Uniqueness cutoff: %d %%", cut_p)
 nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = cut_p)
 flog.info(capture.output(print(nzv_features[nzv_features$nzv, ])))
 
@@ -212,16 +213,16 @@ rf_models <- foreach(method = enumerate(imputations), .options.RNG = seed) %dorn
     foreach(data = mi_iter$completed_datasets) %do% {
       return(train_rf(data))
     } %>% set_names(names(mi_iter$completed_datasets))
-  } %>% set_names(names(method))
+  } %>% set_names(names(method$value))
 } %>% set_names(names(imputations))
 
 lr_models <- foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
   flog.info("Starting training of LRs on datasets produced by %s", method$name)
-  foreach(mi_iter = method) %do% {
+  foreach(mi_iter = method$value) %do% {
     foreach(data = mi_iter$completed_datasets) %do% {
       return(train_lr(data))
     } %>% set_names(names(mi_iter$completed_datasets))
-  } %>% set_names(names(method))
+  } %>% set_names(names(method$value))
 } %>% set_names(names(imputations))
 
 ## Model selection
