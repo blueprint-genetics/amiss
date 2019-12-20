@@ -11,19 +11,37 @@ library(foreach)
 library(doParallel)
 library(doRNG)
 
+flog.appender(appender.tee("04_impute_and_train.log"))
+flog.threshold(DEBUG)
+flog.info("04_impute_and_train.log")
+
 source("R/imputation_definitions.R")
 source("R/recursive_application.R")
 source("R/imputation.R")
 
-registerDoParallel(3)
+cores <- 3
+flog.info("Using %d cores", cores)
+registerDoParallel(cores)
 seed <- 42
+flog.info("Using seed: %d", seed)
+set.seed(seed)
 
+flog.info("Reading data")
 training_data <- read.csv("contracted_training_data.csv", row.names = 1, as.is = TRUE)
 outcome <- read.csv("training_outcomes.csv", as.is = TRUE)
 
+flog.info("Creating output directory")
+if (!dir.exists("output")) {
+  dir_creation_success <- dir.create("output", showWarnings = TRUE)
+  if (!dir_creation_success) {
+    stop("Failed to create directory for saving output.")
+  }
+}
+
 # Recode outcomes as 1 -> "positive", 0 -> "negative"
-outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
-head(outcome)
+# flog.info("Recoding outcomes")
+# outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
+# head(outcome)
 
 ## Removal of problematic features
 
@@ -31,8 +49,11 @@ head(outcome)
 
 ### Near-zero variance
 
-nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = 1)
-print(nzv_features[nzv_features$nzv, ])
+flog.info("Removing features with near-zero variance")
+cut_p <- 1
+flog.info("Uniqueness cutoff: %d %", cut_p)
+nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = cut_p)
+flog.info(capture.output(print(nzv_features[nzv_features$nzv, ])))
 
 if (any(nzv_features$nzv)) {
   training_data <- training_data[, !nzv_features$nzv]
@@ -40,26 +61,29 @@ if (any(nzv_features$nzv)) {
 
 ### Highly correlated features
 
+flog.info("Removing highly correlated features:")
 correlations <- cor(training_data, use = "pairwise.complete.obs")
 correlations[is.na(correlations)] <- 0.0
 
 highly_correlated_features <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
-print(highly_correlated_features)
+flog.info(highly_correlated_features)
 
-if(highly_correlated_features %>% length > 0) {
+if (highly_correlated_features %>% length > 0) {
   training_data <- training_data[, !colnames(training_data) %in% highly_correlated_features]
 }
 
 ## Imputation
 
+flog.info("Imputation hyperparameter configuration counts:")
 # Check the number of hyperparameter configurations for each imputation method:
-lapply(mice_hyperparameter_grids, nrow)
-lapply(other_hyperparameter_grids, nrow)
-
-times <- 2
-iters <- 1
+flog.info(paste0(names(mice_hyperparameter_grids), ": ",  lapply(mice_hyperparameter_grids, nrow)))
+flog.info(paste0(names(other_hyperparameter_grids), ": ",  lapply(other_hyperparameter_grids, nrow)))
 
 ### MICE
+flog.info("Starting MICE imputation")
+times <- 2
+iters <- 1
+flog.info("Imputing %d times, with max. %d iterations", times, iters)
 
 mice_imputations <- foreach(method = enumerate(mice_hyperparameter_grids)) %do% {
 
@@ -70,6 +94,7 @@ mice_imputations <- foreach(method = enumerate(mice_hyperparameter_grids)) %do% 
   }
   else {
     imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
+      flog.info("Imputing with method %s, parameters %s", method$name, paste0(names(hyperparams), ": ", hyperparams[hp_row, ], collapse = ", "))
       run_mice(training_data, method$name, unlist(hyperparams[hp_row,]), times, iters)
     } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
   }
@@ -85,6 +110,7 @@ names(mice_imputations) <- names(mice_hyperparameter_grids)
 
 ### Non-MICE imputations
 
+flog.info("Starting non-MICE imputation")
 deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_grids)) %do%  {
 
   hyperparams <- method$value
@@ -92,15 +118,17 @@ deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_gri
   # TODO Implement timing
   if (method$name == "bpca") {
     imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
+      flog.info("Imputing with method %s, parameters %s", method$name, paste0(names(hyperparams), ": ", hyperparams[hp_row, ], collapse = ", "))
       run_bpca(data = training_data, hyperparams = hyperparams[hp_row, ])
     } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
   }
   else if (method$name == "knnImputation") {
     imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
+      flog.info("Imputing with method %s, parameters %s", method$name, paste0(names(hyperparams), ": ", hyperparams[hp_row, ], collapse = ", "))
       run_knn(data = training_data, hyperparams = hyperparams[hp_row, ])
     } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
   } else {
-    print("Method " %>% paste0(method$name, " is not implemented"))
+    flog.info("Method %s is not implemented", method$name)
     imputations <- NULL
   }
 
@@ -114,6 +142,7 @@ deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_gri
 
 ### Single value imputations
 
+flog.info("Starting single value imputation")
 single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
   list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
 }) %>% set_names(names(single_value_imputation_hyperparameter_grids))
@@ -122,11 +151,12 @@ single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparame
 
 imputations <- c(mice_imputations, deterministic_imputations, single_value_imputations)
 
+flog.info("Checking and dropping failed imputation methods")
 valid_methods <- sapply(names(imputations), function(method) {
 
   null_hpsets <- sapply(imputations[[method]], function(x) x[["completed_datasets"]] %>% unlist %>% is.null)
   if (all(null_hpsets)) {
-    print(paste("Imputation method", method, "did not successfully produce any datasets"))
+    flog.info("Imputation method %s did not successfully produce any datasets", method)
     return(FALSE)
   }
   return(TRUE)
@@ -134,7 +164,10 @@ valid_methods <- sapply(names(imputations), function(method) {
 imputations <- imputations[valid_methods]
 
 ## Training classifier
+flog.info("Starting classifier training")
 hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
+flog.info("Hyperparameter grid:")
+flog.info(capture.output(print(hyperparameter_grid)))
 
 rf_training_settings <- trainControl(classProbs = TRUE,
                                      verboseIter = FALSE,
@@ -155,7 +188,7 @@ train_rf <- function(dataset) {
                              preProcess = c("center", "scale"),
                              trControl = rf_training_settings,
                              tuneGrid = hyperparameter_grid)
-  }, error = function(e) print(e))
+  }, error = function(e) flog.debug(e))
 
   return(rf_model)
 }
@@ -168,20 +201,22 @@ train_lr <- function(dataset) {
                              method = "glm",
                              preProcess = c("center", "scale"),
                              trControl = lr_training_settings)
-  }, error = function(e) print(e))
+  }, error = function(e) flog.debug(e))
 
   return(lr_model)
 }
 # Train on every completed dataset
-rf_models <- foreach(method = imputations, .options.RNG = seed) %dorng% {
-  foreach(mi_iter = method) %do% {
+rf_models <- foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
+  flog.info("Starting training of RFs on datasets produced by %s", method$name)
+  foreach(mi_iter = method$value) %do% {
     foreach(data = mi_iter$completed_datasets) %do% {
       return(train_rf(data))
     } %>% set_names(names(mi_iter$completed_datasets))
   } %>% set_names(names(method))
 } %>% set_names(names(imputations))
 
-lr_models <- foreach(method = imputations, .options.RNG = seed) %dorng% {
+lr_models <- foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
+  flog.info("Starting training of LRs on datasets produced by %s", method$name)
   foreach(mi_iter = method) %do% {
     foreach(data = mi_iter$completed_datasets) %do% {
       return(train_lr(data))
@@ -190,6 +225,7 @@ lr_models <- foreach(method = imputations, .options.RNG = seed) %dorng% {
 } %>% set_names(names(imputations))
 
 ## Model selection
+flog.info("Starting model selection")
 extract_oob_performance <- function(model) {
   model$finalModel$err.rate[, "OOB"] %>% tail(1)
 }
@@ -239,23 +275,8 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
 rf_bests <- select_best(rf_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_oob_performance, TRUE)
 lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance, FALSE)
 
-## Model diagnostics
-
-# Produce convergence plots for imputation methods
-rf_imputation_convergence_plots <- lapply(rf_bests$imputers, . %>% recursive_apply(plot, "mids"))
-lr_imputation_convergence_plots <- lapply(lr_bests$imputers, . %>% recursive_apply(plot, "mids"))
-
-# Produce convergence plots for random forest classifiers
-rf_classifier_oob_plots <- recursive_apply(rf_bests$models, plot, x_class = "train")
-
+flog.info("Saving data")
 ## Saving model
-if (!dir.exists("output")) {
-  dir_creation_success <- dir.create("output", showWarnings = TRUE)
-  if (!dir_creation_success) {
-    stop("Failed to create directory for saving output.")
-  }
-}
-
 saveRDS(rf_bests$models, file = "output/rf_classifiers.rds")
 saveRDS(rf_bests$imputers, file = "output/rf_imputers.rds")
 saveRDS(rf_bests$hyperparams, file = "output/rf_hp_configs.rds")
@@ -270,3 +291,4 @@ saveRDS(lr_bests$imputers, file = "output/lr_imputers.rds")
 saveRDS(lr_bests$hyperparams, file = "output/lr_hp_configs.rds")
 
 saveRDS(colnames(training_data), "output/final_features.rds")
+flog.info("Done saving data")
