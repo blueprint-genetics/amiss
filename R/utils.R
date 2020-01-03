@@ -20,3 +20,10 @@ partition_rows_into_batches <- function(num_rows, batches = 100) {
 find_dummies <- function(original_variable_name, name_list) {
   name_list[name_list %>% startsWith(original_variable_name) & !name_list %in% original_variable_name]
 }
+
+flog.pid.info <- function(msg, ...) {
+  flog.info(paste0("pid=", Sys.getpid(), " ", msg), ...)
+}
+flog.pid.debug <- function(msg, ...) {
+  flog.debug(paste0("pid=", Sys.getpid(), " ", msg), ...)
+}
