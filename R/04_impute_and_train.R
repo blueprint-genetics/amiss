@@ -10,6 +10,7 @@ library(pcaMethods)
 library(foreach)
 library(doParallel)
 library(doRNG)
+library(missForest)
 
 flog.appender(appender.tee("04_impute_and_train.log"))
 flog.threshold(DEBUG)
@@ -124,6 +125,11 @@ deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_gri
     imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
       flog.pid.info("Imputing with method %s, parameters %s", method$name, paste0(names(hyperparams), ": ", hyperparams[hp_row, ], collapse = ", "))
       run_knn(data = training_data, hyperparams = hyperparams[hp_row, ])
+    } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
+  } else if (method$name == "missForest") {
+    imputations <- foreach(hp_row = 1:nrow(hyperparams), .options.RNG = seed) %dorng% {
+      flog.pid.info("Imputing with method %s, parameters %s", method$name, paste0(names(hyperparams), ": ", hyperparams[hp_row, ], collapse = ", "))
+      run_missforest(data = training_data, hyperparams = hyperparams[hp_row, ], times = times)
     } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparams)))
   } else {
     flog.pid.info("Method %s is not implemented", method$name)
@@ -251,12 +257,12 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
 
   # Get the error estimate from each leaf of the tree (i.e. all trained models)
   perf <- map_depth(models, .f = performance_function, .depth = 3)
+  perf <- map_depth(perf, . %>% inf_NULLs(positive = positive), .depth = 2)
 
   # The OOB estimates are in lists with one value per completed dataset.
   # Unlisting that list before mean gives mean the desired input type (numeric vector).
   mean_perf <- map_depth(perf, . %>% unlist %>% mean, .depth = 2)
-
-  best_model_ix <- map_int(mean_perf, . %>% inf_NULLs(positive = positive) %>% which.min)
+  best_model_ix <- map_int(mean_perf, which.min)
 
   # Extract the best models, best imputers and their best hyperparameters for each method
   best_models <- map(enumerate(best_model_ix), . %>% with(models[[name]][[value]]))
