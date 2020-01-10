@@ -57,8 +57,8 @@ rf_hyperparams <- readRDS("output/rf_hp_configs.rds")
 lr_hyperparams <- readRDS("output/lr_hp_configs.rds")
 
 flog.pid.info("Starting imputation of test set")
-times <- 5
-iters <- 1
+times <- 10
+iters <- 10
 flog.pid.info("For MICE methods, imputing %d times, with max. %d iterations", times, iters)
 
 impute_w_hps <- function(data, hp_tree){
