@@ -1,5 +1,23 @@
 
-## Setup
+cmdargs <- commandArgs(trailingOnly = TRUE)
+if (!(length(cmdargs) %in% 4:5)) {
+  stop("Must have the following arguments:
+       1. path to training data
+       2. path to training outcomes
+       3. path to output directory
+       4. number of cores
+       <5. optional: lean>", call. = FALSE)
+}
+training_path <- cmdargs[1]
+outcome_path <- cmdargs[2]
+output_path <- paste0(cmdargs[3], "/")
+cores <- as.integer(cmdargs[4])
+
+lean <- FALSE
+if (length(cmdargs) == 5 && cmdargs[5] == "lean") {
+  lean <- TRUE
+}
+
 library(purrr)
 library(futile.logger)
 library(caret)
@@ -12,17 +30,22 @@ library(doParallel)
 library(doRNG)
 library(missForest)
 
-flog.appender(appender.tee("04_impute_and_train.log"))
+flog.appender(appender.tee(paste0(output_path, "04_impute_and_train.log")))
 flog.threshold(DEBUG)
 
 source("R/utils.R")
-source("R/imputation_definitions.R")
+if (!lean) {
+  source("R/imputation_definitions.R")
+} else {
+  source("R/imputation_definitions_lean.R")
+}
+
 source("R/recursive_application.R")
 source("R/imputation.R")
 
 flog.pid.info("04_impute_and_train.log")
+flog.pid.info("Arguments: %s", paste0(cmdargs, collapse = ", "))
 
-cores <- 24
 flog.pid.info("Using %d cores", cores)
 registerDoParallel(cores)
 seed <- 42
@@ -30,13 +53,13 @@ flog.pid.info("Using seed: %d", seed)
 set.seed(seed)
 
 flog.pid.info("Reading data")
-training_data <- read.csv("contracted_training_data.csv", row.names = 1, as.is = TRUE)
-outcome <- read.csv("training_outcomes.csv", as.is = TRUE)
+training_data <- read.csv(training_path, row.names = 1, as.is = TRUE)
+outcome <- read.csv(outcome_path, as.is = TRUE)
 outcome <- factor(outcome[,2], levels = c("positive", "negative"))
 
 flog.pid.info("Creating output directory")
-if (!dir.exists("output")) {
-  dir_creation_success <- dir.create("output", showWarnings = TRUE)
+if (!dir.exists(output_path)) {
+  dir_creation_success <- dir.create(output_path, showWarnings = TRUE)
   if (!dir_creation_success) {
     stop("Failed to create directory for saving output.")
   }
@@ -291,18 +314,18 @@ lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, oth
 
 flog.pid.info("Saving data")
 ## Saving model
-saveRDS(rf_bests$models, file = "output/rf_classifiers.rds")
-saveRDS(rf_bests$imputers, file = "output/rf_imputers.rds")
-saveRDS(rf_bests$hyperparams, file = "output/rf_hp_configs.rds")
+saveRDS(rf_bests$models, file = paste0(output_path, "rf_classifiers.rds"))
+if (!lean) saveRDS(rf_bests$imputers, file = paste0(output_path, "rf_imputers.rds"))
+saveRDS(rf_bests$hyperparams, file = paste0(output_path, "rf_hp_configs.rds"))
 
 # glm models in R contain references to environments, but for prediction it doesn't seem that 
 # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
 # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).
 # See https://stackoverflow.com/questions/54144239/how-to-use-saverds-refhook-parameter for an example of
 # using the `refhook`.
-saveRDS(lr_bests$models, file = "output/lr_classifiers.rds", refhook = function(x) "")
-saveRDS(lr_bests$imputers, file = "output/lr_imputers.rds")
-saveRDS(lr_bests$hyperparams, file = "output/lr_hp_configs.rds")
+saveRDS(lr_bests$models, file = paste0(output_path, "lr_classifiers.rds"), refhook = function(x) "")
+if (!lean) saveRDS(lr_bests$imputers, file = paste0(output_path, "lr_imputers.rds"))
+saveRDS(lr_bests$hyperparams, file = paste0(output_path, "lr_hp_configs.rds"))
 
-saveRDS(colnames(training_data), "output/final_features.rds")
+saveRDS(colnames(training_data), paste0(output_path, "final_features.rds"))
 flog.pid.info("Done saving data")

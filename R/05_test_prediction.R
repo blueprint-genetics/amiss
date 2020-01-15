@@ -1,5 +1,19 @@
 
-## Read data
+cmdargs <- commandArgs(trailingOnly = TRUE)
+if (!(length(cmdargs) == 5)) {
+  stop("Must have the following arguments:
+       1. path to test data
+       2. path to test outcomes
+       3. path to folder with training output
+       4. path to directory to write results in
+       5. number of cores", call. = FALSE)
+}
+test_path <- cmdargs[1]
+outcome_path <- cmdargs[2]
+tr_output_path <- paste0(cmdargs[3], "/")
+results_dir_path <- paste0(cmdargs[4], "/")
+cores <- as.integer(cmdargs[5])
+
 library(magrittr)
 library(futile.logger)
 library(mice)
@@ -19,11 +33,12 @@ source("R/recursive_application.R")
 source("R/imputation_definitions.R")
 source("R/imputation.R")
 
-flog.appender(appender.tee("05_test_prediction.log"))
+flog.appender(appender.tee(paste0(results_dir_path, "05_test_prediction.log")))
 flog.threshold(DEBUG)
-flog.pid.info("05_test_prediction.log")
 
-cores <- 3
+flog.pid.info("05_test_prediction.log")
+flog.pid.info("Arguments: %s", paste0(cmdargs, collapse = ", "))
+
 flog.pid.info("Using %d cores", cores)
 registerDoParallel(cores)
 seed <- 42
@@ -31,12 +46,11 @@ flog.pid.info("Using seed: %d", seed)
 set.seed(seed)
 
 flog.pid.info("Reading data")
-test_data <- read.csv("contracted_test_data.csv", row.names = 1, as.is = TRUE)
-outcome <- read.csv("test_outcomes.csv", as.is = TRUE)
+test_data <- read.csv(test_path, row.names = 1, as.is = TRUE)
+outcome <- read.csv(outcome_path, as.is = TRUE)
 outcome <- factor(outcome[,2], levels = c("positive", "negative"))
 
 flog.pid.info("Creating output directory")
-results_dir_path <- "output/results/"
 if (!dir.exists(results_dir_path)) {
   dir_creation_success <- dir.create(results_dir_path, showWarnings = TRUE)
   if (!dir_creation_success) {
@@ -46,15 +60,15 @@ if (!dir.exists(results_dir_path)) {
 
 # Keep exactly those features that were kept in training data
 flog.pid.info("Reading features used in training")
-final_features <- readRDS("output/final_features.rds")
+final_features <- readRDS(paste0(tr_output_path, "final_features.rds"))
 test_data <- test_data[, final_features]
 
 
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
 
 flog.pid.info("Reading best hyperparameter configurations for imputation methods")
-rf_hyperparams <- readRDS("output/rf_hp_configs.rds")
-lr_hyperparams <- readRDS("output/lr_hp_configs.rds")
+rf_hyperparams <- readRDS(paste0(tr_output_path, "rf_hp_configs.rds"))
+lr_hyperparams <- readRDS(paste0(tr_output_path, "lr_hp_configs.rds"))
 
 flog.pid.info("Starting imputation of test set")
 times <- 10
@@ -118,8 +132,8 @@ lr_completions <- impute_w_hps(test_data, lr_hyperparams)
 ## Predict on test set completions using best classifier models
 
 flog.pid.info("Reading classifier models")
-rf_models <- readRDS("output/rf_classifiers.rds")
-lr_models <- readRDS("output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
+rf_models <- readRDS(paste0(tr_output_path, "rf_classifiers.rds"))
+lr_models <- readRDS(paste0(tr_output_path, "lr_classifiers.rds"), refhook = function(x) .GlobalEnv)
 
 prediction <- function(models, completions) {
 
@@ -233,71 +247,5 @@ lr_perf_table <- merge_tables(lr_tables)
 flog.pid.info("Writing performance tables")
 write.csv(x = rf_perf_table, file = paste0(results_dir_path, "rf_performance.csv"), row.names = FALSE)
 write.csv(x = lr_perf_table, file = paste0(results_dir_path, "lr_performance.csv"), row.names = FALSE)
-
-
-flog.pid.info("Averaging performance tables")
-aggregate_over_perf_table <- function(perf_table) {
-
-  perf_stats <- perf_table[, !colnames(perf_table) %in% c("method", "model_index", "test_realization")]
-
-  return(list(
-    model_mean = aggregate(perf_stats, perf_table["method"], mean),
-    model_sd = aggregate(perf_stats, perf_table["method"], sd),
-    over_test_mean = aggregate(perf_stats, perf_table[c("method", "model_index")], mean),
-    over_test_sd = aggregate(perf_stats, perf_table[c("method", "model_index")], sd),
-    over_train_mean = aggregate(perf_stats, perf_table[c("method", "test_realization")], mean),
-    over_train_sd = aggregate(perf_stats, perf_table[c("method", "test_realization")], sd)
-  ))
-
-}
-rf_perf_aggregations <- aggregate_over_perf_table(rf_perf_table)
-lr_perf_aggregations <- aggregate_over_perf_table(lr_perf_table)
-
-flog.pid.info("Writing averaged performance tables")
-for (name in names(rf_perf_aggregations)) {
-  write.csv(x = rf_perf_aggregations[[name]],
-            file = paste0(results_dir_path, "rf_", name, ".csv"),
-            row.names = FALSE)
-}
-for (name in names(lr_perf_aggregations)) {
-  write.csv(x = lr_perf_aggregations[[name]],
-            file = paste0(results_dir_path, "lr_", name, ".csv"),
-            row.names = FALSE)
-}
-
-
-
-flog.pid.info("Plotting and writing performance boxplots")
-# RF MCC
-rf_mcc_boxplots <- arrangeGrob(
-  ggplot(rf_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-)
-ggsave(filename =  "rf_mcc_boxplots.pdf", plot = rf_mcc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
-
-# RF AUC-ROC
-rf_roc_boxplots <- arrangeGrob(
-  ggplot(rf_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-)
-ggsave(filename =  "rf_roc_boxplots.pdf", plot = rf_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
-
-# LR MCC
-lr_mcc_boxplots <- arrangeGrob(
-  ggplot(lr_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-)
-ggsave(filename =  "lr_mcc_boxplots.pdf", plot = lr_mcc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
-
-# LR AUC-ROC
-lr_roc_boxplots <- arrangeGrob(
-  ggplot(lr_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-)
-ggsave(filename =  "lr_roc_boxplots.pdf", plot = lr_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
 
 flog.pid.info("Done")
