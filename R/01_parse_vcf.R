@@ -1,13 +1,12 @@
 library(vcfR)
 library(futile.logger)
 
+flog.appender(appender.tee("01_parse_vcf.log"))
 flog.threshold(DEBUG)
 
 source("R/data_parsing.R")
 source("R/filters.R")
 source("R/preprocessing.R")
-
-set.seed(10)
 
 vcf_filename <- "../amiss_data/clinvar_20190624.vep.vcf"
 cadd_snv_filename <- "../amiss_data/CADD_clingen.tsv"

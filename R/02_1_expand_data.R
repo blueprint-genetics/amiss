@@ -7,7 +7,7 @@ library(futile.logger)
 flog.appender(appender.tee("02_1_expand_data.log"))
 flog.info("02_1_expand_data.R")
 
-seed <- 10
+seed <- 42
 flog.info("Using seed: %d", seed)
 set.seed(seed)
 
