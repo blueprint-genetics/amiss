@@ -24,8 +24,8 @@ features <- colnames(training_set)
 
 Plot correlation matrices of missingness indicators against missingness indicators, observed values against observed values, and missingness indicators against observed values.
 ```{r fig.height=10, fig.width=10}
-positive_data <- training_set[outcome == 1.0, ]
-negative_data <- training_set[outcome == 0.0, ]
+positive_data <- training_set[outcome == "positive", ]
+negative_data <- training_set[outcome == "negative", ]
 
 # Missingness indicator correlations
 plot_missingness_correlations(training_set, numeric_features, "Missingness indicator correlations")
@@ -70,16 +70,14 @@ Print (one-dimensional) contingency tables, i.e. occurence counts of each level 
 ```{r}
 for (cat_feat in categorical_features) {
   table(training_set[, cat_feat, drop = FALSE], dnn = cat_feat, useNA = "always") %>% as.data.frame %>% print
-  cat("\n")
 }
 ```
-Looking at `Consequence.x` is redundant as it was already displayed earlier, but looking at `LRT_pred` we can see a troublingly low number of observations of level `U`.
 
 ## Heatmap of feature missingness against consequence
 
 It is likely that missing values are more or less common in some variables depending on the predicted consequence. This can be visualized by a heatmap:
-```{r}
-missing_value_sum_per_consequence <- lapply(training_set[, features, drop = FALSE],
+```{r fig.width=10}
+missing_value_sum_per_consequence <- lapply(training_set[, c(numeric_features, categorical_features), drop = FALSE],
                                             function(column) {
                                               sapply(
                                                 split(is.na(column), training_set$Consequence.x),
@@ -89,62 +87,20 @@ missing_value_sum_per_consequence <- lapply(training_set[, features, drop = FALS
 missing_value_sum_per_consequence %<>% data.frame %>% as.matrix
 heatmap(missing_value_sum_per_consequence)
 ```
-Stop-gained and non-synonymous variants have much less missingness in certain variables (as expected), and missingness rates are somewhat constant over different consequences in epigenetics variables.
+Non-synonymous variants have much less missingness in certain variables and more in others (as expected).
 
 ## Compute number of observed missingness patterns
 
-The number of observed missingness patterns over the data influences the feasibility of using reduced-feature models; in the strict form, you need exactly as many models as you have missingness patterns.
 ```{r}
 missingness_patterns <- training_set[, c(numeric_features, categorical_features)] %>% is.na
 unique_missingness_patterns <- missingness_patterns %>% unique
 num_missingness_patterns <- unique_missingness_patterns %>% nrow
 print(paste(num_missingness_patterns, "out of", 2^length(c(numeric_features, categorical_features)), "possible missingness patterns."))
 ```
-The number is not as bad as it could be, but still large.
 
-The most important thing is of course whether the different patterns contain sufficiently many samples to train a model on each one.
 ```{r}
 missingness_pattern_factor <- apply(missingness_patterns, MARGIN = 1, function(x) paste0(as.integer(x), collapse = "")) %>% factor
 rows_per_missingness_pattern <- table(missingness_pattern_factor)
 rows_per_missingness_pattern <- rows_per_missingness_pattern %>% as.data.frame
 rows_per_missingness_pattern[order(rows_per_missingness_pattern$Freq, decreasing = TRUE),]
 ```
-Looking at it this way, it seems that most patterns would not have enough data to train a useful classifier.
-
-However, the above computation counts only exact occurrences of missing patterns, i.e. rows where the missingness pattern for that row exactly matches the missingness pattern in question.
-
-In truth, when training a classifier for a missingness pattern `m`, we can use any row for which we have *at least* those features indicated present in pattern `m`.
-For example, for a pattern `00110`, we can use also rows with pattern `00010`, `00100` or `00000`.
-```{r}
-# We form a matrix where a value in cell (x,y) will be `TRUE` iff every available value of
-# missingness pattern y is also available in missingness pattern x, and thus the examples
-# that fit pattern x could be used to train a model on pattern y.
-#
-# Note that in the output, the x's are rows, and y's are columns.
-pattern_intersects <- apply(unique_missingness_patterns, MARGIN = 1, function(row_x) {
-  apply(unique_missingness_patterns, MARGIN = 1, function(row_y) {
-    # `row_x` is the indicator vector of *missing* values of `x`,
-    # and `!row_y` is the indicator vector of *available* values of `y`.
-    # Since we are trying to apply rows with pattern `x` for a model for pattern `y`,
-    # there musn't be any value for which `y` is available and `x` is not.
-    !any((row_x & !row_y))
-  })
-})
-unique_missingness_patterns_strings <- unique_missingness_patterns %>% apply(MARGIN = 1, FUN = . %>% as.integer %>% paste0(collapse = ""))
-row.names(pattern_intersects) <- unique_missingness_patterns_strings
-colnames(pattern_intersects) <- unique_missingness_patterns_strings
-
-# Since we're thinking about training a model for y, we must sum the over the columns.
-pattern_counts <- apply(pattern_intersects, MARGIN = 2, function(x) {
-  # The counts of examples fitting a pattern is read from the previously computed table.
-  sum(rows_per_missingness_pattern[x, "Freq"])
-})
-pattern_counts <- data.frame(missingness_pattern = factor(names(pattern_counts)), Freq = pattern_counts, row.names = NULL)
-pattern_counts[order(pattern_counts$Freq, decreasing = TRUE), , drop = FALSE]
-```
-Looking at this table, the situation is less bad.
-
-```{r}
-sum(pattern_counts$Freq < 100) / nrow(pattern_counts)
-```
-Indeed, less than 20 % of patterns have less than 100 examples.
