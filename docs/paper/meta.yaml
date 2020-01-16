@@ -1,0 +1,30 @@
+---
+title: Comparison of missing data handling methods in building variant pathogenicity metapredictors
+author: 
+- name: "Mikko Särkkä"
+  affiliation: 
+    - 1
+    - 2
+- name: "Sami Myöhänen"
+  affiliation: 
+    - 1
+- name: "Inka Saarinen"
+  affiliation: 
+    - 1
+- name: "Kaloyan Marinov"
+  affiliation: 
+    - 1
+- name: "Jussi Paananen"
+  affiliation: 
+    - 1
+    - 2
+affiliation:
+- name: "Blueprint Genetics"
+  id: 1
+- name: "University of Eastern Finland"
+  id: 2
+bibliography: references.bib
+
+...
+
+
