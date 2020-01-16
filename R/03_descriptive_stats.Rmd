@@ -1,6 +1,8 @@
 ---
 title: "Descriptive statistics"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r}
@@ -62,6 +64,7 @@ marrangeGrob(
   grobs = feature_distribution_plots
 )
 ```
+
 They are not, and thus it might be worth considering data transformations. In the case of random forest, however, monotone transformations should have no effect.
 
 ## Categorical level occurence counts
@@ -87,6 +90,7 @@ missing_value_sum_per_consequence <- lapply(training_set[, c(numeric_features, c
 missing_value_sum_per_consequence %<>% data.frame %>% as.matrix
 heatmap(missing_value_sum_per_consequence)
 ```
+
 Non-synonymous variants have much less missingness in certain variables and more in others (as expected).
 
 ## Compute number of observed missingness patterns
