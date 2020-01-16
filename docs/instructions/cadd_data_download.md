@@ -6,6 +6,7 @@ Instead, we store only the rows which refer to ClinGen variants.
 First, we create a file containing the `CHROM`, `POS`, `REF`, and `ALT` fields of those ClinVar variants that belong to the ClinGen subset.
 
 ```
+$ cd $HOME/amiss_data
 $ egrep "reviewed_by_expert_panel|practice_guideline" clinvar_20190624.vcf | cut -f 1,2,4,5 > clingen_variants.tsv
 ```
 

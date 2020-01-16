@@ -58,19 +58,19 @@ dbNSFP requires download and preprocessing of its data in addition to the plugin
 ```
 $ mkdir $HOME/dbnsfp_data
 $ cd $HOME/dbnsfp_data
-$ wget ftp://dbnsfp:dbnsfp@dbnsfp.softgenetics.com/dbNSFPv3.5c.zip
+$ wget ftp://dbnsfp:dbnsfp@dbnsfp.softgenetics.com/dbNSFPv3.5a.zip
 ```
 
-Following instructions for GRCh38 in https://github.com/Ensembl/VEP_plugins/blob/release/96/dbNSFP.pm :
+Following instructions for GRCh38 in https://github.com/Ensemal/VEP_plugins/blob/release/96/dbNSFP.pm :
 
 ```
-$ unzip dbNSFPv3.5c.zip 
-$ head -n1 dbNSFP3.5c_variant.chr1 > h
-$ cat dbNSFP3.5c_variant.chr* | grep -v ^#chr | sort -k1,1 -k2,2n - | cat h - | bgzip -c > dbNSFP3.5c.gz
-$ tabix -s 1 -b 2 -e 2 dbNSFP3.5c.gz
+$ unzip dbNSFPv3.5a.zip 
+$ head -n1 dbNSFP3.5a_variant.chr1 > h
+$ cat dbNSFP3.5a_variant.chr* | grep -v ^#chr | sort -k1,1 -k2,2n - | cat h - | bgzip -c > dbNSFP3.5a.gz
+$ tabix -s 1 -b 2 -e 2 dbNSFP3.5a.gz
 ```
 
-It was necessary to name the processed file dbNSFP3.5c.gz instead of dbNSFP.gz as described in the plugin comments, or VEP would fail to use the plugin and output the following message:
+It was necessary to name the processed file dbNSFP3.5a.gz instead of dbNSFP.gz as described in the plugin comments, or VEP would fail to use the plugin and output the following message:
 ```
 WARNING: Failed to instantiate plugin dbNSFP: ERROR: Could not retrieve dbNSFP version from filename /opt/vep/dbnsfp_data/dbNSFP.gz
 ```
@@ -96,5 +96,5 @@ $ docker run -t -i -v $HOME/vep_data:/opt/vep/.vep -v $HOME/dbnsfp_data:/opt/vep
 ```
 
 ```
-$ ./vep --cache --offline --format vcf --vcf --force_overwrite --dir_cache /opt/vep/.vep/ --dir_plugins /opt/vep/.vep/Plugins/ --input_file /data/clinvar_20190624.vcf.gz --output_file /data/clinvar_20190624.vep.vcf --plugin dbNSFP,/opt/vep/dbnsfp_data/dbNSFP3.5c.gz,ALL --canonical
+$ ./vep --cache --offline --format vcf --vcf --force_overwrite --dir_cache /opt/vep/.vep/ --dir_plugins /opt/vep/.vep/Plugins/ --input_file /data/clinvar_20190624.vcf.gz --output_file /data/clinvar_20190624.vep.vcf --plugin dbNSFP,/opt/vep/dbnsfp_data/dbNSFP3.5a.gz,ALL --canonical
 ```
