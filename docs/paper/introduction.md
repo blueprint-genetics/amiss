@@ -34,10 +34,8 @@ Indeed, naïvely imputing data with a single imputation method[^singleimp] is mi
 
 [^singleimp]: Define single imputation
 
-- Explain problematicity of RMSE and (predictive) regression imputation
-
-The uncertainty can be properly incorporated via two main approaches: *multiple imputation* (MI) and *maximum likelihood*[^mimlorder] (ML) estimation. 
-The latter naturally accounts for missing values by modeling both the data generating process and the missingness generating process at the same time[^ml]. 
+The uncertainty can be properly incorporated via two main avenues: *multiple imputation* (MI) and *maximum likelihood*[^mimlorder] (ML) based approaches (see [@little-rubin]). 
+The latter naturally accounts for missing values by modeing both the data generating process and the missingness generating process at the same time[^ml], and does not require explicit imputation of missing values. 
 A drawback of this method is the restriction to models that can be estimated via maximum likelihood[^mlelab]. 
 The former instead is based on production of multiple complete datasets, on which separate models are fitted and whose estimates are then pooled.
 
@@ -67,8 +65,8 @@ In this context, it suffices to design methods which facilitate model estimation
 
 #### Missing values both at estimation and prediction time
 
-Sarle notes that "The usual characterizations of missing values as *missing at random* or *missing completely at random* are important for estimation but not prediction."[@sarle][^inlinequote] Ding & Simonoff [@ding-simonoff] provide real-world evidence[^realworld] in support of this statement in the use of classification trees[^trees].
-Ina predictive context, the presence of *informative missingness* (as defined by Sarle[@sarle]) in the data, i.e. missingness being dependent on the response variable conditional on $X_{obs}$, may actually lead to improved predictive accuracy compared to complete data.[@citeproperly]
+Sarle notes that "The usual characterizations of missing values as *missing at random* or *missing completely at random* are important for estimation but not prediction."[@sarle1998][^inlinequote] Ding & Simonoff [@ding-simonoff2010] provide real-world evidence[^realworld] in support of this statement in the use of classification trees[^trees].
+In a predictive context, the presence of *informative missingness* (as defined by Sarle[@sarle1998]) in the data, i.e. missingness being dependent on the response variable conditional on $X_{obs}$, may actually lead to improved predictive accuracy compared to complete data.[@citeproperly]
 
 One additional challenge that arises in this context is that most imputation methods are not implemented in a way that easily allows reuse of learned parameters. That is, it is difficult to first estimate imputation method parameters on the training set, and then impute the test set using those same parameters. This leads to diminished prediction accuracy, as the data the distributions of imputed data differ in the training and test sets. Even worse, since the parameters for test set imputation are estimated from the test set, the content and size of the test set itself may affect prediction accuracy.
 
@@ -83,5 +81,6 @@ One additional challenge that arises in this context is that most imputation met
 [^realworld]: Can I use this expression?
 
 - Saar-Tsechansky & Provost
+    - Predictive value imputation vs. distribution-based imputation
 
 [^estim]: Should I use "model estimation" as a term at all, and just refer to model training? There are two perspectives here, the machine learning and the statistics perspective. Machine learning might be considered a subset of predictive statistics.
