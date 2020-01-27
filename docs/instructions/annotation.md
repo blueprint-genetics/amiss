@@ -61,7 +61,7 @@ $ cd $HOME/dbnsfp_data
 $ wget ftp://dbnsfp:dbnsfp@dbnsfp.softgenetics.com/dbNSFPv3.5a.zip
 ```
 
-Following instructions for GRCh38 in https://github.com/Ensemal/VEP_plugins/blob/release/96/dbNSFP.pm :
+Following instructions for GRCh38 in https://github.com/Ensembl/VEP_plugins/blob/release/96/dbNSFP.pm :
 
 ```
 $ unzip dbNSFPv3.5a.zip 
