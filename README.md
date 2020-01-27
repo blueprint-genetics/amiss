@@ -19,7 +19,7 @@ $ make
 
 ## Paper draft
 
-The development of the draft paper describing this project can also be followed in [the repository](docs/paper/).
+The development of the draft paper describing this project can also be followed in [the repository](docs/paper/paper.pdf).
 
 ## Instructions
 
