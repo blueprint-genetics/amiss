@@ -16,33 +16,35 @@ We annotated the variants using the Ensembl Variant Effect Predictor (VEP)[@vep]
 
 The initial feature set was defined manually[^4]. We excluded any metapredictors from the feature set.
 
+- Caveat: lack of explicit variable selection may disadvantage logistic regression
+    - It is not clear whether this affects the relative performances of imputation methods
+
 [^4]: add inclusion rationale
 
-- Observed missingness patterns
-    - Caveat: missing values in covariance matrices ("partially monotonous missingness")
-        - Is this even a caveat? Monotonous missingness should not be a problem in itself, even though we don't specifically use the information of its presence.
+- Described observed missingness patterns
 
-- Caveat: lack of explicit variable selection may disadvantage logistic regression
-    - It is not clear whether this affects imputation performance
+- Caveat: missing values in covariance matrices
+    - This can be understood as a consequence of monotonous missingness (though the missingness is not fully monotonous)
+    - Monotonous missingness should not be a problem in itself, even though we don't specifically use the information of its presence.
 
 ## Preprocessing 
 
-- Caveat: centering and scaling not done. Should I?
-    - Neither scaling nor centering should affect random forest, logistic regression (intercept takes care of centering) and at least Van Buuren does not mention either centering or scaling to matter in MICE (which makes sense, since one wouldn't want to lose the original scaling when doing inference. 
+- Caveat: centering and scaling not done, except for BPCA, which requires it.
+    - Neither scaling nor centering should affect random forest, logistic regression (intercept takes care of centering) and at least Van Buuren does not mention either centering or scaling to matter in MICE (which makes sense, since one wouldn't want to lose the original scaling when doing inference).
 
 For each variant, we chose transcript specific values from dbNSFP to match the Ensembl canonical transcript annotated by VEP. 
 Variants whose canonical VEP-annotated transcript ID did not match that from dbNSFP were discarded.
 
 Missing values were replaced by default values for features where the missingness implied the default value *a priori* (e.g. a prediction of effect of amino acid substitution for a protein may be imputed with the neutral value (usually $0$) when a variant is intronic) .[^5]
 
-Feature name        Feature interpretation  Default value
--------------       ----------------------- --------------
-`motifECount`                               $0$
-`motifEScoreChng`                           $0$
-`motifEHIPos`                               `FALSE`
-`tOverlapMotifs`                            $0$
-`motifDist`                                 $0$
-`gnomAD_exomes_AF`                          $0$
+Feature name        Feature interpretation              Default value
+-------------       -----------------------             --------------
+`motifECount`                                           $0$
+`motifEScoreChng`                                       $0$
+`motifEHIPos`                                           `FALSE`
+`tOverlapMotifs`                                        $0$
+`motifDist`                                             $0$
+`gnomAD_exomes_AF`  gnomAD allele frequency from exomes $0$
 
 [^5]: Add table here or in supp. materials
 
@@ -65,7 +67,7 @@ The final feature vectors of some sets of variants[^8] may be equal (i.e. duplic
 
 [^9]: With the lowest chromosomal position; write this in supplementary notes
 
-Use of categorical variables with high class imbalance within certain levels may obfuscate the performance of the imputation methods due to allowing the classifier to learn to classify all variants with that level into either the positive or the negative class, and therefore ignoring all other features upon which imputation may have been performed. VEP-predicted variant consequence is one such feature. For this reason, we removed ariants with consequences for which either class had less than $5 \%$ of overall variants of that consequence[^10][^11].
+Use of categorical variables with high class imbalance within certain levels may obfuscate the performance of the imputation methods due to allowing the classifier to learn to classify all variants with that level into either the positive or the negative class, and therefore ignoring all other features upon which imputation may have been performed. VEP-predicted variant consequence is one such feature. For this reason, we removed variants with consequences for which either class had less than $5 \%$ of overall variants of that consequence[^10][^11].
 
 [^10]: Removing how many?
 
@@ -103,7 +105,7 @@ The data was randomly split into training and test subsets, with $70 \%$ ($N=n$[
 
 ### Classifiers
 
-Both logistic regression and random forest classifiers are trained using the `caret`-package[@caret].
+Both logistic regression and random forest classifiers are trained using the `caret` package[@caret].
 Logistic regression is trained with the base R `glm`, and random forest as implemented in the package `randomForest`.
 
 #### Classifier hyperparameter search{#class-hyper-search}
@@ -174,7 +176,7 @@ The simplest imputation methods impute every missing value within a feature with
 
 ### Multiple imputation by chained equations
 
-- Caveat: I do not explore *joint modeling* (JM) models, presented as the canonical alternative to MICE for performing multivariate (multiple?) imputation.
+- Caveat: I do not explore *joint modeling* (JM) models, presented as the canonical alternative to MICE for performing multivariate multiple imputation.
 
 Multiple imputation by chained equations (MICE), or *fully conditional specification* (FCS)[@vanbuuren2007][^micefcs], refers to iteratively imputing single variables conditional on other variables. In short, a fully conditional specification algorithm 
 
@@ -300,7 +302,7 @@ Each of these options lead to different advantages and disadvantages.
 4. Faster than 3., but probably introduces biases
 5. Avoids the issue where it the size of the test set affects the performance on the test set, and makes it impossible to predict on a single observation at a time. Really slow.
 
-Options 1. and 5. are the only ones that allow imputation of prediction candidates[^cand] independently from each other; options based on 2. necessarily perform imputation with parameters estimated from the other observations that are being predicted on at the same time. This is in general undesirable.
+Options 1. and 5. are the only ones that allow imputation of test observations independently from each other; options based on 2. necessarily perform imputation with parameters estimated from the other observations that are being predicted on at the same time. This is in general undesirable.
 
 Imputation method / family  Implementation  Out-of-the-box parameter reuse
 --------------------------- --------------- -------------------------------
@@ -315,8 +317,6 @@ The package `mlr`[@mlr2016] offers wrapper functionality that allows use of any 
 We choose to implement option 2. due to its simplicity when out-of-the-box parameter reuse is not available. 
 
 - Caveat: this may bias the comparison in favor of k-NN \& the simple methods.
-
-[^cand]: Find proper nomenclature
 
 [^dimperf]: I am not fully convinced of this yet.
 
