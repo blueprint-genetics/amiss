@@ -23,24 +23,25 @@ The development of the draft paper describing this project can also be followed 
 
 ## Instructions
 
-To reproduce the main results:
+To reproduce the main results: (roughly estimated execution times in parentheses)
 
 Note: the following instructions assume that you clone the repository into your home folder. Remember to adjust the paths if another base directory is used.
 
+
 1. Clone the git repository with `git clone https://github.com/blueprint-genetics/amiss.git`
-2. [Acquire and annotate variant data](docs/instructions/annotation.md)
-3. [Acquire CADD annotations](docs/instructions/cadd_data_download.md)
+2. [Acquire and annotate variant data](docs/instructions/annotation.md) (~3 h)
+3. [Acquire CADD annotations](docs/instructions/cadd_data_download.md) (300 GB download!)
 4. Using the repository root as working directory, run the scripts in order:
-    - 01_parse_vcf.R
-    - 02_1_expand_data.R
-    - 02_2_contract_data.R
-    - optional: use Rstudio to view 03_descriptive_stats.Rmd ([knitted pdf here](R/03_descriptive_stats.pdf))
-    - 04_impute_and_train.R
-    - 05_test_prediction.R
+    - 01_parse_vcf.R (<1 hour)
+    - 02_1_expand_data.R (<1 min)
+    - 02_2_contract_data.R (<1 min)
+    - optional: use Rstudio to view 03_descriptive_stats.Rmd ([knitted pdf here](R/03_descriptive_stats.pdf)) (1-5 min)
+    - 04_impute_and_train.R (tested with 24 cores available: ~24 hours)
+    - 05_test_prediction.R (1-2 hours)
     - TODO: 06_analyze_main_results.R
 
 5. To reproduce simulation results, run also
-    - 07_generate_simulated_data.R
+    - WIP: 07_generate_simulated_data.R
     - TODO: 08_run_simulations.R
     - TODO: 08_analyze_results.R
 
