@@ -104,11 +104,10 @@ for (col in enumerate(default_imputations)) {
 
 ### Dummy variables
 
-# Categorical variables are processed into sets of dummy variables. Note that here each category is represented by a dummy variable. 
-# An extra category could be represented using these variables by leaving each value for an observation as `0`; this is one strategy 
-# for handling missing values in categorical variables. However, missing values are left as missing values at this point so that 
-# predictive mean matching can be also experimented on.
-
+# Categorical variables are processed into sets of dummy variables. Note that here each category is represented by a dummy variable.
+# An extra category corresponding a missing value is represented as another dummy variable; this is one strategy 
+# for handling missing values in categorical variables. This approach is equivalent to the missingness indicator method. We choose
+# to fix this choice for simplicity, since many imputation methods make no sense on dummy variables (e.g. regression imputation).
 flog.info("Encoding categorical variables via dummy variables")
 training_dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
 test_dummy_categoricals <- dummify_categoricals(test_set[, categorical_features, drop = FALSE])
