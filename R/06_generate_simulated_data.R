@@ -86,7 +86,7 @@ ampute_per_pattern <- function(data, ...) {
 }
 
 repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
-  for (params_i in 1:NROW(ampute_params)) {
+  filenames <- foreach(params_i = 1:NROW(ampute_params)) %do% {
     d <- do.call(
       ampute_per_pattern,
       c(list(training_data),
@@ -94,8 +94,11 @@ repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
     )
     # Save the files immediately to avoid aggregating them uselessly in memory
     attr(d, "params") <- ampute_params[params_i, , drop = TRUE]
-    filename <- paste0(directories[[r]], paste0(attr(d, "params"), collapse = "_"), ".RDS")
-    saveRDS(d, file = filename)
+    filename <- paste0(directories[[r]], paste0(attr(d, "params"), collapse = "_"), ".csv")
+    write.csv(x = d, file = filename)
+    return(filename)
   }
-  return(NULL)
-}
+  return(unlist(filenames))
+} %>% unlist
+
+write.csv(repetitions, file = "simulated_file_list.csv")
