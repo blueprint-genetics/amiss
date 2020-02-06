@@ -25,10 +25,10 @@ A draft of the manuscript that will detail materials, methods and results, can b
 
 Performance of downstream classifiers, grouped by imputation method:
 
-- [MCC, random forest classifiers](results/rf_mcc_boxplots.pdf)
-- [MCC, logistic regression classifiers](results/lr_mcc_boxplots.pdf)
-- [AUC-ROC, random forest classifiers](results/rf_roc_boxplots.pdf)
-- [AUC-ROC, logistic regression classifiers](results/lr_roc_boxplots.pdf)
+- [MCC, random forest classifiers](output/results/rf_mcc_boxplots.pdf)
+- [MCC, logistic regression classifiers](output/results/lr_mcc_boxplots.pdf)
+- [AUC-ROC, random forest classifiers](output/results/rf_roc_boxplots.pdf)
+- [AUC-ROC, logistic regression classifiers](output/results/lr_roc_boxplots.pdf)
 
 Stochastic imputation methods were each run to produce 10 completed training sets and 10 completed test sets. A classifier was fit on each completed training set, producing 10 models, and each was evaluated on each completed test set. Deterministic methods were run once on both.
 
