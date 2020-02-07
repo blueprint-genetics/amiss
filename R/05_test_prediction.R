@@ -1,10 +1,5 @@
----
-title: "Prediction on test set"
-output: html_notebook
----
 
 ## Read data
-```{r}
 library(magrittr)
 library(mice)
 library(ModelMetrics)
@@ -17,41 +12,36 @@ library(doParallel)
 library(doRNG)
 library(DMwR)
 
-source("recursive_application.R")
-source("imputation_definitions.R")
-source("imputation.R")
+source("R/recursive_application.R")
+source("R/imputation_definitions.R")
+source("R/imputation.R")
 
 seed <- 42
 registerDoParallel(3)
 
-test_data <- read.csv("../contracted_test_data.csv", row.names = 1, as.is = TRUE)
-outcome <- read.csv("../test_outcomes.csv", as.is = TRUE)
-```
+test_data <- read.csv("contracted_test_data.csv", row.names = 1, as.is = TRUE)
+outcome <- read.csv("test_outcomes.csv", as.is = TRUE)
 
-```{r}
-results_dir_path <- "../output/results/"
+results_dir_path <- "output/results/"
 if (!dir.exists(results_dir_path)) {
   dir_creation_success <- dir.create(results_dir_path, showWarnings = TRUE)
   if (!dir_creation_success) {
     stop("Failed to create directory for saving results.")
   }
 }
-```
 
-```{r}
 # Keep exactly those features that were kept in training data
-final_features <- readRDS("../output/final_features.rds")
+final_features <- readRDS("output/final_features.rds")
 test_data <- test_data[, final_features]
 
 # Recode outcomes as 1 -> "positive", 0 -> "negative"
 outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
 head(outcome)
-```
 
 ## Multiply impute the test set using the best hyperparameter configurations from the training set
-```{r}
-rf_hyperparams <- readRDS("../output/rf_hp_configs.rds")
-lr_hyperparams <- readRDS("../output/lr_hp_configs.rds")
+
+rf_hyperparams <- readRDS("output/rf_hp_configs.rds")
+lr_hyperparams <- readRDS("output/lr_hp_configs.rds")
 
 times <- 5
 iters <- 1
@@ -96,12 +86,12 @@ impute_w_hps <- function(data, hp_tree){
 }
 rf_completions <- impute_w_hps(test_data, rf_hyperparams)
 lr_completions <- impute_w_hps(test_data, lr_hyperparams)
-```
+
 
 ## Predict on test set completions using best classifier models
-```{r}
-rf_models <- readRDS("../output/rf_classifiers.rds")
-lr_models <- readRDS("../output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
+
+rf_models <- readRDS("output/rf_classifiers.rds")
+lr_models <- readRDS("output/lr_classifiers.rds", refhook = function(x) .GlobalEnv)
 
 prediction <- function(models, completions) {
 
@@ -130,10 +120,10 @@ prediction <- function(models, completions) {
 
 rf_predictions <- prediction(rf_models, rf_completions)
 lr_predictions <- prediction(lr_models, lr_completions)
-```
+
 
 ## Compute performance statistics on the test set
-```{r}
+
 performance_stats <- function(predictions) {
 
   confusion_matrices <- recursive_apply_numeric(predictions, function(pred) {
@@ -169,9 +159,9 @@ performance_stats <- function(predictions) {
 }
 rf_perf <- performance_stats(rf_predictions)
 lr_perf <- performance_stats(lr_predictions)
-```
 
-```{r}
+
+
 turn_table <- function(perf_tree) {
 
   tree_names <- recursive_apply_numeric(perf_tree, function(x, name_list) return(name_list), pass_node_names = TRUE)
@@ -204,9 +194,9 @@ lr_perf_table <- merge_tables(lr_tables)
 
 write.csv(x = rf_perf_table, file = paste0(results_dir_path, "rf_performance.csv"), row.names = FALSE)
 write.csv(x = lr_perf_table, file = paste0(results_dir_path, "lr_performance.csv"), row.names = FALSE)
-```
 
-```{r}
+
+
 aggregate_over_perf_table <- function(perf_table) {
 
   perf_stats <- perf_table[, !colnames(perf_table) %in% c("method", "model_index", "test_realization")]
@@ -234,9 +224,9 @@ for (name in names(lr_perf_aggregations)) {
             file = paste0(results_dir_path, "lr_", name, ".csv"),
             row.names = FALSE)
 }
-```
 
-```{r}
+
+
 # RF MCC
 rf_mcc_boxplots <- arrangeGrob(
   ggplot(rf_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier"),
@@ -268,4 +258,3 @@ lr_roc_boxplots <- arrangeGrob(
   ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations")
 )
 ggsave(filename =  "lr_roc_boxplots.pdf", plot = lr_roc_boxplots, device = "pdf", path = results_dir_path, width = 210, height = 297, units = "mm")
-```

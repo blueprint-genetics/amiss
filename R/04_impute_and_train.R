@@ -1,10 +1,5 @@
----
-title: "04: Impute data and train model"
-output: html_notebook
----
 
 ## Setup
-```{r}
 library(purrr)
 library(futile.logger)
 library(caret)
@@ -16,41 +11,35 @@ library(foreach)
 library(doParallel)
 library(doRNG)
 
-source("imputation_definitions.R")
-source("recursive_application.R")
-source("imputation.R")
+source("R/imputation_definitions.R")
+source("R/recursive_application.R")
+source("R/imputation.R")
 
 registerDoParallel(3)
 seed <- 42
-```
 
-```{r}
-training_data <- read.csv("../contracted_training_data.csv", row.names = 1, as.is = TRUE)
-outcome <- read.csv("../training_outcomes.csv", as.is = TRUE)
+training_data <- read.csv("contracted_training_data.csv", row.names = 1, as.is = TRUE)
+outcome <- read.csv("training_outcomes.csv", as.is = TRUE)
 
 # Recode outcomes as 1 -> "positive", 0 -> "negative"
 outcome <- factor(outcome[,2], levels = c("1", "0"), labels = c("positive", "negative"))
 head(outcome)
-```
 
 ## Removal of problematic features
 
-Some imputation methods cannot deal with features that have certain unwanted properties, and thus they must be removed prior to imputation.
+# Some imputation methods cannot deal with features that have certain unwanted properties, and thus they must be removed prior to imputation.
 
 ### Near-zero variance
 
-```{r}
 nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = 1)
 print(nzv_features[nzv_features$nzv, ])
 
 if (any(nzv_features$nzv)) {
   training_data <- training_data[, !nzv_features$nzv]
 }
-```
 
 ### Highly correlated features
 
-```{r}
 correlations <- cor(training_data, use = "pairwise.complete.obs")
 correlations[is.na(correlations)] <- 0.0
 
@@ -60,24 +49,18 @@ print(highly_correlated_features)
 if(highly_correlated_features %>% length > 0) {
   training_data <- training_data[, !colnames(training_data) %in% highly_correlated_features]
 }
-```
 
 ## Imputation
 
-Check the number of hyperparameter configurations for each imputation method:
-```{r}
+# Check the number of hyperparameter configurations for each imputation method:
 lapply(mice_hyperparameter_grids, nrow)
 lapply(other_hyperparameter_grids, nrow)
-```
 
-```{r}
 times <- 2
 iters <- 1
-```
 
 ### MICE
 
-```{r}
 mice_imputations <- foreach(method = enumerate(mice_hyperparameter_grids)) %do% {
 
   hyperparams <- method$value
@@ -99,11 +82,9 @@ mice_imputations <- foreach(method = enumerate(mice_hyperparameter_grids)) %do% 
   return(imputations)
 }
 names(mice_imputations) <- names(mice_hyperparameter_grids)
-```
 
 ### Non-MICE imputations
 
-```{r}
 deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_grids)) %do%  {
 
   hyperparams <- method$value
@@ -130,23 +111,17 @@ deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_gri
 
   return(imputations)
 } %>% set_names(names(other_hyperparameter_grids))
-```
 
 ### Single value imputations
 
-```{r}
 single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
   list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
 }) %>% set_names(names(single_value_imputation_hyperparameter_grids))
-```
 
 ### List and drop imputation methods that failed completely
 
-```{r}
 imputations <- c(mice_imputations, deterministic_imputations, single_value_imputations)
-```
 
-```{r}
 valid_methods <- sapply(names(imputations), function(method) {
 
   null_hpsets <- sapply(imputations[[method]], function(x) x[["completed_datasets"]] %>% unlist %>% is.null)
@@ -157,10 +132,8 @@ valid_methods <- sapply(names(imputations), function(method) {
   return(TRUE)
 })
 imputations <- imputations[valid_methods]
-```
 
 ## Training classifier
-```{r}
 hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
 
 rf_training_settings <- trainControl(classProbs = TRUE,
@@ -215,10 +188,8 @@ lr_models <- foreach(method = imputations, .options.RNG = seed) %dorng% {
     } %>% set_names(names(mi_iter$completed_datasets))
   } %>% set_names(names(method))
 } %>% set_names(names(imputations))
-```
 
 ## Model selection
-```{r}
 extract_oob_performance <- function(model) {
   model$finalModel$err.rate[, "OOB"] %>% tail(1)
 }
@@ -267,39 +238,35 @@ select_best <- function(models, imputations, hyperparams, performance_function, 
 
 rf_bests <- select_best(rf_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_oob_performance, TRUE)
 lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance, FALSE)
-```
 
 ## Model diagnostics
-```{r}
+
 # Produce convergence plots for imputation methods
 rf_imputation_convergence_plots <- lapply(rf_bests$imputers, . %>% recursive_apply(plot, "mids"))
 lr_imputation_convergence_plots <- lapply(lr_bests$imputers, . %>% recursive_apply(plot, "mids"))
 
 # Produce convergence plots for random forest classifiers
 rf_classifier_oob_plots <- recursive_apply(rf_bests$models, plot, x_class = "train")
-```
 
 ## Saving model
-```{r}
-if (!dir.exists("../output")) {
-  dir_creation_success <- dir.create("../output", showWarnings = TRUE)
+if (!dir.exists("output")) {
+  dir_creation_success <- dir.create("output", showWarnings = TRUE)
   if (!dir_creation_success) {
     stop("Failed to create directory for saving output.")
   }
 }
 
-saveRDS(rf_bests$models, file = "../output/rf_classifiers.rds")
-saveRDS(rf_bests$imputers, file = "../output/rf_imputers.rds")
-saveRDS(rf_bests$hyperparams, file = "../output/rf_hp_configs.rds")
+saveRDS(rf_bests$models, file = "output/rf_classifiers.rds")
+saveRDS(rf_bests$imputers, file = "output/rf_imputers.rds")
+saveRDS(rf_bests$hyperparams, file = "output/rf_hp_configs.rds")
 
 # glm models in R contain references to environments, but for prediction it doesn't seem that 
 # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
 # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).
 # See https://stackoverflow.com/questions/54144239/how-to-use-saverds-refhook-parameter for an example of
 # using the `refhook`.
-saveRDS(lr_bests$models, file = "../output/lr_classifiers.rds", refhook = function(x) "")
-saveRDS(lr_bests$imputers, file = "../output/lr_imputers.rds")
-saveRDS(lr_bests$hyperparams, file = "../output/lr_hp_configs.rds")
+saveRDS(lr_bests$models, file = "output/lr_classifiers.rds", refhook = function(x) "")
+saveRDS(lr_bests$imputers, file = "output/lr_imputers.rds")
+saveRDS(lr_bests$hyperparams, file = "output/lr_hp_configs.rds")
 
-saveRDS(colnames(training_data), "../output/final_features.rds")
-```
+saveRDS(colnames(training_data), "output/final_features.rds")
