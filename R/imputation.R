@@ -74,7 +74,7 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 
       completed_datasets <- mice::complete(imputation_object, action = "all")
 
-    }, error = function(e) print(e))
+    }, error = function(e) flog.pid.debug(e))
   )
 
   result <- list(
@@ -106,7 +106,8 @@ run_bpca <- function(data, hyperparams) {
     tryCatch({
       imputation <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
     }, error = function(e) {
-      print("Trying to execute BPCA, the following error occurred: " %>% paste0(e$message))
+      flog.pid.debug("Trying to execute BPCA, the following error occurred: %s", e$message)
+      flog.pid.debug("Output of checkData: %s", paste(attributes(checkData(data, verbose = TRUE))))
     })
 
   })
@@ -144,7 +145,7 @@ run_knn <- function(data, hyperparams, old_data = NULL) {
         imputation <- do.call(knnImputation, c(list(I(data)), hyperparams))
       }
     }, error = function(e) {
-      print("Trying to execute knnImputation, the following error occurred: " %>% paste0(e$message))
+      flog.pid.debug("Trying to execute knnImputation, the following error occurred: %s", e$message)
     })
   })
 

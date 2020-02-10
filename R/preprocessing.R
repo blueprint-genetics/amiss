@@ -60,7 +60,7 @@ compute_numeric_labels <- function(class_vector, positive_classes, negative_clas
     stop(error_msg)
   }
   
-  positive_class_indicator <- ifelse(class_vector %in% positive_classes, 1.0, 0.0)
+  positive_class_indicator <- ifelse(class_vector %in% positive_classes, "positive", "negative")
   
   return(positive_class_indicator)
 }
