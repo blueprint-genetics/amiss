@@ -85,4 +85,4 @@ if (any(!successes)) {
 
 flog.pid.info("%d / %d simulations performed successfully", sum(successes), length(sim_data_paths), name = "simulation_logger")
 
-write.csv(sim_data_paths[successes], file = "successfully_simulated_file_list.csv", as.is = TRUE)
+write.csv(sim_data_paths[successes], file = "successfully_simulated_file_list.csv")
