@@ -92,7 +92,7 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 #' @param hyperparams list of named values that will be fed as arguments to `pcaMethods::pca`
 #'
 #' @return A named two-element list, where
-#' first element is a list of completed datasets (of length `times`),
+#' first element is a list of completed datasets (of length `1`),
 #' second element is the `pca`-returned `pcaRes` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_bpca <- function(data, hyperparams) {
@@ -122,7 +122,6 @@ run_bpca <- function(data, hyperparams) {
 
   return(result)
 }
-
 #' Run and time kNN
 #'
 #' @param data A data.frame to impute
@@ -130,7 +129,7 @@ run_bpca <- function(data, hyperparams) {
 #' @param old_data Completed training set to use for finding neighbors
 #'
 #' @return A named two-element list, where
-#' first element is a list of completed datasets (of length `times`),
+#' first element is a list of completed datasets (of length `1`),
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_knn <- function(data, hyperparams, old_data = NULL) {
@@ -151,6 +150,40 @@ run_knn <- function(data, hyperparams, old_data = NULL) {
 
   result <- list(
     completed_datasets = list(`1` = imputation),
+    imputation_object = NULL
+  )
+  attr(result, "timing") <- timing
+
+  return(result)
+
+}
+
+#' Run and time missForest
+#'
+#' @param data A data.frame to impute
+#' @param hyperparams list of named values that will be fed as arguments to `missForest::missForest`
+#' @param times number of datasets to produce
+#'
+#' @return A named two-element list, where
+#' first element is a list of completed datasets (of length `times`),
+#' second element is `NULL`.
+#' The list has an additional attribute `timing`, which contains the timing information.
+run_missforest <- function(data, hyperparams, times) {
+
+  timing <- system.time({
+    completed_datasets <- foreach(i = 1:times) %do% {
+      imputation <- NULL
+      tryCatch({
+        imputation <- do.call(missForest, c(list(I(data)), hyperparams))
+      }, error = function(e) {
+        flog.pid.debug("Trying to execute missForest, the following error occurred: %s", e$message)
+      })
+      return(imputation$ximp)
+    }
+  })
+
+  result <- list(
+    completed_datasets = completed_datasets,
     imputation_object = NULL
   )
   attr(result, "timing") <- timing

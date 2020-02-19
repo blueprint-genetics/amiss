@@ -12,7 +12,8 @@ mice_hyperparameter_grids <- lapply(mice_imputation_hyperparameters, expand.grid
 
 deterministic_imputation_hyperparameters <- list(
   knnImputation = list(k = 1:20),
-  bpca = list(nPcs = 2:30, maxSteps = 1:10*20)
+  bpca = list(nPcs = 2:30, maxSteps = 1:10*20),
+  missForest = list(mtry = 1:10 * 4, ntree = c(10, 20, 50, 100, 200))
 )
 
 other_hyperparameter_grids <- lapply(deterministic_imputation_hyperparameters, expand.grid)
