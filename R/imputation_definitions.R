@@ -4,8 +4,7 @@ mice_imputation_hyperparameters <- list(
   pmm = list(donors = (0:10)*3 + 1, ridge = c(1e-03, 1e-04, 1e-05, 1e-06, 1e-07, 1e-08), matchtype = 0:2),
   norm.predict = list(),
   norm = list(),
-  rf = list(ntree = 1:5 * 8 - 4, ntree = c(10, 50, 100, 200))
-  #midastouch = list(ridge = c(1e-03, 1e-04, 1e-05, 1e-06, 1e-07, 1e-08), outout = FALSE)
+  rf = list(ntree = c(10, 50, 100, 200))
 )
 
 mice_hyperparameter_grids <- lapply(mice_imputation_hyperparameters, expand.grid)
