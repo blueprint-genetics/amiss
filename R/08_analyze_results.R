@@ -1,6 +1,11 @@
+library(futile.logger)
+library(gridExtra)
+library(ggplot2)
+
+source("R/utils.R")
 
 cmdargs <- commandArgs(trailingOnly = TRUE)
-if (!(length(cmdargs) == 1)) {
+if (!(length(cmdargs) == 3)) {
   stop("Must have the following arguments: 
        1. path to rf performance csv
        2. path to lr performance csv
