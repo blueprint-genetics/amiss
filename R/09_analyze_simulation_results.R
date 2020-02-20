@@ -30,3 +30,4 @@ rf_perf_df <- rbind_csvs(rf_perfs)
 lr_perf_df <- rbind_csvs(lr_perfs)
 
 rf_df <- merge(rf_perf_df, rf_rmse_df, by = c("repeat", "pct", "mech", "orientation", "method"), all = TRUE)
+lr_df <- merge(lr_perf_df, lr_rmse_df, by = c("repeat", "pct", "mech", "orientation", "method"), all = TRUE)
