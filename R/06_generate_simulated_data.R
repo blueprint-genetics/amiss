@@ -9,14 +9,13 @@ source("R/simulation_definitions.R")
 source("R/feature_definitions.R")
 source("R/utils.R")
 
-registerDoParallel(3)
+registerDoParallel(24)
 seed <- 42
 
 training_data <- read.csv("contracted_training_data.csv", as.is = TRUE, row.names = 1)
 
 # Temporary, to make simulations take reasonable time when testing
-# repeats <- 3
-# ampute_params <- ampute_params[sample(1:NROW(ampute_params), 10), ]
+ #ampute_params <- ampute_params[sample(1:NROW(ampute_params), 10), ]
 
 # Create directories for each repetition
 directories <- sapply(1:repeats, function(i) {
