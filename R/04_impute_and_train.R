@@ -33,6 +33,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   if (lean) {
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = 8))
     other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = 8))
+    other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
   }
 
   source("R/recursive_application.R")
