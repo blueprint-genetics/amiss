@@ -80,8 +80,8 @@ flog.pid.info(paste0(names(other_hyperparameter_grids), ": ",  lapply(other_hype
 
 ### MICE
 flog.pid.info("Starting MICE imputation")
-times <- 2
-iters <- 1
+times <- 10
+iters <- 10
 flog.pid.info("Imputing %d times, with max. %d iterations", times, iters)
 
 mice_imputations <- foreach(method = enumerate(mice_hyperparameter_grids)) %do% {
