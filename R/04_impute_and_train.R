@@ -25,10 +25,14 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   flog.threshold(DEBUG)
 
   source("R/utils.R")
-  if (!lean) {
-    source("R/imputation_definitions.R")
-  } else {
-    source("R/imputation_definitions_lean.R")
+  source("R/imputation_definitions.R")
+  sample_max <- function(x, size) {
+    if (NROW(x) < size) return(x)
+    else return(x[sample(1:NROW(x), size = size, replace= FALSE), , drop = FALSE])
+  }
+  if (lean) {
+    mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = 8))
+    other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = 8))
   }
 
   source("R/recursive_application.R")
@@ -126,7 +130,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   ### Non-MICE imputations
 
   flog.pid.info("Starting non-MICE imputation")
-  deterministic_imputations <- foreach(method = enumerate(other_hyperparameter_grids)) %do%  {
+  other_imputations <- foreach(method = enumerate(other_hyperparameter_grids)) %do%  {
 
     hyperparams <- method$value
 
@@ -168,7 +172,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
 
   ### List and drop imputation methods that failed completely
 
-  imputations <- c(mice_imputations, deterministic_imputations, single_value_imputations)
+  imputations <- c(mice_imputations, other_imputations, single_value_imputations)
 
   flog.pid.info("Checking and dropping failed imputation methods")
   valid_methods <- sapply(names(imputations), function(method) {
