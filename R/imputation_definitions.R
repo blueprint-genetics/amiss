@@ -5,7 +5,6 @@ mice_imputation_hyperparameters <- list(
   norm.predict = list(),
   norm = list(),
   rf = list(ntree = c(10, 50, 100, 200))
-  #midastouch = list(ridge = c(1e-03, 1e-04, 1e-05, 1e-06, 1e-07, 1e-08), outout = FALSE)
 )
 
 mice_hyperparameter_grids <- lapply(mice_imputation_hyperparameters, expand.grid)
