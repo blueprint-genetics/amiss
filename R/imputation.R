@@ -97,14 +97,14 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_bpca <- function(data, hyperparams) {
 
-  data <- scale(as.matrix(data), TRUE, TRUE)
+  data <- as.matrix(data)
 
   timing <- system.time({
 
     imputation <- NULL
 
     tryCatch({
-      imputation <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams))
+      imputation <- do.call(pcaMethods::pca, c(list(object = data, method = "bpca"), hyperparams, list(scale = "none", center = FALSE)))
     }, error = function(e) {
       flog.pid.debug("Trying to execute BPCA, the following error occurred: %s", e$message)
       flog.pid.debug("Output of checkData: %s", paste(attributes(checkData(data, verbose = TRUE))))
