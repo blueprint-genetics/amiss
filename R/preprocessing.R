@@ -77,9 +77,9 @@ dummify_categoricals <- function(dataframe) {
   stopifnot(dataframe %>% sapply(is.character) %>% all)
   
   dataframe <- lapply(dataframe, function(col) {
-      
     # Find all unique values that appear in this column
-    lvls <- unique(col) %>% na.omit
+    col <- addNA(col)
+    lvls <- col %>% unique %>% na.omit
     
     # Form a dummy variable for each unique value of original column
     dummies <- lapply(lvls, function(value) {
