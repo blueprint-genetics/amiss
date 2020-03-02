@@ -1,5 +1,6 @@
 
 library(purrr)
+library(magrittr)
 library(futile.logger)
 library(caret)
 library(mice)
@@ -310,6 +311,10 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance, FALSE)
 
   flog.pid.info("Saving data")
+  # Save run time information for imputers
+  write.csv(x = form_run_time_df(rf_bests$imputers), file = file.path(output_path, "rf_run_times.csv"))
+  write.csv(x = form_run_time_df(lr_bests$imputers), file = file.path(output_path, "lr_run_times.csv"))
+
   ## Saving model
   saveRDS(rf_bests$models, file = file.path(output_path, "rf_classifiers.rds"))
   if (!lean) saveRDS(rf_bests$imputers, file = file.path(output_path, "rf_imputers.rds"))
