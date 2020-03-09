@@ -2,59 +2,37 @@
 source("R/compute_rmse.R")
 source("R/04_impute_and_train.R")
 source("R/05_test_prediction.R")
-  
+
 flog.appender(appender.tee("07_run_simulations.log"), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
 
-seed <- 42 
+seed <- 42
 cores <- 24
 registerDoParallel(cores)
 
 sim_data_paths <- read.csv(file = "simulated_file_list.csv", as.is = TRUE)[,2]
 
-successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dopar% {
+successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng% {
   
-  success <- TRUE
-  tryCatch({
+  success <- tryCatch({
     flog.pid.info("Imputing and training on %s", sim_data_path, name = "simulation_logger")
     output_path <- paste0(sim_data_path, "_output")
     
     flog.pid.info("Parameters:", name = "simulation_logger")
     iat_params <- list(training_path = sim_data_path,
-                     outcome_path = "training_outcomes.csv",
-                     output_path = output_path,
-                     cores = 1,
-                     seed = seed,
-                     lean = TRUE)
+                       outcome_path = "training_outcomes.csv",
+                       output_path = output_path,
+                       cores = 1,
+                       seed = seed,
+                       lean = TRUE)
     flog.pid.info(paste0(names(iat_params), " = ", iat_params), name = "simulation_logger")
     
     do.call(impute_and_train, iat_params)
     
-    flog.pid.info("Computing RMSE values on %s", sim_data_path, name = "simulation_logger")
-    
-    flog.pid.info("Parameters:", name = "simulation_logger")
-    rf_rmse_params <- list(
-      imputer_path = file.path(output_path, "rf_classifiers.rds"), 
-      orig_data_path = "contracted_training_data.csv", 
-      simu_data_path = sim_data_path, 
-      output_filename = file.path(output_path, "rf_rmse.csv")
-    )
-    flog.pid.info(paste0(names(rf_rmse_params), " = ", rf_rmse_params), name = "simulation_logger")
-    do.call(compute_rmse, rf_rmse_params)
-    
-    lr_rmse_params <- list(
-      imputer_path = file.path(output_path, "lr_classifiers.rds"), 
-      orig_data_path = "contracted_training_data.csv", 
-      simu_data_path = sim_data_path, 
-      output_filename = file.path(output_path, "lr_rmse.csv")
-    )
-    flog.pid.info(paste0(names(lr_rmse_params), " = ", lr_rmse_params), name = "simulation_logger")
-    do.call(compute_rmse, lr_rmse_params)
-    
     flog.pid.info("Producing performance statistics on %s", sim_data_path, name = "simulation_logger")
     test_params <- list(
-      test_path = "contracted_test_data.csv", 
-      outcome_path = "test_outcomes.csv", 
+      test_path = "contracted_test_data.csv",
+      outcome_path = "test_outcomes.csv",
       tr_output_path = output_path,
       results_dir_path = output_path,
       lean = TRUE,
@@ -63,17 +41,37 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dopar
     )
     flog.pid.info(paste0(names(test_params), " = ", test_params), name = "simulation_logger")
     do.call(test_prediction, test_params)
-    
+
+    flog.pid.info("Computing RMSE values on %s", sim_data_path, name = "simulation_logger")
+
+    flog.pid.info("Parameters:", name = "simulation_logger")
+    rf_rmse_params <- list(
+      imputer_path = file.path(output_path, "rf_classifiers.rds"),
+      orig_data_path = "contracted_training_data.csv",
+      simu_data_path = sim_data_path,
+      output_filename = file.path(output_path, "rf_rmse.csv")
+    )
+    flog.pid.info(paste0(names(rf_rmse_params), " = ", rf_rmse_params), name = "simulation_logger")
+    do.call(compute_rmse, rf_rmse_params)
+
+    lr_rmse_params <- list(
+      imputer_path = file.path(output_path, "lr_classifiers.rds"),
+      orig_data_path = "contracted_training_data.csv",
+      simu_data_path = sim_data_path,
+      output_filename = file.path(output_path, "lr_rmse.csv")
+    )
+    flog.pid.info(paste0(names(lr_rmse_params), " = ", lr_rmse_params), name = "simulation_logger")
+    do.call(compute_rmse, lr_rmse_params)
+
     flog.pid.info("Completed analysis of %s", sim_data_path, name = "simulation_logger")
-    flog.pid.info("Removing created classifier RDS files", name = "simulation_logger")
-    unlink(file.path(output_path, "rf_classifiers.rds"))
-    unlink(file.path(output_path, "lr_classifiers.rds"))
-    
+
+    return(TRUE)
+
   }, error = function(e) {
-    flog.pid.info(e, name = "simulation_logger")
-    success <<- FALSE
+    flog.pid.debug(e, name = "simulation_logger")
+    return(FALSE)
   })
-  
+
   return(success)
   
 }
