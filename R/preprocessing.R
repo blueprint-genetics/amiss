@@ -1,5 +1,7 @@
 library(magrittr)
 
+source("R/recursive_application.R") # for enumerate
+
 #' Partition dataset into a training and a test set
 #'
 #' @param dataframe A data.frame that will be partitioned into two.
@@ -31,24 +33,15 @@ split_train_test <- function(dataframe, proportion) {
   return(datasplit)
 }
 
-missingness_indicators <- function(dataframe) {
-
-  stopifnot(class(dataframe) == "data.frame")
-
-  miss_ind <- is.na(dataframe)
-
-  return(miss_ind)
-}
-
-#' Compute numeric labels from ClinVar classifications
+#' Code ClinVar classifications as positive and negative
 #'
 #' @param class_vector Character vector containing ClinVar classifications
 #' @param positive_classes Character vector designating the classifications that are considered positive
 #' @param negative_classes Character vector designating the classifications that are considered negative
 #'
-#' @return Numeric vector containing 1.0 for each pathogenic classification and
-#' 0.0 for each non-pathogenic classification.
-compute_numeric_labels <- function(class_vector, positive_classes, negative_classes) {
+#' @return Character vector containing "positive" for each pathogenic classification and
+#' "negative" for each non-pathogenic classification.
+code_labels <- function(class_vector, positive_classes, negative_classes) {
 
   stopifnot(class(class_vector) == "character")
   stopifnot(length(class_vector) > 0)
@@ -119,6 +112,10 @@ a_priori_impute <- function(data, default_imputations) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
   if (!is.list(default_imputations)) stop("`default_imputations` must be a list")
+  if (!all(sapply(names(default_imputations), FUN = function(x) is.numeric(default_imputations[[x]]) == is.numeric(data[[x]])))) stop("Imputed values must match data by class")
+  if (!all(sapply(names(default_imputations), FUN = function(x) is.character(default_imputations[[x]]) == is.character(data[[x]])))) stop("Imputed values must match data by class")
+  if (any(sapply(default_imputations, is.factor))) stop("Please pass categorical variables as character vectors")
+  if (any(sapply(data, is.factor))) stop("Please pass categorical variables as character vectors")
 
   for (col in enumerate(default_imputations)) {
     miss_ind <- is.na(data[, col$name])
@@ -136,15 +133,20 @@ table_with_margin <- function(...) {
   return(tabl)
 }
 
-detect_imbalanced_consequence_classes <- function(data, outcome) {
+detect_imbalanced_consequence_classes <- function(consequence, outcome, freq) {
 
-  if (!is.data.frame(data)) stop("`data` must be a data.frame")
+  if (!is.vector(consequence)) stop("`consequence` must be a vector")
+  if (!is.character(consequence)) stop("`outcome` must be a character vector")
   if (!is.vector(outcome)) stop("`outcome` must be a vector")
   if (!is.character(outcome)) stop("`outcome` must be a character vector")
+  if (length(freq) != 1) stop("`freq` must have length 1")
+  if (!is.numeric(freq)) stop("`freq` must be numeric")
+  stopifnot(freq < 1.0)
+  stopifnot(freq > 0.0)
 
-  class_distribution <- table_with_margin(data$Consequence.x, outcome, useNA = "always") %>% as.data.frame
+  class_distribution <- table_with_margin(consequence, outcome, useNA = "always") %>% as.data.frame
   prop_pathg <- class_distribution[,"positive"]/(class_distribution[,"negative"] + class_distribution[,"positive"])
-  unbalanced_conseqs <- class_distribution[(prop_pathg < 0.05 | prop_pathg > 0.95) & !is.na(prop_pathg), ]
+  unbalanced_conseqs <- class_distribution[(prop_pathg < freq | prop_pathg > 1 - freq) & !is.na(prop_pathg), ]
 
   return(unbalanced_conseqs)
 
