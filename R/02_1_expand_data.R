@@ -21,17 +21,6 @@ source("R/feature_definitions.R")
 source("R/recursive_application.R")
 
 ## Name data rows by strings identifying variants
-form_variant_ids <- function(data) {
-
-  id_cols <- c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID")
-
-  apply(
-    data[, id_cols],
-    MARGIN = 1,
-    function(x) paste0(x, collapse = ":")
-  )
-
-}
 rownames(merged_data) <- form_variant_ids(merged_data)
 
 ## Drop duplicates
@@ -93,14 +82,8 @@ flog.info(table(test_outcome) %>% capture.output)
 # makes sense to impute this variable with `0`.
 
 flog.info("Performing a priori imputation")
-for (col in enumerate(default_imputations)) {
-  miss_ind <- is.na(training_set[, col$name])
-  training_set[miss_ind, col$name] <- rep(col$value, sum(miss_ind))
-}
-for (col in enumerate(default_imputations)) {
-  miss_ind <- is.na(test_set[, col$name])
-  test_set[miss_ind, col$name] <- rep(col$value, sum(miss_ind))
-}
+training_set <- a_priori_impute(training_set, default_imputations)
+test_set <- a_priori_impute(test_set, default_imputations)
 
 ### Dummy variables
 
@@ -154,12 +137,6 @@ test_set <- cbind(
 
 # Next, check whether all consequences have both positive and negative examples.
 flog.info("Checking consequence-dependent class imbalance")
-table_with_margin <- function(...) {
-  tabl <- table(...)
-  tabl %<>% cbind(ALL_ = rowSums(tabl))
-  tabl %<>% rbind(ALL_ = colSums(tabl))
-  return(tabl)
-}
 flog.info(capture.output(table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame %>% print))
 flog.info(capture.output(table_with_margin(training_set$Consequence.x, training_outcome, useNA = "always") %>% as.data.frame %>% print))
 
@@ -171,10 +148,8 @@ flog.info(capture.output(table_with_margin(training_set$Consequence.x, training_
 
 # Thus we remove variants from categories with very few examples (< 5 %) in either positive or negative category.
 flog.info("Removing variants with consequences that have high class imbalance")
-class_distribution <- table_with_margin(training_set$Consequence.x, training_outcome, useNA = "always") %>% as.data.frame
-prop_pathg <- class_distribution[,"positive"]/(class_distribution[,"negative"] + class_distribution[,"positive"])
-unbalanced_conseqs <- class_distribution[(prop_pathg < 0.05 | prop_pathg > 0.95) & !is.na(prop_pathg), ]
-tr_variants_w_unbalanced_class <- training_set$Consequence.x %in% rownames(unbalanced_conseqs)
+unbalanced_conseqs <- detect_imbalanced_classes(training_set, training_outcome)
+tr_variants_w_unbalanced_class <- data$Consequence.x %in% rownames(unbalanced_conseqs)
 flog.info("Training variants with high consequence dependent class imbalance: %d", sum(tr_variants_w_unbalanced_class))
 training_set <- training_set[!tr_variants_w_unbalanced_class, ]
 training_outcome <- training_outcome[!tr_variants_w_unbalanced_class]
