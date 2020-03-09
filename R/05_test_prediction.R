@@ -33,8 +33,10 @@ test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir
   flog.pid.info("Using %d cores", cores)
   registerDoParallel(cores)
 
-  flog.pid.info("Using seed: %d", seed)
-  set.seed(seed)
+  if(!is.null(seed)) {
+    flog.pid.info("Using seed: %d", seed)
+    set.seed(seed)
+  }
 
   flog.pid.info("Reading data")
   test_data <- read.csv(test_path, row.names = 1, as.is = TRUE)
@@ -130,10 +132,18 @@ test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir
       pred_per_model <- lapply(models[[method]], function(model) {
 
         pred_per_completion <- foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
-          tryCatch({
-            flog.pid.info("Predicting using best model for %s", method)
-            predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE]
-          }, error = function(e) flog.pid.debug(e))
+          if (!is.null(completed_dataset)) {
+            tryCatch({
+              flog.pid.info("Predicting using best model for %s", method)
+              return(predict(model, completed_dataset, type = "prob")[,"positive", drop = TRUE])
+            }, error = function(e) {
+              flog.pid.debug(e)
+              return(NA)
+            })
+          }
+          else  {
+            return(NA)
+          }
         }
 
         names(pred_per_completion) <- paste0("imp_", seq_along(pred_per_completion))
