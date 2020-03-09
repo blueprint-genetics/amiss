@@ -60,10 +60,10 @@ reimpute <- function(dataframe, value) data.frame(lapply(enumerate(dataframe), f
 run_mice <- function(data, method, hyperparams, times, iterations) {
 
   imputation_object <- NULL
-  completed_datasets <- rep(list(NULL), iterations)
+  completed_datasets <- rep(list(NULL), times)
 
   timing <- system.time(
-    tryCatch({
+    result <- tryCatch({
 
       imputation_object <- mice::mice(data = data,
                                       method = method,
@@ -74,13 +74,20 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 
       completed_datasets <- mice::complete(imputation_object, action = "all")
 
-    }, error = function(e) flog.pid.debug(e))
+      return(list(
+        completed_datasets = completed_datasets,
+        imputation_object = imputation_object
+      ))
+
+    }, error = function(e) {
+      flog.pid.debug(e)
+      return(list(
+        completed_datasets = rep(list(NULL), times), 
+        imputation_object = NULL
+      ))
+    })
   )
 
-  result <- list(
-    completed_datasets = completed_datasets,
-    imputation_object = imputation_object
-  )
   attr(result, "timing") <- timing
 
   return(result)
