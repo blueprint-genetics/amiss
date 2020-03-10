@@ -61,16 +61,16 @@ code_labels <- function(class_vector, positive_classes, negative_classes) {
 
 #' Convert categorical variables into sets of dummy variables
 #'
-#' @param dataframe A data.frame containing only character columns
+#' @param data A data.frame containing only character columns
 #'
 #' @return A data.frame containing dummy variables for each original column
-dummify_categoricals <- function(dataframe) {
+dummify_categoricals <- function(data) {
 
-  stopifnot(class(dataframe) == "data.frame")
+  if (!is.data.frame(data)) stop("`data` must be a data.frame")
   # Check that all columns are of type character
-  stopifnot(dataframe %>% sapply(is.character) %>% all)
+  if (!all(sapply(data, is.character))) stop("All columns in `data` must be character vectors")
 
-  dataframe <- lapply(dataframe, function(col) {
+  data <- lapply(data, function(col) {
     # Find all unique values that appear in this column
     col <- addNA(col)
     lvls <- col %>% unique %>% na.omit
@@ -90,7 +90,7 @@ dummify_categoricals <- function(dataframe) {
     return(dummies)
   }) %>% data.frame
 
-  return(dataframe)
+  return(data)
 }
 
 form_variant_ids <- function(data) {
@@ -159,8 +159,8 @@ select_features <- function(data, numeric_features, categorical_features) {
   if (!is.character(numeric_features)) stop("`numeric_features` must be a character vector")
   if (!is.vector(categorical_features)) stop("`categorical_features` must be a vector")
   if (!is.character(categorical_features)) stop("`categorical_features` must be a character vector")
-  if (!all(numeric_features) %in% colnames(data)) stop("`numeric_features` must be a subset of `data` column names")
-  if (!all(categorical_features) %in% colnames(data)) stop("`categorical_features` must be a subset of `data` column names")
+  if (!all(numeric_features %in% colnames(data))) stop("`numeric_features` must be a subset of `data` column names")
+  if (!all(categorical_features %in% colnames(data))) stop("`categorical_features` must be a subset of `data` column names")
   if (!all(sapply(data[numeric_features], is.numeric))) stop("Non-numeric columns included in `numeric_features`")
   if (!all(sapply(data[categorical_features], is.character))) stop("Non-character columns included in `categorical_features`")
 

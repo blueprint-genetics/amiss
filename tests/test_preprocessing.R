@@ -22,12 +22,12 @@ test_that("split_train_test partitions the data", {
 })
 
 test_that("split_train_test fails correctly", {
-  expect_error(split_train_test(mock_data, 1.0))
-  expect_error(split_train_test(mock_data, 0.0))
-  expect_error(split_train_test(mock_data, -1.0))
-  expect_error(split_train_test(mock_data, 1.1))
-  expect_error(split_train_test(mock_data, c(0.5, 0.5)))
-  expect_error(split_train_test(mock_data, TRUE))
+  expect_error(split_train_test(mock_data, 1.0), "proportion < 1 is not TRUE", fixed = TRUE)
+  expect_error(split_train_test(mock_data, 0.0), "proportion > 0 is not TRUE", fixed = TRUE)
+  expect_error(split_train_test(mock_data, -1.0), "proportion > 0 is not TRUE", fixed = TRUE)
+  expect_error(split_train_test(mock_data, 1.1), "proportion < 1 is not TRUE", fixed = TRUE)
+  expect_error(split_train_test(mock_data, c(0.5, 0.5)), "length(proportion) == 1 is not TRUE", fixed = TRUE)
+  expect_error(split_train_test(mock_data, TRUE), "is.numeric(proportion) is not TRUE", fixed = TRUE)
 })
 
 # code_labels
@@ -39,9 +39,9 @@ test_that("code_labels interprets known labels correctly", {
 })
 
 test_that("code_labels fails correctly", {
-  expect_error(code_labels("yes", "y", "n"))
-  expect_error(code_labels(1, "y", "n"))
-  expect_error(code_labels(1, 1, 0))
+  expect_error(code_labels("yes", "y", "n"), "Undefined class(es) in computing numeric labels: yes", fixed = TRUE)
+  expect_error(code_labels(1, "y", "n"), "class(class_vector) == \"character\" is not TRUE", fixed = TRUE)
+  expect_error(code_labels(1, 1, 0), "class(class_vector) == \"character\" is not TRUE", fixed = TRUE)
   expect_error(code_labels(data.frame(a = "y"), 1, 2))
 })
 
@@ -59,8 +59,9 @@ test_that("dummify_categoricals produces correct output", {
 })
 
 test_that("dummify_categoricals fails correctly", {
-  expect_error(dummify_categoricals(mock_data)) # Can't pass also numeric columns
-  expect_error(dummify_categoricals(mock_data %>% sapply(factor) %>% data.frame)) # Can't pass factors
+  expect_error(dummify_categoricals(mock_data$d), "`data` must be a data.frame") # Can't pass also numeric columns
+  expect_error(dummify_categoricals(mock_data), "All columns in `data` must be character vectors") # Can't pass also numeric columns
+  expect_error(dummify_categoricals(mock_data %>% sapply(factor) %>% data.frame), "All columns in `data` must be character vectors") # Can't pass factors
 })
 
 # form_variant_ids
@@ -75,8 +76,7 @@ test_that("form_variant_ids produces correct output", {
   expect_equal(form_variant_ids(mock_variant_data), c("1:0:A:C:ENS1", "X:1:G:T:ENS2"))
 })
 test_that("form_variant_ids fails correctly", {
-  expect_error(dummify_categoricals(123))
-  expect_error(dummify_categoricals(mock_variant_data[c(),, drop = FALSE]))
+  expect_error(form_variant_ids(123), "`data` must be a data.frame")
 })
 
 # a_priori_impute
@@ -102,9 +102,9 @@ test_that("a_priori_impute produces correct output", {
 })
 
 test_that("a_priori_impute fails correctly", {
-  expect_error(a_priori_impute(mock_miss_data, list(a = "b"))) # Wrong type for imputed value
-  expect_error(a_priori_impute(mock_miss_data, list(d = factor("b")))) # No factors
-  expect_error(a_priori_impute(data.frame(mock_miss_data$d), list(d = "b"))) # No factors
+  expect_error(a_priori_impute(mock_miss_data, list(a = "b")), "Imputed values must match data by class") # Wrong type for imputed value
+  expect_error(a_priori_impute(mock_miss_data, list(d = factor("b"))), "Imputed values must match data by class") # No factors
+  expect_error(a_priori_impute(data.frame(mock_miss_data$d), list(d = "b")), "Imputed values must match data by class") # No factors
 })
 
 # table_with_margin
@@ -139,11 +139,11 @@ test_that("select_features drops non-dummy variables correctly", {
 })
 
 test_that("select_features fails correctly", {
-  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("d"))) # Wrong types of column
-  expect_error(select_features(mock_data_w_dummies, c("a"), c("b", "d"))) # Wrong types of column
-  expect_error(select_features(mock_data_w_dummies, c(), c( "d"))) # Empty numeric_features
-  expect_error(select_features(mock_data_w_dummies, c("a"), c())) # Empty categorical_features
-  expect_error(select_features(mock_data_w_dummies, list("a","c"), c("b", "d"))) # List instead of vector
-  expect_error(select_features(mock_data_w_dummies, c("a","c", "f"), c("b", "d"))) # Inexistent column
-  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("b", "d", "f"))) # Inexistent column
+  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("d")), "Non-numeric columns included in `numeric_features`") # Wrong types of column
+  expect_error(select_features(mock_data_w_dummies, c("a"), c("b", "d")), "Non-character columns included in `categorical_features`") # Wrong types of column
+  expect_error(select_features(mock_data_w_dummies, c(), c( "d")), "`numeric_features` must be a vector") # Empty numeric_features
+  expect_error(select_features(mock_data_w_dummies, c("a"), c()), "`categorical_features` must be a vector") # Empty categorical_features
+  expect_error(select_features(mock_data_w_dummies, list("a","c"), c("b", "d")), "`numeric_features` must be a character vector") # List instead of vector
+  expect_error(select_features(mock_data_w_dummies, c("a","c", "f"), c("b", "d")), "`numeric_features` must be a subset of `data` column names") # Inexistent column
+  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("b", "d", "f")), "`categorical_features` must be a subset of `data` column names") # Inexistent column
 })
