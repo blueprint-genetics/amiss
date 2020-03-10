@@ -125,3 +125,25 @@ test_that("detect_imbalanced_consequence_classes produces correct output", {
   expect_equal(rownames(detect_imbalanced_consequence_classes(mock_conseqs, outcome = mock_outcomes, 0.05)), "y")
   expect_equal(rownames(detect_imbalanced_consequence_classes(mock_conseqs, outcome = mock_outcomes, 0.005)), character(0)) # If none were that rare
 })
+
+mock_num_vars <- c("a", "b")
+mock_cat_vars <- c("c", "d")
+mock_data_w_dummies <- cbind(mock_data, dummify_categoricals(mock_data[mock_cat_vars]))
+
+#drop_original_categorical_features
+test_that("select_features drops non-dummy variables correctly", {
+  expect_equal(
+    colnames(select_features(mock_data_w_dummies, mock_num_vars, mock_cat_vars)),
+    c("a", "b", "c.a", "c.b", "d.b", "d.a", "d.NA")
+  )
+})
+
+test_that("select_features fails correctly", {
+  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("d"))) # Wrong types of column
+  expect_error(select_features(mock_data_w_dummies, c("a"), c("b", "d"))) # Wrong types of column
+  expect_error(select_features(mock_data_w_dummies, c(), c( "d"))) # Empty numeric_features
+  expect_error(select_features(mock_data_w_dummies, c("a"), c())) # Empty categorical_features
+  expect_error(select_features(mock_data_w_dummies, list("a","c"), c("b", "d"))) # List instead of vector
+  expect_error(select_features(mock_data_w_dummies, c("a","c", "f"), c("b", "d"))) # Inexistent column
+  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("b", "d", "f"))) # Inexistent column
+})

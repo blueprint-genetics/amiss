@@ -74,7 +74,7 @@ categorical_features <- make.names(c(
 default_imputations <- list(
   motifECount = 0,
   motifEScoreChng = 0,
-  motifEHIPos = FALSE,
+  motifEHIPos = 0,
   tOverlapMotifs = 0,
   motifDist = 0,
   gnomAD_genomes_AF = 0,

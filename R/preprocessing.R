@@ -155,6 +155,15 @@ detect_imbalanced_consequence_classes <- function(consequence, outcome, freq) {
 
 select_features <- function(data, numeric_features, categorical_features) {
 
+  if (!is.vector(numeric_features)) stop("`numeric_features` must be a vector")
+  if (!is.character(numeric_features)) stop("`numeric_features` must be a character vector")
+  if (!is.vector(categorical_features)) stop("`categorical_features` must be a vector")
+  if (!is.character(categorical_features)) stop("`categorical_features` must be a character vector")
+  if (!all(numeric_features) %in% colnames(data)) stop("`numeric_features` must be a subset of `data` column names")
+  if (!all(categorical_features) %in% colnames(data)) stop("`categorical_features` must be a subset of `data` column names")
+  if (!all(sapply(data[numeric_features], is.numeric))) stop("Non-numeric columns included in `numeric_features`")
+  if (!all(sapply(data[categorical_features], is.character))) stop("Non-character columns included in `categorical_features`")
+
   columns <- colnames(data)
   features_with_categorical_variable_prefix <- lapply(categorical_features, . %>% find_dummies(columns))
 
