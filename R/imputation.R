@@ -92,6 +92,18 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 
   return(result)
 }
+run_mice_pmm <- function(data,hyperparameters, times, iterations) {
+  return(run_mice(data, "pmm", hyperparameters, times, iterations))
+}
+run_mice_norm <- function(data,hyperparameters, times, iterations) {
+  return(run_mice(data, "norm", hyperparameters, times, iterations))
+}
+run_mice_norm.predict <- function(data,hyperparameters, times, iterations) {
+  return(run_mice(data, "norm.predict", hyperparameters, times, iterations))
+}
+run_mice_rf <- function(data,hyperparameters, times, iterations) {
+  return(run_mice(data, "rf", hyperparameters, times, iterations))
+}
 
 #' Run and time BPCA
 #'
@@ -102,7 +114,7 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 #' first element is a list of completed datasets (of length `1`),
 #' second element is the `pca`-returned `pcaRes` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
-run_bpca <- function(data, hyperparams) {
+run_bpca <- function(data, hyperparams, times = NULL) {
 
   data <- as.matrix(data)
 
@@ -139,7 +151,7 @@ run_bpca <- function(data, hyperparams) {
 #' first element is a list of completed datasets (of length `1`),
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
-run_knn <- function(data, hyperparams, old_data = NULL) {
+run_knn <- function(data, hyperparams, times = NULL, old_data = NULL) {
 
   timing <- system.time({
     imputation <- NULL
@@ -227,4 +239,63 @@ missingness_indicators <- function(data, remove_vector = NULL) {
   })
   attr(data, "timing") <- timing
   return(data)
+}
+
+check_method_results <- function(imputations) {
+  
+  sapply(names(imputations), function(method) {
+    
+    null_hpsets <- sapply(imputations[[method]], function(x) x[["completed_datasets"]] %>% unlist %>% is.null)
+    if (all(null_hpsets)) {
+      flog.pid.info("Imputation method %s did not successfully produce any datasets", method)
+      return(FALSE)
+    }
+    return(TRUE)
+  })
+}
+
+null_method = function(x) {
+  flog.pid.info("Method %s is not implemented", x)
+  return(NULL)
+} 
+method_to_function <- function(method) {
+  return(
+    switch(method,
+           bpca = run_bpca,
+           knnImputation = run_knn,
+           missForest = run_missforest,
+           pmm = run_mice_pmm,
+           norm = run_mice_norm,
+           norm.predict = run_mice_norm.predict,
+           rf = run_mice_rf,
+           null_method)
+  )
+}
+impute_with_hyperparameters <- function(data, impute_function, method_name, hyperparameters, seed, times, ...) {
+  
+  if (nrow(hyperparameters) == 0) {
+    imputations <- list(imp_hp_1 = impute_function(data, list(), times, ...))
+  }
+  else {
+    imputations <- foreach(hp_row = 1:nrow(hyperparameters), .options.RNG = seed) %dorng% {
+      flog.pid.info("Imputing with %s, parameters %s", method_name, paste0(names(hyperparameters), ": ", hyperparameters[hp_row, ], collapse = ", "))
+      impute_function(data, unlist(hyperparameters[hp_row,]), times, ...)
+    } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparameters)))
+  }
+  
+  return(imputations)
+}
+impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
+  
+  imputations <- foreach(hyperparameter_grid = enumerate(hyperparameter_grids)) %do% { 
+    impute_with_hyperparameters(data, method_to_function(hyperparameter_grid$name), hyperparameter_grid$name, hyperparameter_grid$value, seed = seed, times = times, ...)
+  }
+  # Combine timings of different hyperparameter configs
+  timings <- do.call(rbind, lapply(imputations, . %>% attr("timing")))
+  # Return them along with the imputation object
+  attr(imputations, "timings") <- timings
+  
+  names(imputations) <- names(hyperparameter_grids)
+  
+  return(imputations)
 }
