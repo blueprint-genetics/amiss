@@ -161,10 +161,21 @@ test_outcome <- test_outcome[!te_variants_w_unbalanced_class]
 flog.info("Remaining variants in training set: %d", nrow(training_set))
 flog.info("Remaining variants in training set: %d", nrow(test_set))
 
+## Feature selection 
+# The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier. 
+# Only dummy variable versions of categorical features are kept here.
+flog.info("Performing feature selection")
+training_set_contracted <- select_features(training_set, numeric_features, categorical_features)
+test_set_contracted <- select_features(test_set, numeric_features, categorical_features)
+
 # Finally, write out the processed data CSV file.
 flog.info("Writing files")
 write.csv(training_set, "preprocessed_training_data.csv", row.names = TRUE)
 write.csv(test_set, "preprocessed_test_data.csv", row.names = TRUE)
+write.csv(training_set_contracted, "contracted_training_data.csv", row.names = TRUE)
+write.csv(test_set_contracted, "contracted_test_data.csv", row.names = TRUE)
 write.csv(training_outcome, "training_outcomes.csv", row.names = TRUE)
 write.csv(test_outcome, "test_outcomes.csv", row.names = TRUE)
 flog.info("Done writing files")
+
+

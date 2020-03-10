@@ -1,6 +1,7 @@
 library(magrittr)
 
 source("R/recursive_application.R") # for enumerate
+source("R/utils.R") # for find_dummies
 
 #' Partition dataset into a training and a test set
 #'
@@ -150,4 +151,16 @@ detect_imbalanced_consequence_classes <- function(consequence, outcome, freq) {
 
   return(unbalanced_conseqs)
 
+}
+
+select_features <- function(data, numeric_features, categorical_features) {
+
+  columns <- colnames(data)
+  features_with_categorical_variable_prefix <- lapply(categorical_features, . %>% find_dummies(columns))
+
+  dummy_features <- unique(unlist(features_with_categorical_variable_prefix))
+  features <- c(numeric_features, dummy_features)
+  data <- data[, features, drop = FALSE]
+
+  return(data)
 }
