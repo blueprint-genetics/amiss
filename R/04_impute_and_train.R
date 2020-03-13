@@ -3,14 +3,10 @@ library(purrr)
 library(magrittr)
 library(futile.logger)
 library(caret)
-library(mice)
 library(ModelMetrics)
-library(DMwR)
-library(pcaMethods)
 library(foreach)
 library(doParallel)
 library(doRNG)
-library(missForest)
 
 impute_and_train <- function(training_path, outcome_path, output_path, cores, seed = 42, lean) {
 
@@ -30,8 +26,8 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   flog.threshold(DEBUG)
 
   if (lean) {
-    mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = 8))
-    other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = 8))
+    mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = 8L))
+    other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = 8L))
     other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
   }
 
@@ -118,7 +114,6 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   }) %>% set_names(names(single_value_imputation_hyperparameter_grids))
 
   ### List and drop imputation methods that failed completely
-
   imputations <- c(mice_imputations, other_imputations, single_value_imputations)
   flog.pid.info("Checking and dropping failed imputation methods")
   valid_methods <- check_method_results(imputations)
@@ -152,14 +147,14 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
                            imputations = imputations,
                            outcome = outcome,
                            control = lr_training_settings,
-                           grid = NULL,
+                           grid = data.frame(),
                            seed = seed)
 
   ## Model selection
   flog.pid.info("Starting model selection")
-
-  rf_bests <- select_best(rf_models, imputations, outcome, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids))
-  lr_bests <- select_best(lr_models, imputations, outcome, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids))
+  all_hyperparameter_grids <- c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids)
+  rf_bests <- select_best(rf_models, imputations, all_hyperparameter_grids)
+  lr_bests <- select_best(lr_models, imputations, all_hyperparameter_grids)
 
   flog.pid.info("Saving data")
   # Save run time information for imputers

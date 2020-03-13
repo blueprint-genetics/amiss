@@ -1,3 +1,4 @@
+library(futile.logger)
 
 #' Partition a number range representing row numbers into `n` roughly equally-sized batches
 #'
