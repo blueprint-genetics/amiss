@@ -130,11 +130,11 @@ train_rf <- function(data, outcome, control, grid) {
 
   return(rf_model)
 }
-train_lr <- function(dataset, outcome, control, grid) {
+train_lr <- function(data, outcome, control, grid) {
 
   lr_model <- NULL
   tryCatch({
-    lr_model <- caret::train(x = dataset,
+    lr_model <- caret::train(x = data,
                              y = outcome,
                              method = "glm",
                              preProcess = c("center", "scale"),
