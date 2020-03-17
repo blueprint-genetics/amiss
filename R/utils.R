@@ -1,5 +1,6 @@
 library(futile.logger)
 
+flog.threshold(DEBUG)
 #' Partition a number range representing row numbers into `n` roughly equally-sized batches
 #'
 #' @param num_rows The number range to be divided is `1:num_rows`
