@@ -128,8 +128,8 @@ test_that("select_hyperparams produces correct output", {
 })
 
 bind_imp_expected_output <- list(knnImputation = data.frame(k = 1L:2L)[2,,drop = FALSE], zero_imp = data.frame("zero_imp"))
-attr(bind_imp_expected_output$knnImputation, "imputation_estimates") <- mock_imp_tree$knnImputation$imp_hp_2$completed_datasets[[1]]
-attr(bind_imp_expected_output$zero_imp, "imputation_estimates") <- attr(mock_imp_tree$zero_imp$imp_hp_1$completed_datasets$`1`, "imputation_estimates")
+attr(bind_imp_expected_output$knnImputation, IMPUTATION_REUSE_PARAMETERS) <- mock_imp_tree$knnImputation$imp_hp_2$completed_datasets[[1]]
+attr(bind_imp_expected_output$zero_imp, IMPUTATION_REUSE_PARAMETERS) <- attr(mock_imp_tree$zero_imp$imp_hp_1$completed_datasets$`1`, IMPUTATION_REUSE_PARAMETERS)
 test_that("bind_imp_parameters_for_reuse produces correct output", {
   observed_output <- bind_imp_parameters_for_reuse(hyperparams = selected_hps, imputers = select_from_tree(mock_imp_tree, c(knnImputation = 2, zero_imp = 1)))
   expect_equal(observed_output, bind_imp_expected_output)

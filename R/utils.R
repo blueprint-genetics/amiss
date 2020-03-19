@@ -1,5 +1,7 @@
 library(futile.logger)
 
+source("R/constants.R")
+
 flog.threshold(DEBUG)
 #' Partition a number range representing row numbers into `n` roughly equally-sized batches
 #'
@@ -30,17 +32,17 @@ flog.pid.debug <- function(msg, ...) {
   flog.debug(paste0("pid=", Sys.getpid(), " ", msg), ...)
 }
 
-form_run_time_df <- function(imputers) {
-  times <- map(.x = imputers, function(x) attr(x, "timing"))
-  times_df <- do.call(rbind, times) %>% data.frame
-  times_df$method <- row.names(times_df)
-  times_df <- times_df %>% extract(c("method", "elapsed"))
-  row.names(times_df) <- NULL
+form_run_time_df <- function(imputers, times_imputed) {
+  timing <- map(.x = imputers, function(x) attr(x, TIMING_ATTR))
+  timing_df <- do.call(rbind, timing) %>% data.frame
+  timing_df$method <- row.names(timing_df)
+  timing_df <- timing_df %>% extract(c("method", "elapsed"))
+  row.names(timing_df) <- NULL
 
-  # Stochastic methods are timed over the repetitions, so need to be divided by the number of repetitions (10)
-  times_df[times_df$method %in% c("pmm", "norm.predict", "norm", "rf", "knnImpute", "missForest"), "elapsed"] %<>% `/`(10)
+  # Stochastic methods are timed over the repetitions, so need to be divided by the number of repetitions
+  timing_df[timing_df$method %in% c("pmm", "norm.predict", "norm", "rf", "knnImpute", "missForest"), "elapsed"] %<>% `/`(times_imputed)
 
-  return(times_df)
+  return(timing_df)
 }
 
 create_dir <- function(path) {

@@ -4,7 +4,7 @@ library(doRNG)
 
 source("R/imputation.R")
 
-prediction <- function(models, completions, positive_label = "positive", seed = 1) {
+prediction <- function(models, completions, positive_label = POSITIVE_LABEL, seed = 1) {
   
   predictions <- lapply(names(models), function(method) {
   

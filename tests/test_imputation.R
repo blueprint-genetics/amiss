@@ -94,7 +94,7 @@ test_that("missingness_indicator produces the same columns on a separate set", {
   
   modified_mock_data <- mock_data_w_missingness
   modified_mock_data[1, "a"] <- NA # Since a, c and d were all observed on the training set and thus equal, only the one describing a was kept.
-  observed_output <- missingness_indicators(modified_mock_data, remove_vector = attr(mi_observed_output, "imputation_estimates"))
+  observed_output <- missingness_indicators(modified_mock_data, remove_vector = attr(mi_observed_output, IMPUTATION_REUSE_PARAMETERS))
   expected_output <- mi_expected_output %>% (function(x) {
     # Now a will have a missing value, and implicitly the data looks like c and d would have as well, even if it isn't true.
     x$a[1] <- 0  
