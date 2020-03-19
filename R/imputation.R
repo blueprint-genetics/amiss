@@ -1,3 +1,12 @@
+library(mice)
+library(foreach)
+library(doParallel)
+library(doRNG)
+library(magrittr)
+library(pcaMethods)
+library(DMwR)
+library(missForest)
+
 source("R/utils.R")
 source("R/recursive_application.R")
 
@@ -71,7 +80,6 @@ reimpute <- function(dataframe, value) {
 #' second element is the `mice`-returned `mids` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_mice <- function(data, method, hyperparams, times, iterations) {
-  library(mice)
 
   imputation_object <- NULL
   completed_datasets <- rep(list(NULL), times)
@@ -130,8 +138,6 @@ run_mice_rf <- function(data,hyperparameters, times, iterations) {
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
 
-  library(pcaMethods)
-
   data <- as.matrix(data)
 
   timing <- system.time({
@@ -168,7 +174,6 @@ run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data = NULL) {
-  library(DMwR)
 
   timing <- system.time({
     imputation <- NULL
@@ -205,7 +210,6 @@ run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
 run_missforest <- function(data, hyperparams, times, iterations = NULL) {
-  library(missForest)
 
   timing <- system.time({
     completed_datasets <- foreach(i = 1:times) %do% {
@@ -293,11 +297,6 @@ method_to_function <- function(method) {
 }
 impute_with_hyperparameters <- function(data, impute_function, method_name, hyperparameters, seed, times, ...) {
 
-  library(foreach)
-  library(doParallel)
-  library(doRNG)
-  library(magrittr)
-
   if (nrow(hyperparameters) == 0) {
     imputations <- list(imp_hp_1 = impute_function(data, list(), times, ...))
   }
@@ -311,8 +310,6 @@ impute_with_hyperparameters <- function(data, impute_function, method_name, hype
 }
 impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
 
-  library(foreach)
-
   imputations <- foreach(hyperparameter_grid = enumerate(hyperparameter_grids)) %do% {
     impute_with_hyperparameters(data = data, impute_function = method_to_function(hyperparameter_grid$name), method_name = hyperparameter_grid$name, hyperparameters = hyperparameter_grid$value, seed = seed, times = times, ... = ...)
   }
@@ -324,4 +321,51 @@ impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
   names(imputations) <- names(hyperparameter_grids)
 
   return(imputations)
+}
+
+impute_w_hps <- function(data, hp_tree, times, iters, seed){
+
+  imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
+    # The imputation parameters estimated from the training set should be used
+    # where possible.
+    estimates <- attr(hps$value, "imputation_estimates")
+
+    method <- hps$name
+    flog.pid.info("Imputing with method %s", method)
+    if (method %in% names(mice_imputation_hyperparameters)) {
+
+      return(run_mice(data = data, method = method, hyperparams = hps$value, times = times, iterations = iters))
+
+    } else if (method == "bpca") {
+
+      return(run_bpca(data, hps$value))
+
+    } else if (method == "knnImputation") {
+
+      return(run_knn(data, hps$value, old_data = estimates))
+
+    } else if (method == "missForest") {
+
+      return(run_missforest(data, hps$value, times = times))
+
+    } else if (method == "missingness_indicators") {
+
+      return(list(completed_datasets = list(`1` = missingness_indicators(data, remove_vector = estimates))))
+
+    } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
+
+      return(list(completed_datasets = list(`1` = reimpute(dataframe = data, value = estimates))))
+
+    } else {
+
+      flog.pid.debug("Unknown imputation_method: %s ; returning NULL", method)
+      return(list(completed_datasets = list(`1` = NULL)))
+
+    }
+  }
+  names(imputations) <- names(hp_tree)
+
+  completions <- imputations %>% lapply(. %>% extract2(1))
+
+  return(completions)
 }

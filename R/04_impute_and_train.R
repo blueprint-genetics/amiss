@@ -14,12 +14,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   source("R/imputation_definitions.R")
   source("R/training_functions.R")
 
-  if (!dir.exists(output_path)) {
-    dir_creation_success <- dir.create(output_path, showWarnings = TRUE)
-    if (!dir_creation_success) {
-      stop("Failed to create directory for saving output.")
-    }
-  }
+  create_dir(output_path)
 
   flog.appender(appender.tee(file.path(output_path, "04_impute_and_train.log")))
 
