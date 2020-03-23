@@ -22,6 +22,7 @@ sample_max <- function(x, size) {
 # }
 extract_mcc_performance <- function(model) {
 
+  if (is.null(model)) return(NULL)
   if (!class(model) == "train") stop("`model` must be a caret `train` object")
   preds <- predict(model)
   positive_label <- model$trainingData$.outcome %>% levels %>% extract(1)
@@ -134,14 +135,21 @@ train_rf <- function(data, outcome, control, grid) {
 }
 train_lr <- function(data, outcome, control, grid) {
 
-  lr_model <- NULL
-  tryCatch({
-    lr_model <- caret::train(x = data,
-                             y = outcome,
-                             method = "glm",
-                             preProcess = c("center", "scale"),
-                             trControl = control)
-  }, error = function(e) flog.pid.debug(e))
+  if(is.null(data)) {
+    flog.pid.info("Dataset was NULL; returning NULL")
+    return(NULL)
+  }
+
+  lr_model <- tryCatch({
+    caret::train(x = data,
+                 y = outcome,
+                 method = "glm",
+                 preProcess = c("center", "scale"),
+                 trControl = control)
+  }, error = function(e) {
+    flog.pid.debug(e)
+    return(NULL)
+  })
 
   return(lr_model)
 }
