@@ -5,6 +5,7 @@ library(foreach)
 library(doParallel)
 library(doRNG)
 library(futile.logger)
+library(digest)
 
 source("R/simulation_definitions.R")
 source("R/feature_definitions.R")
