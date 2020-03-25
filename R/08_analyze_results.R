@@ -30,15 +30,15 @@ if (!dir.exists(results_path)) {
 flog.pid.info("Averaging performance tables")
 aggregate_over_perf_table <- function(perf_table) {
 
-  perf_stats <- perf_table[, !colnames(perf_table) %in% c("method", "model_index", "test_realization")]
+  perf_stats <- perf_table[, !colnames(perf_table) %in% c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN)]
 
   return(list(
-    model_mean = aggregate(perf_stats, perf_table["method"], mean),
-    model_sd = aggregate(perf_stats, perf_table["method"], sd),
-    over_test_mean = aggregate(perf_stats, perf_table[c("method", "model_index")], mean),
-    over_test_sd = aggregate(perf_stats, perf_table[c("method", "model_index")], sd),
-    over_train_mean = aggregate(perf_stats, perf_table[c("method", "test_realization")], mean),
-    over_train_sd = aggregate(perf_stats, perf_table[c("method", "test_realization")], sd)
+    model_mean = aggregate(perf_stats, perf_table[METHOD_COLUMN], mean),
+    model_sd = aggregate(perf_stats, perf_table[METHOD_COLUMN], sd),
+    over_test_mean = aggregate(perf_stats, perf_table[c(METHOD_COLUMN, MODEL_INDEX_COLUMN)], mean),
+    over_test_sd = aggregate(perf_stats, perf_table[c(METHOD_COLUMN, MODEL_INDEX_COLUMN)], sd),
+    over_train_mean = aggregate(perf_stats, perf_table[c(METHOD_COLUMN, TEST_COMPLETION_INDEX_COLUMN)], mean),
+    over_train_sd = aggregate(perf_stats, perf_table[c(METHOD_COLUMN, TEST_COMPLETION_INDEX_COLUMN)], sd)
   ))
 
 }
