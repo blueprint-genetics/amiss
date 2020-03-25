@@ -90,3 +90,5 @@ lr_roc_boxplots <- arrangeGrob(
   ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 )
 ggsave(filename =  "lr_roc_boxplots.pdf", plot = lr_roc_boxplots, device = "pdf", path = results_path, width = 210, height = 297, units = "mm")
+
+write(capture.output(sessionInfo()), "08_analyze_results_sessioninfo.txt")

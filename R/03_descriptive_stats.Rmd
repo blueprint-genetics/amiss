@@ -148,3 +148,7 @@ Looking at this table, the situation is less bad.
 sum(pattern_counts$Freq < 100) / nrow(pattern_counts)
 ```
 Indeed, less than 20 % of patterns have less than 100 examples.
+
+```{r}
+write(capture.output(sessionInfo()), "03_descriptive_stats_sessioninfo.txt")
+```

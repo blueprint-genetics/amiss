@@ -85,3 +85,5 @@ flog.pid.info("%d / %d simulations performed successfully", sum(successes), leng
 
 write.csv(sim_data_paths[successes], file = "successfully_simulated_file_list.csv")
 saveRDS(object=.Random.seed, file = "simulations_last_seed.RDS")
+
+write(capture.output(sessionInfo()), "07_run_simulations_sessioninfo.txt")

@@ -134,3 +134,5 @@ repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
 
 repetitions <- repetitions %>% unlist
 write.csv(repetitions, file = "simulated_file_list.csv")
+
+write(capture.output(sessionInfo()), "06_generate_simulated_data_sessioninfo.txt")

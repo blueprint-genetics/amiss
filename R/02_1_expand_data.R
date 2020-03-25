@@ -176,6 +176,8 @@ write.csv(training_set_contracted, "contracted_training_data.csv", row.names = T
 write.csv(test_set_contracted, "contracted_test_data.csv", row.names = TRUE)
 write.csv(training_outcome, "training_outcomes.csv", row.names = TRUE)
 write.csv(test_outcome, "test_outcomes.csv", row.names = TRUE)
+
+write(capture.output(sessionInfo()), "02_1_expand_data_sessioninfo.txt")
 flog.info("Done writing files")
 
 
