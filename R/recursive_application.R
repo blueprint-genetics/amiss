@@ -59,6 +59,34 @@ recursive_apply_numeric <- function(x, fun, pass_node_names = FALSE)
   recursive_apply(x = x, fun = fun, x_class = "numeric", pass_node_names = pass_node_names)
 
 
+# Analogous to `expand.grid` for a tree
+get_tree_names <- function(tree, x_class) {
+  tree_names <- recursive_apply(tree, function(x, name_list) return(name_list), x_class = x_class, pass_node_names = TRUE)
+  tree_names %<>% leaf_apply(. %>% paste0(collapse = ":"), docall = FALSE)
+  tree_names %<>% unlist(use.names = FALSE)
+  return(tree_names)
+}
+get_tree_names_as_df <- function(tree, x_class) {
+  tree_names <- get_tree_names(tree, x_class)
+  tree_names %<>% strsplit(":")
+  tree_names <- do.call(rbind, tree_names)
+  tree_names %<>% data.frame(stringsAsFactors = FALSE)
+  return(tree_names)
+}
+tree_as_df <- function(tree, x_class) {
+  tree_df <- get_tree_names_as_df(tree, x_class)
+  vals <- apply(tree_df, MARGIN = 1, FUN = function(...) {
+    a <- tree
+    for(n in list(...)) {
+      a <- a[[n]]
+    }
+    return(a)
+  })
+  tree_df$values <- vals
+  return(tree_df)
+}
+
+
 #' A recursive application of a function to lists of leaves
 #' 
 #' This function applies `fun` to the (unique) sibling lists of each leaf.

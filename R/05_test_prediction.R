@@ -93,8 +93,7 @@ test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir
 
       } else if (method == "missingness_indicators") {
 
-        remove_vector <- colnames(data) %in% estimates
-        list(completed_datasets = list(`1` = missingness_indicators(data, remove_vector = remove_vector)))
+        list(completed_datasets = list(`1` = missingness_indicators(data, remove_vector = estimates)))
 
       } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
 
