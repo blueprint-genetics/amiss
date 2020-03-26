@@ -2,6 +2,7 @@ library(ModelMetrics)
 library(magrittr)
 
 source("R/recursive_application.R")
+source("R/constants.R")
 
 performance_stats <- function(predictions, outcome) {
   
@@ -24,10 +25,10 @@ performance_stats <- function(predictions, outcome) {
 
   recursive_apply_cm <- function(x, fun) recursive_apply(x = x, fun = fun, x_class = "confusionMatrix")
 
-  tp <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[1], outcome_lvls[2]) %>% as.numeric %>% set_names("tp"))
+  tp <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[1], outcome_lvls[1]) %>% as.numeric %>% set_names("tp"))
   fp <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[1], outcome_lvls[2]) %>% as.numeric %>% set_names("fp"))
-  fn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[1], outcome_lvls[2]) %>% as.numeric %>% set_names("fn"))
-  tn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[1], outcome_lvls[2]) %>% as.numeric %>% set_names("tn"))
+  fn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[2], outcome_lvls[1]) %>% as.numeric %>% set_names("fn"))
+  tn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[2], outcome_lvls[2]) %>% as.numeric %>% set_names("tn"))
   
   sensitivity <- recursive_apply_cm(confusion_matrices, extract_stat("Sensitivity"))
   specificity <- recursive_apply_cm(confusion_matrices, extract_stat("Specificity"))
@@ -63,13 +64,13 @@ turn_table <- function(perf_tree) {
   })
   df <- data.frame(do.call(rbind, df), value = values)
 
-  colnames(df) <- c("method", "model_index", "test_realization", "value")
+  colnames(df) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "value")
 
   return(df)
 }
 
 merge_tables <- function(tables) {
-  perf_table <- Reduce(function(x, y) merge(x, y, by = c("method", "model_index", "test_realization")), tables)
-  colnames(perf_table) <- c("method", "model_index", "test_realization", names(tables))
+  perf_table <- Reduce(function(x, y) merge(x, y, by = c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN)), tables)
+  colnames(perf_table) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, names(tables))
   perf_table
 }

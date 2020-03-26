@@ -16,6 +16,7 @@ source("R/imputation_definitions.R")
 source("R/imputation.R")
 source("R/prediction.R")
 source("R/performance.R")
+source("R/constants.R")
 
 test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed = 42) {
 
@@ -37,18 +38,18 @@ test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir
 
   flog.pid.info("Reading data")
   test_data <- read.csv(test_path, row.names = 1, as.is = TRUE)
-  outcome <- read.csv(outcome_path, as.is = TRUE)
-  outcome <- factor(outcome[,2], levels = c("positive", "negative"))
+  outcome <- read.csv(outcome_path, row.names = 1, as.is = TRUE)[,1, drop = TRUE]
+  outcome <- factor(outcome, levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
 
   # Keep exactly those features that were kept in training data
   flog.pid.info("Reading features used in training")
-  final_features <- readRDS(file.path(tr_output_path, "final_features.rds"))
+  final_features <- readRDS(file.path(tr_output_path, FILE_FINAL_FEATURES_RDS))
   test_data <- test_data[, final_features]
 
   ## Multiply impute the test set using the best hyperparameter configurations from the training set
   flog.pid.info("Reading best hyperparameter configurations for imputation methods")
-  rf_hyperparams <- readRDS(file.path(tr_output_path, "rf_hp_configs.rds"))
-  lr_hyperparams <- readRDS(file.path(tr_output_path, "lr_hp_configs.rds"))
+  rf_hyperparams <- readRDS(file.path(tr_output_path, FILE_RF_HP_CONFIGS_RDS))
+  lr_hyperparams <- readRDS(file.path(tr_output_path, FILE_LR_HP_CONFIGS_RDS))
 
   flog.pid.info("Starting imputation of test set")
   if (!lean) {
@@ -66,8 +67,8 @@ test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir
 
   ## Predict on test set completions using best classifier models
   flog.pid.info("Reading classifier models")
-  rf_models <- readRDS(file.path(tr_output_path, "rf_classifiers.rds"))
-  lr_models <- readRDS(file.path(tr_output_path, "lr_classifiers.rds"), refhook = function(x) .GlobalEnv)
+  rf_models <- readRDS(file.path(tr_output_path, FILE_RF_CLASSIFIERS_RDS))
+  lr_models <- readRDS(file.path(tr_output_path, FILE_LR_CLASSIFIERS_RDS), refhook = function(x) .GlobalEnv)
 
   flog.pid.info("Starting prediction by RF models")
   rf_predictions <- prediction(rf_models, rf_completions)
@@ -86,8 +87,8 @@ test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir
   lr_perf_table <- merge_tables(lr_tables)
 
   flog.pid.info("Writing performance tables")
-  write.csv(x = rf_perf_table, file = file.path(results_dir_path, "rf_performance.csv"), row.names = FALSE)
-  write.csv(x = lr_perf_table, file = file.path(results_dir_path, "lr_performance.csv"), row.names = FALSE)
+  write.csv(x = rf_perf_table, file = file.path(results_dir_path, FILE_RF_PERFORMANCE_CSV), row.names = FALSE)
+  write.csv(x = lr_perf_table, file = file.path(results_dir_path, FILE_LR_PERFORMANCE_CSV), row.names = FALSE)
 
   flog.pid.info("Done")
 

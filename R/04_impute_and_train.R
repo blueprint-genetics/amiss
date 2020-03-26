@@ -8,12 +8,16 @@ library(foreach)
 library(doParallel)
 library(doRNG)
 
+source("R/utils.R")
+source("R/imputation_definitions.R")
+source("R/training_functions.R")
+source("R/recursive_application.R")
+source("R/imputation.R")
+source("R/constants.R")
+
+
 impute_and_train <- function(training_path, outcome_path, output_path, cores, seed = 42, lean) {
-
-  source("R/utils.R")
-  source("R/imputation_definitions.R")
-  source("R/training_functions.R")
-
+  
   create_dir(output_path)
 
   flog.appender(appender.tee(file.path(output_path, "04_impute_and_train.log")))
@@ -21,13 +25,10 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   flog.threshold(DEBUG)
 
   if (lean) {
-    mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = 8L))
-    other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = 8L))
+    mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
+    other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
     other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
   }
-
-  source("R/recursive_application.R")
-  source("R/imputation.R")
 
   flog.pid.info("04_impute_and_train.log")
   flog.pid.info("Arguments: %s", paste0(list(training_path, outcome_path, output_path, cores, lean), collapse = ", "))
@@ -48,7 +49,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
     flog.pid.debug("Could not open file %s", outcome_path)
     flog.pid.debug(e)
   })
-  outcome <- factor(outcome[,2], levels = c("positive", "negative"))
+  outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
   flog.pid.info("Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
 
   ## Removal of problematic features
@@ -58,9 +59,8 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   ### Near-zero variance
 
   flog.pid.info("Removing features with near-zero variance")
-  cut_p <- 1
-  flog.pid.info("Uniqueness cutoff: %d %%", cut_p)
-  nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = cut_p)
+  flog.pid.info("Uniqueness cutoff: %d %%", UNIQUENESS_CUTOFF_PERCENTAGE)
+  nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = UNIQUENESS_CUTOFF_PERCENTAGE)
   flog.pid.info(capture.output(print(nzv_features[nzv_features$nzv, ])))
 
   if (any(nzv_features$nzv)) {
@@ -90,13 +90,12 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   ### MICE
   flog.pid.info("Starting MICE imputation")
   if(!lean) {
-    times <- 10
+    times <- IMPUTE_TIMES
   } else {
-    times <- 1
+    times <- SIMULATION_IMPUTE_TIMES
   }
-  iters <- 10
-  flog.pid.info("Imputing %d times, with max. %d iterations", times, iters)
-  mice_imputations <- impute_over_grid(training_data, mice_hyperparameter_grids, seed, times = times, iterations = iters)
+  flog.pid.info("Imputing %d times, with max. %d iterations", times, MICE_ITERATIONS)
+  mice_imputations <- impute_over_grid(training_data, mice_hyperparameter_grids, seed, times = times, iterations = MICE_ITERATIONS)
 
   ### Non-MICE imputations
   flog.pid.info("Starting non-MICE imputation")
@@ -116,9 +115,8 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
 
   ## Training classifier
   flog.pid.info("Starting classifier training")
-  hyperparameter_grid <- data.frame(mtry = 1:5 * 8 - 1)
   flog.pid.info("Hyperparameter grid:")
-  flog.pid.info(capture.output(print(hyperparameter_grid)))
+  flog.pid.info(capture.output(print(RF_HYPERPARAMETER_GRID)))
 
   rf_training_settings <- trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
@@ -135,7 +133,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
                            imputations = imputations,
                            outcome = outcome,
                            control = rf_training_settings,
-                           grid = hyperparameter_grid,
+                           grid = RF_HYPERPARAMETER_GRID,
                            seed = seed)
   lr_models <- loop_models(training_function = train_lr,
                            classifier_name = "LR",
@@ -153,23 +151,23 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
 
   flog.pid.info("Saving data")
   # Save run time information for imputers
-  write.csv(x = form_run_time_df(rf_bests$imputers), file = file.path(output_path, "rf_run_times.csv"))
-  write.csv(x = form_run_time_df(lr_bests$imputers), file = file.path(output_path, "lr_run_times.csv"))
+  write.csv(x = form_run_time_df(rf_bests$imputers, times = times), file = file.path(output_path, FILE_RF_RUNTIMES_CSV))
+  write.csv(x = form_run_time_df(lr_bests$imputers, times = times), file = file.path(output_path, FILE_LR_RUNTIMES_CSV))
 
   ## Saving model
-  saveRDS(rf_bests$models, file = file.path(output_path, "rf_classifiers.rds"))
-  if (!lean) saveRDS(rf_bests$imputers, file = file.path(output_path, "rf_imputers.rds"))
-  saveRDS(rf_bests$hyperparams, file = file.path(output_path, "rf_hp_configs.rds"))
+  saveRDS(rf_bests$models, file = file.path(output_path, FILE_RF_CLASSIFIERS_RDS))
+  if (!lean) saveRDS(rf_bests$imputers, file = file.path(output_path, FILE_RF_IMPUTERS_RDS))
+  saveRDS(rf_bests$hyperparams, file = file.path(output_path, FILE_RF_HP_CONFIGS_RDS))
 
   # glm models in R contain references to environments, but for prediction it doesn't seem that
   # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
   # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).
   # See https://stackoverflow.com/questions/54144239/how-to-use-saverds-refhook-parameter for an example of
   # using the `refhook`.
-  saveRDS(lr_bests$models, file = file.path(output_path, "lr_classifiers.rds"), refhook = function(x) "")
-  if (!lean) saveRDS(lr_bests$imputers, file = file.path(output_path, "lr_imputers.rds"))
-  saveRDS(lr_bests$hyperparams, file = file.path(output_path, "lr_hp_configs.rds"))
+  saveRDS(lr_bests$models, file = file.path(output_path, FILE_LR_CLASSIFIERS_RDS), refhook = function(x) "")
+  if (!lean) saveRDS(lr_bests$imputers, file = file.path(output_path, FILE_LR_IMPUTERS_RDS))
+  saveRDS(lr_bests$hyperparams, file = file.path(output_path, FILE_LR_HP_CONFIGS_RDS))
 
-  saveRDS(colnames(training_data), file.path(output_path, "final_features.rds"))
+  saveRDS(colnames(training_data), file.path(output_path, FILE_FINAL_FEATURES_RDS))
   flog.pid.info("Done saving data")
 }

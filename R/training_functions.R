@@ -1,5 +1,9 @@
 library(magrittr)
 library(purrr)
+library(foreach)
+library(doParallel)
+library(doRNG)
+
 
 source("R/recursive_application.R") # for enumerate
 source("R/utils.R") # for flog.pid.*
@@ -18,6 +22,7 @@ sample_max <- function(x, size) {
 # }
 extract_mcc_performance <- function(model) {
 
+  if (is.null(model)) return(NULL)
   if (!class(model) == "train") stop("`model` must be a caret `train` object")
   preds <- predict(model)
   positive_label <- model$trainingData$.outcome %>% levels %>% extract(1)
@@ -77,19 +82,17 @@ bind_imp_parameters_for_reuse <- function(hyperparams, imputers) {
     # kNN allows use of another dataset to find the neighbors. Thus, let's store the completed dataset.
     if (h == "knnImputation") {
       if (is.null(imputers[[h]][["completed_datasets"]][[1]])) stop(paste("Recycling parameters for method ", h, " were NULL"))
-      attr(hyperparams[[h]], "imputation_estimates") <- imputers[[h]][["completed_datasets"]][[1]]
+      attr(hyperparams[[h]], IMPUTATION_REUSE_PARAMETERS) <- imputers[[h]][["completed_datasets"]][[1]]
     }
     # E.g. median imputations should impute the test set with the median of the training set instead of
     # the median of the test set. Thus such values must be stored.
-    if (h %in% single_imp_methods) {
-      if (is.null(attr(imputers[[h]][["completed_datasets"]][[1]], "imputation_estimates"))) stop(paste("Recycling parameters for method ", h, " were NULL"))
-      attr(hyperparams[[h]], "imputation_estimates") <- attr(imputers[[h]][["completed_datasets"]][[1]], "imputation_estimates")
+    if (h %in% SINGLE_IMP_METHODS) {
+      if (is.null(attr(imputers[[h]][["completed_datasets"]][[1]], IMPUTATION_REUSE_PARAMETERS))) stop(paste("Recycling parameters for method ", h, " were NULL"))
+      attr(hyperparams[[h]], IMPUTATION_REUSE_PARAMETERS) <- attr(imputers[[h]][["completed_datasets"]][[1]], IMPUTATION_REUSE_PARAMETERS)
     }
   }
   return(hyperparams)
 }
-
-  
 
 select_best <- function(models, imputations, hyperparameters) {
 
@@ -132,14 +135,21 @@ train_rf <- function(data, outcome, control, grid) {
 }
 train_lr <- function(data, outcome, control, grid) {
 
-  lr_model <- NULL
-  tryCatch({
-    lr_model <- caret::train(x = data,
-                             y = outcome,
-                             method = "glm",
-                             preProcess = c("center", "scale"),
-                             trControl = control)
-  }, error = function(e) flog.pid.debug(e))
+  if(is.null(data)) {
+    flog.pid.info("Dataset was NULL; returning NULL")
+    return(NULL)
+  }
+
+  lr_model <- tryCatch({
+    caret::train(x = data,
+                 y = outcome,
+                 method = "glm",
+                 preProcess = c("center", "scale"),
+                 trControl = control)
+  }, error = function(e) {
+    flog.pid.debug(e)
+    return(NULL)
+  })
 
   return(lr_model)
 }
@@ -151,10 +161,6 @@ loop_models <- function(training_function, classifier_name, imputations, control
   if (!is.data.frame(grid)) stop("`grid` must be a data.frame")
   if (!is.factor(outcome)) stop("`outcome` must be a factor")
   if (!is.numeric(seed) || length(seed) != 1) stop("`seed` must be a numeric vector of length 1")
-
-  require(foreach)
-  require(doParallel)
-  require(doRNG)
 
   foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
     flog.pid.info("Starting execution of %s on datasets produced by %s", classifier_name, method$name)

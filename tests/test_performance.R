@@ -32,21 +32,22 @@ source("R/performance.R")
 
 test_that("performance_stats produces correct output", {
   observed_output <- performance_stats(predictions = mock_pred_tree, outcome = factor(c("a", "b", "a", "b"), c("a", "b")))
-  expect_true(all(unlist(observed_output, recursive = TRUE) %>% is.na %>% `!`))
-  expect_true(all(unlist(observed_output, recursive = TRUE) >= -1))
-  expect_true(all(unlist(observed_output, recursive = TRUE) <= 1))
+  observed_output_metrics <- observed_output[!names(observed_output) %in% c("tp", "fp", "fn", "tn")]
+  expect_true(all(unlist(observed_output_metrics, recursive = TRUE) %>% is.na %>% `!`))
+  expect_true(all(unlist(observed_output_metrics, recursive = TRUE) >= -1))
+  expect_true(all(unlist(observed_output_metrics, recursive = TRUE) <= 1))
 })
 mock_perf_tree <- list(tp = list(knnImputation = list(model_1 = list(imp_1 = 1))), fp = list(knnImputation = list(model_1 = list(imp_1 = 2))))
 
-turn_table_expected_output_tp <- data.frame(method = "knnImputation", model_index = "model_1", test_realization = "imp_1", value = 1) %>% set_rownames("knnImputation:model_1:imp_1")
-turn_table_expected_output_fp <- data.frame(method = "knnImputation", model_index = "model_1", test_realization = "imp_1", value = 2) %>% set_rownames("knnImputation:model_1:imp_1")
+turn_table_expected_output_tp <- data.frame(method = "knnImputation", model_ix = "model_1", test_completion_ix = "imp_1", value = 1) %>% set_rownames("knnImputation:model_1:imp_1")
+turn_table_expected_output_fp <- data.frame(method = "knnImputation", model_ix = "model_1", test_completion_ix = "imp_1", value = 2) %>% set_rownames("knnImputation:model_1:imp_1")
 test_that("turn_table produces correct output", {
   expect_equal(turn_table(perf_tree = mock_perf_tree$tp), turn_table_expected_output_tp)
   expect_equal(turn_table(perf_tree = mock_perf_tree$fp), turn_table_expected_output_fp)
 })
 
 test_that("merge_tables produces correct output", {
-  expected_output <- data.frame(method = "knnImputation", model_index = "model_1", test_realization = "imp_1", fp = 2, tp = 1)
+  expected_output <- data.frame(method = "knnImputation", model_ix = "model_1", test_completion_ix = "imp_1", fp = 2, tp = 1)
   expect_equal(merge_tables(tables = list(fp = turn_table_expected_output_fp, tp = turn_table_expected_output_tp)),
                expected_output)
 })
