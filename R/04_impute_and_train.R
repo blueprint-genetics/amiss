@@ -1,5 +1,6 @@
 
 library(purrr)
+library(magrittr)
 library(futile.logger)
 library(caret)
 library(mice)
@@ -45,13 +46,15 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   flog.pid.info("Using %d cores", cores)
   registerDoParallel(cores)
 
-  flog.pid.info("Using seed: %d", seed)
-  set.seed(seed)
+  if(!is.null(seed)) {
+    flog.pid.info("Using seed: %d", seed)
+    set.seed(seed)
+  }
 
   flog.pid.info("Reading data")
   training_data <- read.csv(training_path, row.names = 1, as.is = TRUE)
   tryCatch({
-  outcome <- read.csv(outcome_path, as.is = TRUE)
+    outcome <- read.csv(outcome_path, as.is = TRUE)
   }, error = function(e) {
     flog.pid.debug("Could not open file %s", outcome_path)
     flog.pid.debug(e)
@@ -268,21 +271,22 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   }
 
   # Find index of model with best mean OOB error
-  inf_NULLs <- function(x, positive = TRUE) {
-    x[sapply(x, is.null)] <- ifelse(positive, Inf, -Inf)
+  inf_NULLs <- function(x) {
+    x[sapply(x, is.null)] <- -Inf
+    x[sapply(x, is.nan)] <- -Inf
     return(x)
   }
 
-  select_best <- function(models, imputations, hyperparams, performance_function, positive) {
+  select_best <- function(models, imputations, hyperparams, performance_function) {
 
     # Get the error estimate from each leaf of the tree (i.e. all trained models)
     perf <- map_depth(models, .f = performance_function, .depth = 3)
-    perf <- map_depth(perf, . %>% inf_NULLs(positive = positive), .depth = 2)
+    perf <- map_depth(perf, . %>% inf_NULLs, .depth = 2)
 
-    # The OOB estimates are in lists with one value per completed dataset.
+    # The estimates are in lists with one value per completed dataset.
     # Unlisting that list before mean gives mean the desired input type (numeric vector).
     mean_perf <- map_depth(perf, . %>% unlist %>% mean, .depth = 2)
-    best_model_ix <- map_int(mean_perf, which.min)
+    best_model_ix <- map_int(mean_perf, which.max)
 
     # Extract the best models, best imputers and their best hyperparameters for each method
     best_models <- map(enumerate(best_model_ix), . %>% with(models[[name]][[value]]))
@@ -306,10 +310,14 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
     return(list(ix = best_model_ix, models = best_models, imputers = best_imputers, hyperparams = best_hyperparams))
   }
 
-  rf_bests <- select_best(rf_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_oob_performance, TRUE)
-  lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance, FALSE)
+  rf_bests <- select_best(rf_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance)
+  lr_bests <- select_best(lr_models, imputations, c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids), performance_function = extract_mcc_performance)
 
   flog.pid.info("Saving data")
+  # Save run time information for imputers
+  write.csv(x = form_run_time_df(rf_bests$imputers), file = file.path(output_path, "rf_run_times.csv"))
+  write.csv(x = form_run_time_df(lr_bests$imputers), file = file.path(output_path, "lr_run_times.csv"))
+
   ## Saving model
   saveRDS(rf_bests$models, file = file.path(output_path, "rf_classifiers.rds"))
   if (!lean) saveRDS(rf_bests$imputers, file = file.path(output_path, "rf_imputers.rds"))
