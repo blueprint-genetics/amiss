@@ -20,6 +20,7 @@ performance_stats <- function(predictions, outcome) {
 
   positive_outcome_indicator <- as.integer(outcome == outcome_lvls[1])
 
+  brier <- recursive_apply_numeric(predictions, . %>% brier(actual = positive_outcome_indicator, predicted = .))
   mcc <- recursive_apply_numeric(predictions, . %>% mcc(actual = positive_outcome_indicator, predicted = ., cutoff = 0.5))
   auc <- recursive_apply_numeric(predictions, . %>% auc(actual = positive_outcome_indicator, predicted = .))
 
@@ -40,6 +41,7 @@ performance_stats <- function(predictions, outcome) {
                 fp = fp,
                 fn = fn,
                 tn = tn,
+                brier = brier,
                 mcc = mcc,
                 auc = auc,
                 sensitivity = sensitivity,
