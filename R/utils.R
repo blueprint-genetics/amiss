@@ -42,3 +42,12 @@ form_run_time_df <- function(imputers) {
 
   return(times_df)
 }
+
+create_dir <- function(path) {
+  if (!dir.exists(path)) {
+    dir_creation_success <- dir.create(path, showWarnings = TRUE)
+    if (!dir_creation_success) {
+      stop("Failed to create directory for saving results.")
+    }
+  }
+}
