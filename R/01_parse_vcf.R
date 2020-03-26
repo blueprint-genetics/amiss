@@ -43,3 +43,5 @@ merged_data <- merge(x = cadd_data,
                      by.y = c("CHROM", "POS", "REF", "ALT", "Feature"))
 
 write.csv(file = "merged_data.csv", x = merged_data, row.names = FALSE)
+
+write(capture.output(sessionInfo()), "01_parse_vcf_sessioninfo.txt")
