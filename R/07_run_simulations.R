@@ -1,6 +1,6 @@
 
 source("R/compute_rmse.R")
-source("R/04_impute_and_train.R")
+source("R/impute_and_train.R")
 source("R/05_test_prediction.R")
 
 flog.appender(appender.tee("07_run_simulations.log"), name = "simulation_logger")
