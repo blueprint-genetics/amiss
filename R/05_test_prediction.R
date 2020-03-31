@@ -87,8 +87,8 @@ test_prediction <- function(test_path, outcome_path, tr_output_path, results_dir
   lr_perf_table <- merge_tables(lr_tables)
 
   flog.pid.info("Writing performance tables")
-  write.csv(x = rf_perf_table, file = file.path(results_dir_path, FILE_LR_PERFORMANCE_CSV), row.names = FALSE)
-  write.csv(x = lr_perf_table, file = file.path(results_dir_path, FILE_RF_PERFORMANCE_CSV), row.names = FALSE)
+  write.csv(x = rf_perf_table, file = file.path(results_dir_path, FILE_RF_PERFORMANCE_CSV), row.names = FALSE)
+  write.csv(x = lr_perf_table, file = file.path(results_dir_path, FILE_LR_PERFORMANCE_CSV), row.names = FALSE)
 
   flog.pid.info("Done")
 
