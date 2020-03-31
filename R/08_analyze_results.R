@@ -91,4 +91,20 @@ lr_roc_boxplots <- arrangeGrob(
 )
 ggsave(filename =  "lr_roc_boxplots.pdf", plot = lr_roc_boxplots, device = "pdf", path = results_path, width = 210, height = 297, units = "mm")
 
+# RF Brier
+rf_brier_boxplots <- arrangeGrob(
+  ggplot(rf_perf_table, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+)
+ggsave(filename =  "rf_brier_boxplots.pdf", plot = rf_brier_boxplots, device = "pdf", path = results_path, width = 210, height = 297, units = "mm")
+
+# LR Brier
+lr_brier_boxplots <- arrangeGrob(
+  ggplot(lr_perf_table, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+)
+ggsave(filename =  "lr_brier_boxplots.pdf", plot = lr_brier_boxplots, device = "pdf", path = results_path, width = 210, height = 297, units = "mm")
+
 write(capture.output(sessionInfo()), "08_analyze_results_sessioninfo.txt")
