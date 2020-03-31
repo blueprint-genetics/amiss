@@ -31,7 +31,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     
     flog.pid.info("Producing performance statistics on %s", sim_data_path, name = "simulation_logger")
     test_params <- list(
-      test_path = "contracted_test_data.csv",
+      test_path = "preprocessed_test_data.csv",
       outcome_path = "test_outcomes.csv",
       tr_output_path = output_path,
       results_dir_path = output_path,
@@ -47,7 +47,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     flog.pid.info("Parameters:", name = "simulation_logger")
     rf_rmse_params <- list(
       imputer_path = file.path(output_path, "rf_classifiers.rds"),
-      orig_data_path = "contracted_training_data.csv",
+      orig_data_path = "preprocessed_training_data.csv",
       simu_data_path = sim_data_path,
       output_filename = file.path(output_path, "rf_rmse.csv")
     )
@@ -56,7 +56,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
 
     lr_rmse_params <- list(
       imputer_path = file.path(output_path, "lr_classifiers.rds"),
-      orig_data_path = "contracted_training_data.csv",
+      orig_data_path = "preprocessed_training_data.csv",
       simu_data_path = sim_data_path,
       output_filename = file.path(output_path, "lr_rmse.csv")
     )
