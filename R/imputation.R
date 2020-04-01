@@ -97,10 +97,10 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 
       completed_datasets <- mice::complete(imputation_object, action = "all")
 
-      return(list(
+      list(
         completed_datasets = completed_datasets,
         imputation_object = imputation_object
-      ))
+      )
 
     }, error = function(e) {
       flog.pid.debug(e)

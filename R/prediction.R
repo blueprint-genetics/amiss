@@ -14,7 +14,7 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
         if (!is.null(completed_dataset)) {
           tryCatch({
             flog.pid.info("Predicting using best model for %s", method)
-            return(predict(model, completed_dataset, type = "prob")[,positive_label, drop = TRUE])
+            predict(model, completed_dataset, type = "prob")[,positive_label, drop = TRUE]
           }, error = function(e) {
             flog.pid.debug(e)
             return(NA)
