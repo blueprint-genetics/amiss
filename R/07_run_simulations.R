@@ -1,7 +1,7 @@
 
 source("R/compute_rmse.R")
-source("R/04_impute_and_train.R")
-source("R/05_test_prediction.R")
+source("R/impute_and_train.R")
+source("R/predict_on_test_set.R")
 
 flog.appender(appender.tee("07_run_simulations.log"), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
@@ -40,7 +40,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
       seed = seed
     )
     flog.pid.info(paste0(names(test_params), " = ", test_params), name = "simulation_logger")
-    do.call(test_prediction, test_params)
+    do.call(predict_on_test_set, test_params)
 
     flog.pid.info("Computing RMSE values on %s", sim_data_path, name = "simulation_logger")
 

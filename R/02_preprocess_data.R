@@ -1,11 +1,8 @@
-
-## Setup
-
 library(magrittr)
 library(futile.logger)
 
-flog.appender(appender.tee("02_1_expand_data.log"))
-flog.info("02_1_expand_data.R")
+flog.appender(appender.tee("02_preprocess_data.log"))
+flog.info("02_preprocess_data.R")
 
 seed <- 10
 flog.info("Using seed: %d", seed)
@@ -177,7 +174,7 @@ write.csv(test_set_contracted, "contracted_test_data.csv", row.names = TRUE)
 write.csv(training_outcome, "training_outcomes.csv", row.names = TRUE)
 write.csv(test_outcome, "test_outcomes.csv", row.names = TRUE)
 
-write(capture.output(sessionInfo()), "02_1_expand_data_sessioninfo.txt")
+write(capture.output(sessionInfo()), "02_preprocess_data_sessioninfo.txt")
 flog.info("Done writing files")
 
 

@@ -20,7 +20,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   
   create_dir(output_path)
 
-  flog.appender(appender.tee(file.path(output_path, "04_impute_and_train.log")))
+  flog.appender(appender.tee(file.path(output_path, "impute_and_train.log")))
 
   flog.threshold(DEBUG)
 
@@ -30,7 +30,7 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
     other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
   }
 
-  flog.pid.info("04_impute_and_train.log")
+  flog.pid.info("impute_and_train.R")
   flog.pid.info("Arguments: %s", paste0(list(training_path, outcome_path, output_path, cores, lean), collapse = ", "))
 
   flog.pid.info("Using %d cores", cores)
