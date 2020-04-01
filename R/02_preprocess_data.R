@@ -1,21 +1,22 @@
 library(magrittr)
 library(futile.logger)
+library(here)
 
-flog.appender(appender.tee("02_preprocess_data.log"))
+flog.appender(appender.tee(here("02_preprocess_data.log")))
 flog.info("02_preprocess_data.R")
 
 seed <- 10
 flog.info("Using seed: %d", seed)
 set.seed(seed)
 
-source("R/preprocessing.R")
+source(here("R", "preprocessing.R"))
 
 flog.info("Reading data")
-merged_data <- read.csv("merged_data.csv", as.is = TRUE)
+merged_data <- read.csv(here("data", "merged_data.csv"), as.is = TRUE)
 flog.info("Rows: %d", nrow(merged_data))
 
-source("R/feature_definitions.R")
-source("R/recursive_application.R")
+source(here("R", "feature_definitions.R"))
+source(here("R", "recursive_application.R"))
 
 ## Name data rows by strings identifying variants
 rownames(merged_data) <- form_variant_ids(merged_data)
@@ -45,8 +46,8 @@ flog.info("Number of training set variants: %d", nrow(training_set))
 test_set <- data_split$test_set
 flog.info("Number of test set variants: %d", nrow(test_set))
 
-write.csv(file = "training_data.csv", x = training_set, row.names = FALSE)
-write.csv(file = "test_data.csv", x = test_set, row.names = FALSE)
+write.csv(file = here("data", "training_data.csv"), x = training_set, row.names = FALSE)
+write.csv(file = here("data", "test_data.csv"), x = test_set, row.names = FALSE)
 
 ## Process variables
 
@@ -167,13 +168,13 @@ test_set_selected <- select_features(test_set, numeric_features, categorical_fea
 
 # Finally, write out the processed data CSV file.
 flog.info("Writing files")
-write.csv(training_set, "preprocessed_w_categorical_vars_training_data.csv", row.names = TRUE)
-write.csv(training_set_selected, "preprocessed_training_data.csv", row.names = TRUE)
-write.csv(test_set_selected, "preprocessed_test_data.csv", row.names = TRUE)
-write.csv(training_outcome, "training_outcomes.csv", row.names = TRUE)
-write.csv(test_outcome, "test_outcomes.csv", row.names = TRUE)
+write.csv(training_set, here("data", "preprocessed_w_categorical_vars_training_data.csv"), row.names = TRUE)
+write.csv(training_set_selected, here("data", "preprocessed_training_data.csv"), row.names = TRUE)
+write.csv(test_set_selected, here("data", "preprocessed_test_data.csv"), row.names = TRUE)
+write.csv(training_outcome, here("data", "training_outcomes.csv"), row.names = TRUE)
+write.csv(test_outcome, here("data", "test_outcomes.csv"), row.names = TRUE)
 
-write(capture.output(sessionInfo()), "02_preprocess_data_sessioninfo.txt")
+write(capture.output(sessionInfo()), here("02_preprocess_data_sessioninfo.txt"))
 flog.info("Done writing files")
 
 

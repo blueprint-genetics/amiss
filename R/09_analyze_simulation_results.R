@@ -1,8 +1,9 @@
 library(magrittr)
 library(dplyr)
 library(stringr)
+library(here)
 
-sim_data_paths <- read.csv(file = "successfully_simulated_file_list.csv", as.is = TRUE)[,2]
+sim_data_paths <- read.csv(file = here("sim", "successfully_simulated_file_list.csv"), as.is = TRUE)[,2]
 sim_result_paths <- paste0(sim_data_paths, "_output")
 
 rf_rmses <- file.path(sim_result_paths, "rf_rmse.csv")
@@ -31,3 +32,6 @@ lr_perf_df <- rbind_csvs(lr_perfs)
 
 rf_df <- merge(rf_perf_df, rf_rmse_df, by = c("repeat", "pct", "mech", "orientation", "method"), all = TRUE)
 lr_df <- merge(lr_perf_df, lr_rmse_df, by = c("repeat", "pct", "mech", "orientation", "method"), all = TRUE)
+
+write.csv(x = rf_df, here("sim", "simulated_rf_results.csv"))
+write.csv(x = lr_df, here("sim", "simulated_lr_results.csv"))

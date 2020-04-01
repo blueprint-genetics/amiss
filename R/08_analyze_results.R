@@ -1,20 +1,13 @@
 library(futile.logger)
 library(gridExtra)
 library(ggplot2)
+library(here)
 
-source("R/utils.R")
+source(here("R/utils.R"))
 
-cmdargs <- commandArgs(trailingOnly = TRUE)
-if (!(length(cmdargs) == 3)) {
-  stop("Must have the following arguments: 
-       1. path to rf performance csv
-       2. path to lr performance csv
-       3. path to directory to write in", call. = FALSE)
-}
-
-rf_perf_path <- cmdargs[1]
-lr_perf_path <- cmdargs[2]
-results_path <- cmdargs[3]
+rf_perf_path <- here("output", "results", "rf_performance.csv")
+lr_perf_path <- here("output", "results", "lr_performance.csv")
+results_path <- here("output", "results")
 
 rf_perf_table <- read.csv(rf_perf_path, as.is = TRUE)
 lr_perf_table <- read.csv(lr_perf_path, as.is = TRUE)
@@ -49,12 +42,12 @@ lr_perf_aggregations <- aggregate_over_perf_table(lr_perf_table)
 flog.pid.info("Writing averaged performance tables")
 for (name in names(rf_perf_aggregations)) {
   write.csv(x = rf_perf_aggregations[[name]],
-            file = paste0(results_path, "rf_", name, ".csv"),
+            file = file.path(results_path, paste0("rf_", name, ".csv")),
             row.names = FALSE)
 }
 for (name in names(lr_perf_aggregations)) {
   write.csv(x = lr_perf_aggregations[[name]],
-            file = paste0(results_path, "lr_", name, ".csv"),
+            file = file.path(results_path, paste0("lr_", name, ".csv")),
             row.names = FALSE)
 }
 
@@ -107,4 +100,4 @@ lr_brier_boxplots <- arrangeGrob(
 )
 ggsave(filename =  "lr_brier_boxplots.pdf", plot = lr_brier_boxplots, device = "pdf", path = results_path, width = 210, height = 297, units = "mm")
 
-write(capture.output(sessionInfo()), "08_analyze_results_sessioninfo.txt")
+write(capture.output(sessionInfo()), here("08_analyze_results_sessioninfo.txt"))

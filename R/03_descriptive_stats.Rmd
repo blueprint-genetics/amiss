@@ -8,12 +8,13 @@ library(magrittr)
 library(ggplot2)
 library(gridExtra)
 library(ggcorrplot)
+library(here)
 
-source("../R/visualizations.R")
-source("../R/feature_definitions.R")
+source(here("R", "visualizations.R"))
+source(here("R", "feature_definitions.R"))
 
-training_set <- read.csv(here("preprocessed_w_categorical_vars_training_data.csv"), row.names = 1, as.is = TRUE)
-outcome <- read.csv("../training_outcomes.csv", row.names = 1)[,1]
+training_set <- read.csv(here("data", "preprocessed_w_categorical_vars_training_data.csv"), row.names = 1, as.is = TRUE)
+outcome <- read.csv(here("data", "training_outcomes.csv"), row.names = 1)[,1]
 
 stopifnot(row.names(training_set) == row.names(outcome))
 
@@ -92,5 +93,5 @@ heatmap(missing_value_sum_per_consequence)
 Stop-gained and non-synonymous variants have much less missingness in certain variables (as expected), and missingness rates are somewhat constant over different consequences in epigenetics variables.
 
 ```{r}
-write(capture.output(sessionInfo()), "03_descriptive_stats_sessioninfo.txt")
+write(capture.output(sessionInfo()), here("03_descriptive_stats_sessioninfo.txt"))
 ```
