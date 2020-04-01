@@ -1,6 +1,7 @@
 library(futile.logger)
+library(here)
 
-source("R/constants.R")
+source(here("R", "constants.R"))
 
 flog.threshold(DEBUG)
 #' Partition a number range representing row numbers into `n` roughly equally-sized batches
