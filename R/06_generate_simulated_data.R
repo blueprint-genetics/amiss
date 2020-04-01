@@ -6,12 +6,13 @@ library(doParallel)
 library(doRNG)
 library(futile.logger)
 library(digest)
+library(here)
 
-source("R/simulation_definitions.R")
-source("R/feature_definitions.R")
-source("R/utils.R")
+source(here("R", "simulation_definitions.R"))
+source(here("R", "feature_definitions.R"))
+source(here("R", "utils.R"))
 
-flog.appender(appender.tee("06_generate_simulated_data.log"), name = "simulation_logger")
+flog.appender(appender.tee(here("06_generate_simulated_data.log")), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
 
 cores <- 24
@@ -22,7 +23,7 @@ seed <- 42
 flog.pid.info("Using seed %d", seed,  name = "simulation_logger")
 set.seed(seed)
 
-training_data <- read.csv("preprocessed_training_data.csv", as.is = TRUE, row.names = 1)
+training_data <- read.csv(here("data", "preprocessed_training_data.csv"), as.is = TRUE, row.names = 1)
 
 flog.pid.info("Repeating %d times", repeats,  name = "simulation_logger")
 flog.pid.info("Simulations configuration:",  name = "simulation_logger")
@@ -30,7 +31,7 @@ flog.pid.info(capture.output(print(ampute_params)),  name = "simulation_logger")
 
 flog.pid.info("Creating directories for each repetition",  name = "simulation_logger")
 directories <- sapply(1:repeats, function(i) {
-  paste0("output/simulated_data/repeat_", i, "/")
+  here("sim", "simulated_data", paste0("repeat_", i))
 })
 
 dir_creation_success <- sapply(directories, function(d) {
@@ -123,7 +124,7 @@ repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
 
     # Save the files immediately to avoid aggregating them uselessly in memory
     param_vect <- ampute_params[params_i, , drop = TRUE]
-    filename <- paste0(directories[[r]], paste0(param_vect, collapse = "_"), ".csv")
+    filename <- paste0(directories[[r]], "/", paste0(param_vect, collapse = "_"), ".csv")
     flog.pid.info("Writing file %s", filename, name = "simulation_logger")
     write.csv(x = d, file = filename)
     flog.pid.info("Wrote file %s", filename, name = "simulation_logger")
@@ -134,6 +135,6 @@ repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
 }
 
 repetitions <- repetitions %>% unlist
-write.csv(repetitions, file = "simulated_file_list.csv")
+write.csv(repetitions, file = here("sim", "simulated_file_list.csv"))
 
-write(capture.output(sessionInfo()), "06_generate_simulated_data_sessioninfo.txt")
+write(capture.output(sessionInfo()), here("06_generate_simulated_data_sessioninfo.txt"))
