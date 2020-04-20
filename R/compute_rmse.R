@@ -31,9 +31,7 @@ compute_rmse <- function(imputer_path, orig_data_path, simu_data_path, output_fi
 
     comp_colnames <- colnames(comp_data[[method]])
     comp_scaled <- comp_data[[method]]
-    if (method != "bpca") { # completed data is already scaled in bpca
-      comp_scaled <- scale(comp_data[[method]], center = orig_means[comp_colnames], scale = orig_sds[comp_colnames])
-    }
+    comp_scaled <- scale(comp_data[[method]], center = orig_means[comp_colnames], scale = orig_sds[comp_colnames])
     # RMSE doesn't make sense for missingness indicators
     if (method == "missingness_indicators") {
       rmse_per_col <- rep(NA, NCOL(comp_data))

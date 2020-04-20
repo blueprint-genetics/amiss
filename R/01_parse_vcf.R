@@ -10,6 +10,8 @@ source(here("R", "preprocessing.R"))
 
 set.seed(10)
 
+dir.create(here("data"))
+
 vcf_filename <- here("..", "amiss_data", "clinvar_20190624.vep.vcf")
 cadd_snv_filename <- here("..", "amiss_data", "CADD_clingen.tsv")
 cadd_indel_filename <- here("..", "amiss_data", "CADD_clingen_indel.tsv")
