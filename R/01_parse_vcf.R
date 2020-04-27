@@ -4,6 +4,7 @@ library(here)
 
 flog.threshold(DEBUG)
 
+source(here("R", "constants.R"))
 source(here("R", "data_parsing.R"))
 source(here("R", "filters.R"))
 source(here("R", "preprocessing.R"))
@@ -11,6 +12,7 @@ source(here("R", "preprocessing.R"))
 set.seed(10)
 
 dir.create(here("data"))
+dir.create(here("output"))
 
 vcf_filename <- here("..", "amiss_data", "clinvar_20190624.vep.vcf")
 cadd_snv_filename <- here("..", "amiss_data", "CADD_clingen.tsv")
@@ -45,6 +47,6 @@ merged_data <- merge(x = cadd_data,
                      by.x = c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID"),
                      by.y = c("CHROM", "POS", "REF", "ALT", "Feature"))
 
-write.csv(file = here("data", "merged_data.csv"), x = merged_data, row.names = FALSE)
+write.csv(file = here("data", FILE_MERGED_DATA_CSV), x = merged_data, row.names = FALSE)
 
-write(capture.output(sessionInfo()), "01_parse_vcf_sessioninfo.txt")
+write(capture.output(sessionInfo()), here("output", "01_parse_vcf_sessioninfo.txt"))

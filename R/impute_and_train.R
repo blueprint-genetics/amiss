@@ -1,4 +1,3 @@
-
 library(purrr)
 library(magrittr)
 library(futile.logger)
@@ -7,13 +6,14 @@ library(ModelMetrics)
 library(foreach)
 library(doParallel)
 library(doRNG)
+library(here)
 
-source("R/utils.R")
-source("R/imputation_definitions.R")
-source("R/training_functions.R")
-source("R/recursive_application.R")
-source("R/imputation.R")
-source("R/constants.R")
+source(here("R", "utils.R"))
+source(here("R", "imputation_definitions.R"))
+source(here("R", "training_functions.R"))
+source(here("R", "recursive_application.R"))
+source(here("R", "imputation.R"))
+source(here("R", "constants.R"))
 
 
 impute_and_train <- function(training_path, outcome_path, output_path, cores, seed = 42, lean) {

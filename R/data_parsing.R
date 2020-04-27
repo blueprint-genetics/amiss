@@ -1,8 +1,9 @@
 library(tidyr)
 library(stringr)
 library(vcfR)
+library(here)
 
-source("R/utils.R")
+source(here("R", "utils.R"))
 
 #' Spread data stored in key-value pairs in the INFO column
 #' 

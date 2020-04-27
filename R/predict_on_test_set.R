@@ -9,14 +9,15 @@ library(doParallel)
 library(doRNG)
 library(DMwR)
 library(missForest)
+library(here)
 
-source("R/utils.R")
-source("R/recursive_application.R")
-source("R/imputation_definitions.R")
-source("R/imputation.R")
-source("R/prediction.R")
-source("R/performance.R")
-source("R/constants.R")
+source(here("R", "utils.R"))
+source(here("R", "recursive_application.R"))
+source(here("R", "imputation_definitions.R"))
+source(here("R", "imputation.R"))
+source(here("R", "prediction.R"))
+source(here("R", "performance.R"))
+source(here("R", "constants.R"))
 
 predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed = 42) {
 

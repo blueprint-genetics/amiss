@@ -1,8 +1,9 @@
 library(ModelMetrics)
 library(magrittr)
+library(here)
 
-source("R/recursive_application.R")
-source("R/constants.R")
+source(here("R", "recursive_application.R"))
+source(here("R", "constants.R"))
 
 performance_stats <- function(predictions, outcome) {
   
