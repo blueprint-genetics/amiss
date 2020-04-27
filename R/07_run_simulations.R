@@ -24,7 +24,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     
     flog.pid.info("Parameters:", name = "simulation_logger")
     iat_params <- list(training_path = sim_data_path,
-                       outcome_path = here("data", FILE_TRAINING_OUTCOMES_CSV),
+                       outcome_path = here("output", "data", FILE_TRAINING_OUTCOMES_CSV),
                        output_path = output_path,
                        cores = 1,
                        seed = seed,
@@ -35,8 +35,8 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     
     flog.pid.info("Producing performance statistics on %s", sim_data_path, name = "simulation_logger")
     test_params <- list(
-      test_path = here("data", FILE_PREPROCESSED_TEST_DATA_CSV),
-      outcome_path = here("data", FILE_TEST_OUTCOMES_CSV),
+      test_path = here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV),
+      outcome_path = here("output", "data", FILE_TEST_OUTCOMES_CSV),
       tr_output_path = output_path,
       results_dir_path = output_path,
       lean = TRUE,
@@ -51,7 +51,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     flog.pid.info("Parameters:", name = "simulation_logger")
     rf_rmse_params <- list(
       imputer_path = file.path(output_path, FILE_RF_CLASSIFIERS_RDS),
-      orig_data_path = here("data", FILE_PREPROCESSED_TRAINING_DATA_CSV),
+      orig_data_path = here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV),
       simu_data_path = sim_data_path,
       output_filename = file.path(output_path, FILE_RF_RMSE_CSV)
     )
@@ -60,7 +60,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
 
     lr_rmse_params <- list(
       imputer_path = file.path(output_path, FILE_LR_CLASSIFIERS_RDS),
-      orig_data_path = here("data", FILE_PREPROCESSED_TRAINING_DATA_CSV),
+      orig_data_path = here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV),
       simu_data_path = sim_data_path,
       output_filename = file.path(output_path, FILE_LR_RMSE_CSV)
     )

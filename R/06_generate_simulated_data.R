@@ -25,7 +25,7 @@ seed <- 42
 flog.pid.info("Using seed %d", seed,  name = "simulation_logger")
 set.seed(seed)
 
-training_data <- read.csv(here("data", FILE_PREPROCESSED_TRAINING_DATA_CSV), as.is = TRUE, row.names = 1)
+training_data <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), as.is = TRUE, row.names = 1)
 
 flog.pid.info("Repeating %d times", repeats,  name = "simulation_logger")
 flog.pid.info("Simulations configuration:",  name = "simulation_logger")

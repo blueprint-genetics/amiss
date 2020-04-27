@@ -35,3 +35,5 @@ lr_df <- merge(lr_perf_df, lr_rmse_df, by = c("repeat", "pct", "mech", "orientat
 
 write.csv(x = rf_df, here("output", "sim", FILE_SIMULATED_RF_RESULTS_CSV))
 write.csv(x = lr_df, here("output", "sim", FILE_SIMULATED_LR_RESULTS_CSV))
+
+write(capture.output(sessionInfo()), here("output", "09_analyze_simulation_results_sessioninfo.txt"))

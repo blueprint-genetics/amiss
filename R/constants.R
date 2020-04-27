@@ -14,6 +14,7 @@ SINGLE_IMP_METHODS <- c(
   "outlier_imp"
 )
 
+FILE_FULL_CLINGEN_CSV <- "full_clingen.csv"
 FILE_MERGED_DATA_CSV <- "merged_data.csv"
 FILE_TRAINING_DATA_CSV <- "training_data.csv"
 FILE_TEST_DATA_CSV <- "test_data.csv"
