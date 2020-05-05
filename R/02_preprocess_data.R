@@ -47,8 +47,8 @@ flog.info("Number of training set variants: %d", nrow(training_set))
 test_set <- data_split$test_set
 flog.info("Number of test set variants: %d", nrow(test_set))
 
-write.csv(file = here("output", "data", TRAINING_DATA_CSV), x = training_set, row.names = FALSE)
-write.csv(file = here("output", "data", TEST_DATA_CSV), x = test_set, row.names = FALSE)
+write.csv(file = here("output", "data", FILE_TRAINING_DATA_CSV), x = training_set, row.names = FALSE)
+write.csv(file = here("output", "data", FILE_TEST_DATA_CSV), x = test_set, row.names = FALSE)
 
 ## Process variables
 
@@ -158,7 +158,7 @@ flog.info("Test variants with high consequence dependent class imbalance: %d", s
 test_set <- test_set[!te_variants_w_unbalanced_class, ]
 test_outcome <- test_outcome[!te_variants_w_unbalanced_class]
 flog.info("Remaining variants in training set: %d", nrow(training_set))
-flog.info("Remaining variants in training set: %d", nrow(test_set))
+flog.info("Remaining variants in test set: %d", nrow(test_set))
 
 ## Feature selection 
 # The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier. 

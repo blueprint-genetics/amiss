@@ -33,7 +33,7 @@ flog.pid.info(capture.output(print(ampute_params)),  name = "simulation_logger")
 
 flog.pid.info("Creating directories for each repetition",  name = "simulation_logger")
 directories <- sapply(1:repeats, function(i) {
-  here("sim", "simulated_data", paste0("repeat_", i))
+  here("output", "sim", "simulated_data", paste0("repeat_", i))
 })
 
 dir_creation_success <- sapply(directories, function(d) {

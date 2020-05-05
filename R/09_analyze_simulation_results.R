@@ -3,6 +3,8 @@ library(dplyr)
 library(stringr)
 library(here)
 
+source(here("R", "constants.R"))
+
 sim_data_paths <- read.csv(file = here("output", "sim", FILE_SUCCESSFULLY_SIMULATED_FILE_LIST_CSV), as.is = TRUE)[,2]
 sim_result_paths <- paste0(sim_data_paths, "_output")
 
