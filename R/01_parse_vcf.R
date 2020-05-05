@@ -4,13 +4,15 @@ library(here)
 
 flog.threshold(DEBUG)
 
+source(here("R", "constants.R"))
 source(here("R", "data_parsing.R"))
 source(here("R", "filters.R"))
 source(here("R", "preprocessing.R"))
 
 set.seed(10)
 
-dir.create(here("data"))
+dir.create(here("output"))
+dir.create(here("output", "data"))
 
 vcf_filename <- here("..", "amiss_data", "clinvar_20190624.vep.vcf")
 cadd_snv_filename <- here("..", "amiss_data", "CADD_clingen.tsv")
@@ -30,7 +32,7 @@ vcf_df <- vcf_df[vcf_df$CLNSIG != "drug_response", ]
 
 stopifnot(all(vcf_df$Feature == vcf_df$Ensembl_transcriptid, na.rm = TRUE))
 
-write.csv(vcf_df, here("data", "full_clingen.csv"))
+write.csv(vcf_df, here("output", "data", FILE_FULL_CLINGEN_CSV))
 
 cadd_snv_data <- read.delim(cadd_snv_filename, skip = 1, as.is = TRUE)
 cadd_indel_data <- read.delim(cadd_indel_filename, skip = 1, as.is = TRUE)
@@ -45,6 +47,6 @@ merged_data <- merge(x = cadd_data,
                      by.x = c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID"),
                      by.y = c("CHROM", "POS", "REF", "ALT", "Feature"))
 
-write.csv(file = here("data", "merged_data.csv"), x = merged_data, row.names = FALSE)
+write.csv(file = here("output", "data", FILE_MERGED_DATA_CSV), x = merged_data, row.names = FALSE)
 
-write(capture.output(sessionInfo()), "01_parse_vcf_sessioninfo.txt")
+write(capture.output(sessionInfo()), here("output", "01_parse_vcf_sessioninfo.txt"))

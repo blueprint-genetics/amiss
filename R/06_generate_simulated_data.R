@@ -8,14 +8,16 @@ library(futile.logger)
 library(digest)
 library(here)
 
+source(here("R", "constants.R"))
 source(here("R", "simulation_definitions.R"))
 source(here("R", "feature_definitions.R"))
 source(here("R", "utils.R"))
 
-flog.appender(appender.tee(here("06_generate_simulated_data.log")), name = "simulation_logger")
+cores <- get_env_cores()
+
+flog.appender(appender.tee(here("output", "06_generate_simulated_data.log")), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
 
-cores <- 24
 flog.pid.info("Using %d cores", cores,  name = "simulation_logger")
 registerDoParallel(cores)
 
@@ -23,7 +25,7 @@ seed <- 42
 flog.pid.info("Using seed %d", seed,  name = "simulation_logger")
 set.seed(seed)
 
-training_data <- read.csv(here("data", "preprocessed_training_data.csv"), as.is = TRUE, row.names = 1)
+training_data <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), as.is = TRUE, row.names = 1)
 
 flog.pid.info("Repeating %d times", repeats,  name = "simulation_logger")
 flog.pid.info("Simulations configuration:",  name = "simulation_logger")
@@ -31,7 +33,7 @@ flog.pid.info(capture.output(print(ampute_params)),  name = "simulation_logger")
 
 flog.pid.info("Creating directories for each repetition",  name = "simulation_logger")
 directories <- sapply(1:repeats, function(i) {
-  here("sim", "simulated_data", paste0("repeat_", i))
+  here("output", "sim", "simulated_data", paste0("repeat_", i))
 })
 
 dir_creation_success <- sapply(directories, function(d) {
@@ -135,6 +137,6 @@ repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
 }
 
 repetitions <- repetitions %>% unlist
-write.csv(repetitions, file = here("sim", "simulated_file_list.csv"))
+write.csv(repetitions, file = here("output", "sim", FILE_SIMULATED_FILE_LIST_CSV))
 
-write(capture.output(sessionInfo()), here("06_generate_simulated_data_sessioninfo.txt"))
+write(capture.output(sessionInfo()), here("output", "06_generate_simulated_data_sessioninfo.txt"))

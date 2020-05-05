@@ -1,17 +1,20 @@
 library(here)
 
+source(here("R", "constants.R"))
 source(here("R", "compute_rmse.R"))
 source(here("R", "impute_and_train.R"))
 source(here("R", "predict_on_test_set.R"))
+source(here("R", "utils.R"))
 
-flog.appender(appender.tee(here("07_run_simulations.log")), name = "simulation_logger")
+flog.appender(appender.tee(here("output", "07_run_simulations.log")), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
 
 seed <- 42
-cores <- 24
+cores <- get_env_cores()
+
 registerDoParallel(cores)
 
-sim_data_paths <- read.csv(file = here("sim", "simulated_file_list.csv"), as.is = TRUE)[,2]
+sim_data_paths <- read.csv(file = here("output", "sim", FILE_SIMULATED_FILE_LIST_CSV), as.is = TRUE)[,2]
 
 successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng% {
   
@@ -21,7 +24,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     
     flog.pid.info("Parameters:", name = "simulation_logger")
     iat_params <- list(training_path = sim_data_path,
-                       outcome_path = here("data", "training_outcomes.csv"),
+                       outcome_path = here("output", "data", FILE_TRAINING_OUTCOMES_CSV),
                        output_path = output_path,
                        cores = 1,
                        seed = seed,
@@ -32,8 +35,8 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     
     flog.pid.info("Producing performance statistics on %s", sim_data_path, name = "simulation_logger")
     test_params <- list(
-      test_path = here("data", "preprocessed_test_data.csv"),
-      outcome_path = here("data", "test_outcomes.csv"),
+      test_path = here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV),
+      outcome_path = here("output", "data", FILE_TEST_OUTCOMES_CSV),
       tr_output_path = output_path,
       results_dir_path = output_path,
       lean = TRUE,
@@ -47,19 +50,19 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
 
     flog.pid.info("Parameters:", name = "simulation_logger")
     rf_rmse_params <- list(
-      imputer_path = file.path(output_path, "rf_classifiers.rds"),
-      orig_data_path = here("data", "preprocessed_training_data.csv"),
+      imputer_path = file.path(output_path, FILE_RF_CLASSIFIERS_RDS),
+      orig_data_path = here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV),
       simu_data_path = sim_data_path,
-      output_filename = file.path(output_path, "rf_rmse.csv")
+      output_filename = file.path(output_path, FILE_RF_RMSE_CSV)
     )
     flog.pid.info(paste0(names(rf_rmse_params), " = ", rf_rmse_params), name = "simulation_logger")
     do.call(compute_rmse, rf_rmse_params)
 
     lr_rmse_params <- list(
-      imputer_path = file.path(output_path, "lr_classifiers.rds"),
-      orig_data_path = here("data", "preprocessed_training_data.csv"),
+      imputer_path = file.path(output_path, FILE_LR_CLASSIFIERS_RDS),
+      orig_data_path = here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV),
       simu_data_path = sim_data_path,
-      output_filename = file.path(output_path, "lr_rmse.csv")
+      output_filename = file.path(output_path, FILE_LR_RMSE_CSV)
     )
     flog.pid.info(paste0(names(lr_rmse_params), " = ", lr_rmse_params), name = "simulation_logger")
     do.call(compute_rmse, lr_rmse_params)
@@ -84,7 +87,7 @@ if (any(!successes)) {
 
 flog.pid.info("%d / %d simulations performed successfully", sum(successes), length(sim_data_paths), name = "simulation_logger")
 
-write.csv(sim_data_paths[successes], file = here("sim", "successfully_simulated_file_list.csv"))
-saveRDS(object=.Random.seed, file = here("simulations_last_seed.RDS"))
+write.csv(sim_data_paths[successes], file = here("output", "sim", FILE_SUCCESSFULLY_SIMULATED_FILE_LIST_CSV))
+saveRDS(object=.Random.seed, file = here("output", "sim", "simulations_last_seed.RDS"))
 
-write(capture.output(sessionInfo()), here("07_run_simulations_sessioninfo.txt"))
+write(capture.output(sessionInfo()), here("output", "07_run_simulations_sessioninfo.txt"))

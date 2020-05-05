@@ -3,11 +3,12 @@ library(purrr)
 library(foreach)
 library(doParallel)
 library(doRNG)
+library(here)
 
 
-source("R/recursive_application.R") # for enumerate
-source("R/utils.R") # for flog.pid.*
-source("R/constants.R")
+source(here("R", "recursive_application.R")) # for enumerate
+source(here("R", "utils.R")) # for flog.pid.*
+source(here("R", "constants.R"))
 
 sample_max <- function(x, size) {
   if (!is.data.frame(x)) stop("`x` must be a data.frame")
@@ -17,9 +18,6 @@ sample_max <- function(x, size) {
   else return(x[sample(1:NROW(x), size = size, replace = FALSE), , drop = FALSE])
 }
 
-# extract_oob_performance <- function(model) {
-#   model$finalModel$err.rate[, "OOB"] %>% tail(1)
-# }
 extract_mcc_performance <- function(model) {
 
   if (is.null(model)) return(NULL)

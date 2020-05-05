@@ -6,10 +6,11 @@ library(magrittr)
 library(pcaMethods)
 library(DMwR)
 library(missForest)
+library(here)
 
-source("R/utils.R")
-source("R/recursive_application.R")
-source("R/constants.R")
+source(here("R", "utils.R"))
+source(here("R", "recursive_application.R"))
+source(here("R", "constants.R"))
 
 #' Produce a function that replaces all missing values
 #' with column-specific outputs

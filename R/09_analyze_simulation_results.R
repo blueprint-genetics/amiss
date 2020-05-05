@@ -3,13 +3,15 @@ library(dplyr)
 library(stringr)
 library(here)
 
-sim_data_paths <- read.csv(file = here("sim", "successfully_simulated_file_list.csv"), as.is = TRUE)[,2]
+source(here("R", "constants.R"))
+
+sim_data_paths <- read.csv(file = here("output", "sim", FILE_SUCCESSFULLY_SIMULATED_FILE_LIST_CSV), as.is = TRUE)[,2]
 sim_result_paths <- paste0(sim_data_paths, "_output")
 
-rf_rmses <- file.path(sim_result_paths, "rf_rmse.csv")
-lr_rmses <- file.path(sim_result_paths, "lr_rmse.csv")
-rf_perfs <- file.path(sim_result_paths, "rf_performance.csv")
-lr_perfs <- file.path(sim_result_paths, "lr_performance.csv")
+rf_rmses <- file.path(sim_result_paths, FILE_RF_RMSE_CSV)
+lr_rmses <- file.path(sim_result_paths, FILE_LR_RMSE_CSV)
+rf_perfs <- file.path(sim_result_paths, FILE_RF_PERFORMANCE_CSV)
+lr_perfs <- file.path(sim_result_paths, FILE_LR_PERFORMANCE_CSV)
 
 rbind_csvs <- function(paths) {
   csvs <- lapply(paths, . %>% read.csv(as.is = TRUE))
@@ -33,5 +35,7 @@ lr_perf_df <- rbind_csvs(lr_perfs)
 rf_df <- merge(rf_perf_df, rf_rmse_df, by = c("repeat", "pct", "mech", "orientation", "method"), all = TRUE)
 lr_df <- merge(lr_perf_df, lr_rmse_df, by = c("repeat", "pct", "mech", "orientation", "method"), all = TRUE)
 
-write.csv(x = rf_df, here("sim", "simulated_rf_results.csv"))
-write.csv(x = lr_df, here("sim", "simulated_lr_results.csv"))
+write.csv(x = rf_df, here("output", "sim", FILE_SIMULATED_RF_RESULTS_CSV))
+write.csv(x = lr_df, here("output", "sim", FILE_SIMULATED_LR_RESULTS_CSV))
+
+write(capture.output(sessionInfo()), here("output", "09_analyze_simulation_results_sessioninfo.txt"))

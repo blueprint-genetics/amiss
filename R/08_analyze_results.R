@@ -3,10 +3,11 @@ library(gridExtra)
 library(ggplot2)
 library(here)
 
+source(here("R/constants.R"))
 source(here("R/utils.R"))
 
-rf_perf_path <- here("output", "results", "rf_performance.csv")
-lr_perf_path <- here("output", "results", "lr_performance.csv")
+rf_perf_path <- here("output", "results", FILE_RF_PERFORMANCE_CSV)
+lr_perf_path <- here("output", "results", FILE_LR_PERFORMANCE_CSV)
 results_path <- here("output", "results")
 
 rf_perf_table <- read.csv(rf_perf_path, as.is = TRUE)
@@ -100,4 +101,4 @@ lr_brier_boxplots <- arrangeGrob(
 )
 ggsave(filename =  "lr_brier_boxplots.pdf", plot = lr_brier_boxplots, device = "pdf", path = results_path, width = 210, height = 297, units = "mm")
 
-write(capture.output(sessionInfo()), here("08_analyze_results_sessioninfo.txt"))
+write(capture.output(sessionInfo()), here("output", "08_analyze_results_sessioninfo.txt"))

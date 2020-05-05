@@ -1,7 +1,8 @@
 library(magrittr)
+library(here)
 
-source("R/recursive_application.R") # for enumerate
-source("R/utils.R") # for find_dummies
+source(here("R", "recursive_application.R")) # for enumerate
+source(here("R", "utils.R")) # for find_dummies
 
 #' Partition dataset into a training and a test set
 #'

@@ -1,4 +1,4 @@
-POSITIVE_LABEL<- "positive"
+POSITIVE_LABEL <- "positive"
 NEGATIVE_LABEL <- "negative"
 
 IMPUTATION_REUSE_PARAMETERS <- "imputation_reuse_parameters"
@@ -13,6 +13,24 @@ SINGLE_IMP_METHODS <- c(
   "zero_imp",
   "outlier_imp"
 )
+
+FILE_FULL_CLINGEN_CSV <- "full_clingen.csv"
+FILE_MERGED_DATA_CSV <- "merged_data.csv"
+FILE_TRAINING_DATA_CSV <- "training_data.csv"
+FILE_TEST_DATA_CSV <- "test_data.csv"
+FILE_PREPROCESSED_TRAINING_DATA_CSV <- "preprocessed_training_data.csv"
+FILE_PREPROCESSED_TEST_DATA_CSV <- "preprocessed_test_data.csv"
+FILE_PREPROCESSED_W_CATEGORICAL_VARS_TRAINING_DATA_CSV <- "preprocessed_w_categorical_vars_training_data.csv"
+FILE_TRAINING_OUTCOMES_CSV <- "training_outcomes.csv"
+FILE_TEST_OUTCOMES_CSV <- "test_outcomes.csv"
+
+FILE_SIMULATED_FILE_LIST_CSV <- "simulated_file_list.csv"
+FILE_SUCCESSFULLY_SIMULATED_FILE_LIST_CSV <- "successfully_simulated_file_list.csv"
+FILE_SIMULATED_RF_RESULTS_CSV <- "simulated_rf_results.csv"
+FILE_SIMULATED_LR_RESULTS_CSV <- "simulated_lr_results.csv"
+
+FILE_RF_RMSE_CSV <- "rf_rmse.csv"
+FILE_LR_RMSE_CSV <- "lr_rmse.csv"
 
 FILE_RF_CLASSIFIERS_RDS <- "rf_classifiers.rds"
 FILE_LR_CLASSIFIERS_RDS <- "lr_classifiers.rds"

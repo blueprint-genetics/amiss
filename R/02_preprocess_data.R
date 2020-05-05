@@ -2,17 +2,18 @@ library(magrittr)
 library(futile.logger)
 library(here)
 
-flog.appender(appender.tee(here("02_preprocess_data.log")))
+flog.appender(appender.tee(here("output", "02_preprocess_data.log")))
 flog.info("02_preprocess_data.R")
 
 seed <- 10
 flog.info("Using seed: %d", seed)
 set.seed(seed)
 
+source(here("R", "constants.R"))
 source(here("R", "preprocessing.R"))
 
 flog.info("Reading data")
-merged_data <- read.csv(here("data", "merged_data.csv"), as.is = TRUE)
+merged_data <- read.csv(here("output", "data", FILE_MERGED_DATA_CSV), as.is = TRUE)
 flog.info("Rows: %d", nrow(merged_data))
 
 source(here("R", "feature_definitions.R"))
@@ -46,8 +47,8 @@ flog.info("Number of training set variants: %d", nrow(training_set))
 test_set <- data_split$test_set
 flog.info("Number of test set variants: %d", nrow(test_set))
 
-write.csv(file = here("data", "training_data.csv"), x = training_set, row.names = FALSE)
-write.csv(file = here("data", "test_data.csv"), x = test_set, row.names = FALSE)
+write.csv(file = here("output", "data", FILE_TRAINING_DATA_CSV), x = training_set, row.names = FALSE)
+write.csv(file = here("output", "data", FILE_TEST_DATA_CSV), x = test_set, row.names = FALSE)
 
 ## Process variables
 
@@ -157,7 +158,7 @@ flog.info("Test variants with high consequence dependent class imbalance: %d", s
 test_set <- test_set[!te_variants_w_unbalanced_class, ]
 test_outcome <- test_outcome[!te_variants_w_unbalanced_class]
 flog.info("Remaining variants in training set: %d", nrow(training_set))
-flog.info("Remaining variants in training set: %d", nrow(test_set))
+flog.info("Remaining variants in test set: %d", nrow(test_set))
 
 ## Feature selection 
 # The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier. 
@@ -168,13 +169,13 @@ test_set_selected <- select_features(test_set, numeric_features, categorical_fea
 
 # Finally, write out the processed data CSV file.
 flog.info("Writing files")
-write.csv(training_set, here("data", "preprocessed_w_categorical_vars_training_data.csv"), row.names = TRUE)
-write.csv(training_set_selected, here("data", "preprocessed_training_data.csv"), row.names = TRUE)
-write.csv(test_set_selected, here("data", "preprocessed_test_data.csv"), row.names = TRUE)
-write.csv(training_outcome, here("data", "training_outcomes.csv"), row.names = TRUE)
-write.csv(test_outcome, here("data", "test_outcomes.csv"), row.names = TRUE)
+write.csv(training_set, here("output", "data", FILE_PREPROCESSED_W_CATEGORICAL_VARS_TRAINING_DATA_CSV), row.names = TRUE)
+write.csv(training_set_selected, here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = TRUE)
+write.csv(test_set_selected, here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV), row.names = TRUE)
+write.csv(training_outcome, here("output", "data", FILE_TRAINING_OUTCOMES_CSV), row.names = TRUE)
+write.csv(test_outcome, here("output", "data", FILE_TEST_OUTCOMES_CSV), row.names = TRUE)
 
-write(capture.output(sessionInfo()), here("02_preprocess_data_sessioninfo.txt"))
+write(capture.output(sessionInfo()), here("output", "02_preprocess_data_sessioninfo.txt"))
 flog.info("Done writing files")
 
 

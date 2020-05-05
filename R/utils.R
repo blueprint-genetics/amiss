@@ -54,3 +54,12 @@ create_dir <- function(path) {
     }
   }
 }
+
+get_env_cores <- function() {
+    cores <- Sys.getenv("AMISS_CORES")
+    cores <- as.integer(cores)
+    if(is.na(cores))
+        cores <- 1
+    return(cores)
+}
+

@@ -1,8 +1,9 @@
 library(foreach)
 library(doParallel)
 library(doRNG)
+library(here)
 
-source("R/imputation.R")
+source(here("R", "imputation.R"))
 
 prediction <- function(models, completions, positive_label = POSITIVE_LABEL, seed = 1) {
   
