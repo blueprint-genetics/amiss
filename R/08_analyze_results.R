@@ -8,10 +8,14 @@ source(here("R/utils.R"))
 
 rf_perf_path <- here("output", "results", FILE_RF_PERFORMANCE_CSV)
 lr_perf_path <- here("output", "results", FILE_LR_PERFORMANCE_CSV)
+rf_perf_pc_path <- here("output", "results", FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV)
+lr_perf_pc_path <- here("output", "results", FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
 results_path <- here("output", "results")
 
 rf_perf_table <- read.csv(rf_perf_path, as.is = TRUE)
 lr_perf_table <- read.csv(lr_perf_path, as.is = TRUE)
+rf_perf_pc_table <- read.csv(rf_perf_pc_path, as.is = TRUE)
+lr_perf_pc_table <- read.csv(lr_perf_pc_path, as.is = TRUE)
 
 flog.pid.info("Creating output directory")
 if (!dir.exists(results_path)) {
@@ -40,6 +44,9 @@ aggregate_over_perf_table <- function(perf_table) {
 rf_perf_aggregations <- aggregate_over_perf_table(rf_perf_table)
 lr_perf_aggregations <- aggregate_over_perf_table(lr_perf_table)
 
+rf_perf_pc_aggregations <- aggregate_over_perf_table(rf_perf_pc_table)
+lr_perf_pc_aggregations <- aggregate_over_perf_table(lr_perf_pc_table)
+
 flog.pid.info("Writing averaged performance tables")
 for (name in names(rf_perf_aggregations)) {
   write.csv(x = rf_perf_aggregations[[name]],
@@ -49,6 +56,17 @@ for (name in names(rf_perf_aggregations)) {
 for (name in names(lr_perf_aggregations)) {
   write.csv(x = lr_perf_aggregations[[name]],
             file = file.path(results_path, paste0("lr_", name, ".csv")),
+            row.names = FALSE)
+}
+flog.pid.info("Writing averaged performance tables")
+for (name in names(rf_perf_pc_aggregations)) {
+  write.csv(x = rf_perf_pc_aggregations[[name]],
+            file = file.path(results_path, paste0("rf_", name, "_per_consequence.csv")),
+            row.names = FALSE)
+}
+for (name in names(lr_perf_pc_aggregations)) {
+  write.csv(x = lr_perf_pc_aggregations[[name]],
+            file = file.path(results_path, paste0("lr_", name, "_per_consequence.csv")),
             row.names = FALSE)
 }
 
