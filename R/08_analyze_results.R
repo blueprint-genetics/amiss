@@ -56,7 +56,7 @@ for (name in names(lr_perf_aggregations)) {
 rename_methods <- function(perf) {
   perf$method <- factor(perf$method,
                         c("missForest", "bpca", "norm.predict", "pmm", "norm", "rf", "outlier_imp", "max_imp", "min_imp", "zero_imp", "knnImputation", "median_imp", "missingness_indicators", "mean_imp"),
-                        c("missForest", "BPCA", "Regression", "PMM", "Bayes regression", "MICE RF", "Outlier", "Maximum", "Minimum", "Zero", "k-NN", "Median", "Missingness indicators", "Mean"))
+                        c("missForest", "BPCA", "MICE Regr.", "MICE PMM", "MICE Bayes r.", "MICE RF", "Outlier", "Maximum", "Minimum", "Zero", "k-NN", "Median", "Missingness ind.", "Mean"))
   return(perf)
 }
 
