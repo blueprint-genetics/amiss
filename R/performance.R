@@ -39,18 +39,18 @@ performance_stats <- function(predictions, outcome) {
   f1 <- recursive_apply_cm(confusion_matrices, extract_stat("F1"))
   precision <- recursive_apply_cm(confusion_matrices, extract_stat("Precision"))
 
-  perfs <- list(tp = tp,
-                fp = fp,
-                fn = fn,
-                tn = tn,
-                accuracy = accuracy,
-                brier = brier,
-                mcc = mcc,
-                auc = auc,
-                sensitivity = sensitivity,
-                specificity = specificity,
-                f1 = f1,
-                precision = precision)
+  perfs <- list(TP = tp,
+                FP = fp,
+                FN = fn,
+                TN = tn,
+                Accuracy = accuracy,
+                Brier = brier,
+                MCC = mcc,
+                AUC = auc,
+                Sensitivity = sensitivity,
+                Specificity = specificity,
+                F1 = f1,
+                Precision = precision)
 
   return(perfs)
 

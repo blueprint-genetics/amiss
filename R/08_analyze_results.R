@@ -2,7 +2,9 @@ library(futile.logger)
 library(gridExtra)
 library(ggplot2)
 library(here)
+library(magrittr)
 
+source(here("R/visualizations.R"))
 source(here("R/constants.R"))
 source(here("R/utils.R"))
 
@@ -77,74 +79,67 @@ rename_methods <- function(perf) {
                         c("missForest", "BPCA", "MICE Regr.", "MICE PMM", "MICE Bayes r.", "MICE RF", "Outlier", "Maximum", "Minimum", "Zero", "k-NN", "Median", "Missingness ind.", "Mean"))
   return(perf)
 }
+rename_consequences <- function(perf) {
+  perf$consequence <- factor(perf$consequence,
+                             perf$consequence %>% unique,
+                             gsub(CONSEQUENCE_COLUMN %>% paste0("."), "", perf$consequence %>% unique))
+  return(perf)
+}
 
 rf_perf <- rename_methods(rf_perf_table)
-rf_perf$method <- reorder(rf_perf$method, rf_perf$mcc, mean)
+rf_perf$method <- reorder(rf_perf$method, rf_perf$MCC, mean)
 lr_perf <- rename_methods(lr_perf_table)
 
-for (metric in c("tp", "fp", "fn", "tn", "brier", "accuracy", "mcc", "auc", "sensitivity", "specificity", "f1", "precision")) {
+rf_perf_pc <- rename_methods(rf_perf_pc_table)
+rf_perf_pc$method <- reorder(rf_perf_pc$method, rf_perf_pc$MCC, mean)
+lr_perf_pc <- rename_methods(lr_perf_pc_table)
+rf_perf_pc %<>% rename_consequences
+lr_perf_pc %<>% rename_consequences
 
-  var_metric <- rlang::sym(metric)
-  double_boxplots <- ggplot() +
-    geom_boxplot(data = lr_perf, color = "#A82026", aes(x=method, y=!!var_metric, fill = "Logistic regression"), outlier.color = "#DB607A", ) +
-    geom_boxplot(data = rf_perf, aes(x=method, y=!!var_metric, fill = "Random forest"), outlier.color = "#52555D" ) +
-    theme_bw() +
-    xlab(label = NULL) +
-    ylab(metric) +
-    coord_flip()+#ylim = c(0.10, 0.85)) +
-    theme(legend.position='bottom') +
-    theme(text = element_text(size=21)) +
-    scale_fill_manual("Classifier", values = c("#DB607A", "#52555D", "#11222A"))
+for (metric in c("TP", "FP", "FN", "TN", "Brier", "Accuracy", "MCC", "AUC", "Sensitivity", "Specificity", "F1", "Precision")) {
+  double_boxplots <- doubleboxplot(metric, rf_perf, lr_perf, FALSE)
   ggsave(filename = here("output", "results", paste0(metric, "_double_boxplots.pdf")), plot = double_boxplots, device = "pdf", width = 170, height = 180, units = "mm")
+}
+# One with both MCC and AUC
+double_boxplots_MCC_AUC <- doubleboxplot(c("MCC", "AUC"), rf_perf, lr_perf, FALSE)
+ggsave(filename = here("output", "results", "MCC_AUC_double_boxplots.pdf"), plot = double_boxplots_MCC_AUC, device = "pdf", width = 340, height = 180, units = "mm")
+
+for (metric in c("TP", "FP", "FN", "TN", "Brier", "Accuracy", "MCC", "AUC", "Sensitivity", "Specificity", "F1", "Precision")) {
+  double_boxplots <- doubleboxplot(metric, rf_perf_pc, lr_perf_pc, TRUE)
+  ggsave(filename = here("output", "results", paste0(metric, "_double_boxplots_perconseq.pdf")), plot = double_boxplots, device = "pdf", width = 340, height = 220, units = "mm")
 }
 
 flog.pid.info("Plotting and writing performance boxplots")
 # RF MCC
 rf_mcc_boxplots <- arrangeGrob(
-  ggplot(rf_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggplot(rf_perf_table, aes(x = method, y = MCC)) + geom_boxplot() + ggtitle("MCC of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = MCC)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = MCC)) + geom_boxplot() + ggtitle("MCC of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 )
 ggsave(filename =  "rf_mcc_boxplots.pdf", plot = rf_mcc_boxplots, device = "pdf", path = results_path, width = 170, height = 180, units = "mm")
 
 # RF AUC-ROC
 rf_roc_boxplots <- arrangeGrob(
-  ggplot(rf_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggplot(rf_perf_table, aes(x = method, y = AUC)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = AUC)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = AUC)) + geom_boxplot() + ggtitle("AUC-ROC of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 )
 ggsave(filename =  "rf_roc_boxplots.pdf", plot = rf_roc_boxplots, device = "pdf", path = results_path, width = 170, height = 180, units = "mm")
 
 # LR MCC
 lr_mcc_boxplots <- arrangeGrob(
-  ggplot(lr_perf_table, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = mcc)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggplot(lr_perf_table, aes(x = method, y = MCC)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = MCC)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = MCC)) + geom_boxplot() + ggtitle("MCC of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 )
 ggsave(filename =  "lr_mcc_boxplots.pdf", plot = lr_mcc_boxplots, device = "pdf", path = results_path, width = 170, height = 180, units = "mm")
 
 # LR AUC-ROC
 lr_roc_boxplots <- arrangeGrob(
-  ggplot(lr_perf_table, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = auc)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggplot(lr_perf_table, aes(x = method, y = AUC)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = AUC)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
+  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = AUC)) + geom_boxplot() + ggtitle("AUC-ROC of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 )
 ggsave(filename =  "lr_roc_boxplots.pdf", plot = lr_roc_boxplots, device = "pdf", path = results_path, width = 170, height = 180, units = "mm")
-
-# RF Brier
-rf_brier_boxplots <- arrangeGrob(
-  ggplot(rf_perf_table, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of random forest classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_test_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of random forest classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(rf_perf_aggregations$over_train_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of random forest classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-)
-ggsave(filename =  "rf_brier_boxplots.pdf", plot = rf_brier_boxplots, device = "pdf", path = results_path, width = 210, height = 180, units = "mm")
-
-# LR Brier
-lr_brier_boxplots <- arrangeGrob(
-  ggplot(lr_perf_table, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of logistic regression classifier") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_test_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of logistic regression classifier", subtitle = "Aggregated over test set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(lr_perf_aggregations$over_train_mean, aes(x = method, y = brier)) + geom_boxplot() + ggtitle("Brier score of logistic regression classifier", subtitle = "Aggregated over training set realizations") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-)
-ggsave(filename =  "lr_brier_boxplots.pdf", plot = lr_brier_boxplots, device = "pdf", path = results_path, width = 210, height = 180, units = "mm")
 
 write(capture.output(sessionInfo()), here("output", "08_analyze_results_sessioninfo.txt"))

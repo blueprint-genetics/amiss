@@ -88,14 +88,14 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     perf <- performance_stats(predictions, outcome = outcome_w_conseq)
     perf_table <- lapply(perf, turn_table) %>% merge_tables
     if(length(conseq) > 1) {
-      perf_table$consequence <- "other"
+      perf_table$consequence <- "Other"
     } else {
       perf_table$consequence <- conseq
     }
     return(perf_table)
   }
   # Per consequence
-  consequences <- find_dummies("Consequence.x", colnames(test_data))
+  consequences <- find_dummies(CONSEQUENCE_COLUMN, colnames(test_data))
   flog.pid.info("Computing performance statistics per consequences:")
   flog.pid.info(consequences)
   rf_perf_table_per_consequence <- lapply(consequences, . %>% compute_perfs_per_conseq(rf_completions, rf_models))
