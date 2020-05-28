@@ -48,9 +48,6 @@ ggsave(filename = here("output", "stats", "MI_correlations_negative_labels.pdf")
        plot = plot_missingness_correlations(negative_data, numeric_features, "Missingness indicator correlations (negative-labeled)"),
        device = "pdf", width = 340, height = 180, units = "mm")
 
-ggsave(filename = here("output", "stats", "MI_correlations_negative_labels.pdf"), 
-       plot = 
-       device = "pdf", width = 340, height = 180, units = "mm")
 # Observed value correlations
 ggsave(filename = here("output", "stats", "value_correlations.pdf"), 
        plot = plot_observed_correlations(training_set, numeric_features, "Correlations of observed values"),
@@ -121,8 +118,7 @@ heatmap <- function(long_df, log) {
              scale_fill_gradient("Count", low = "white", high = "red", trans = "log1p", breaks = c(0, 10, 60, 400, 775), na.value = "white")
            else
              scale_fill_gradient("Count", low = "white", high = "red", breaks = c(0, 200, 400, 600, 775), na.value = "white")) +
-           geom_raster(aes(x = x, y = y, fill = z)) +
-           #scale_fill_manual(name = "Missing value count", values = c("#FFDDDD", "#FFAAAA", "#FF6666", "#FF0000")) + 
+           geom_tile(aes(x = x, y = y, fill = z)) +
            theme_bw() +
            theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size=21))
   )
