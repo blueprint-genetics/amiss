@@ -7,7 +7,8 @@ RUN apt-get update && \
 COPY ./R/install_packages.R /amiss/R/install_packages.R
 RUN Rscript /amiss/R/install_packages.R
 COPY . /amiss
-RUN cd /amiss && bash /amiss/run_tests.sh
+RUN chmod +x /amiss/run_tests.sh
+RUN cd /amiss && /amiss/run_tests.sh
 
 CMD ["bash", "/amiss/run.sh", "/amiss"]
 
