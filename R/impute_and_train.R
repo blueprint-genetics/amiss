@@ -104,7 +104,13 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   ### Single value imputations
   flog.pid.info("Starting single value imputation")
   single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
-    list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
+    imputations <- list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
+    imputations <- lapply(imputations, function(hp_set) {
+      timings <- hp_set %>% extract2("completed_datasets") %>% extract2(1) %>% attr(TIMING_ATTR)
+      attr(hp_set, TIMING_ATTR) <- timings
+      return(hp_set)
+    })
+    return(imputations)
   }) %>% set_names(names(single_value_imputation_hyperparameter_grids))
 
   ### List and drop imputation methods that failed completely
