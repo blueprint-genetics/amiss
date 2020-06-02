@@ -115,12 +115,12 @@ heatmap <- function(long_df, log) {
   cols <- colnames(long_df)
   return(ggplot(long_df) +
            (if (log)
-             scale_fill_gradient("Count", low = "white", high = "red", trans = "log1p", breaks = c(0, 10, 60, 400, 775), na.value = "white")
+             scale_fill_gradient("Count", low = "white", high = "red", trans = "log1p", breaks = c(0, 10, 60, 400, max(long_df$z)), na.value = "white")
            else
-             scale_fill_gradient("Count", low = "white", high = "red", breaks = c(0, 200, 400, 600, 775), na.value = "white")) +
+             scale_fill_gradient("Count", low = "white", high = "red", breaks = c(0, 200, 400, 600, max(long_df$z)), na.value = "white")) +
            geom_tile(aes(x = x, y = y, fill = z)) +
            theme_bw() +
-           theme(axis.text.x = element_text(angle = 45, hjust = 1),text = element_text(size=21))
+           theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 12), text = element_text(size=21))
   )
 }
 cluster <- function(data) {
@@ -132,16 +132,13 @@ cluster <- function(data) {
   hy <- stats::hclust(stats::dist(data[, colnames(data) != "consequence"] %>% t))
   d <-  pivot_longer(data, cols = -consequence)
   data$consequence <- NULL
-  #d$x <- colnames(data)[d$x]
   d$consequence <- factor(d$consequence, unique(d$consequence)[hx$order])
-  #d$y <- colnames(data)[d$y]
   d$name <- factor(d$name, d$name[hy$order])
   
   return(d)
 }
 
 missing_values_longer <- cluster(data = missing_value_sum_per_consequence)
-#missing_values_longer$value <- cut(missing_values_longer$value, c(0, 150, 300, 450, 600, 750, 800), right = FALSE)
 dd <- data.frame(x = missing_values_longer$consequence, y = missing_values_longer$name, z = missing_values_longer$value)
 ggsave(filename = here("output", "stats", "missingness_heatmap.pdf"), 
   plot = heatmap(dd, log = FALSE) + coord_flip() + xlab("") + ylab(""),
