@@ -35,6 +35,8 @@ flog.pid.debug <- function(msg, ...) {
 
 form_run_time_df <- function(imputers, times_imputed) {
   timing <- map(.x = imputers, function(x) attr(x, TIMING_ATTR))
+  # Make sure that method and elapsed columns exist even if timing is empty
+  timing <- c(timing, list(data.frame(method = numeric(0), elapsed = numeric(0))))
   timing_df <- do.call(rbind, timing) %>% data.frame
   timing_df$method <- row.names(timing_df)
   timing_df <- timing_df %>% extract(c("method", "elapsed"))

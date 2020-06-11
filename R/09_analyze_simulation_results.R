@@ -49,6 +49,6 @@ lr_times_df$X <- NULL # Row names
 lr_times_df$classifier <- "LR"
 times_df <- rbind(rf_times_df, lr_times_df)
 
-write.csv(x = times_df, here("sim", "times.csv"))
+write.csv(x = times_df, here("output", "sim", "times.csv"))
 
 write(capture.output(sessionInfo()), here("output", "09_analyze_simulation_results_sessioninfo.txt"))
