@@ -3,9 +3,9 @@ library(ggplot2)
 library(gridExtra)
 library(magrittr)
 
-rf_perfs <- read.csv(here("sim", "simulated_rf_results.csv"))
-lr_perfs <- read.csv(here("sim", "simulated_lr_results.csv"))
-times <- read.csv(here("sim", "times.csv"))
+rf_perfs <- read.csv(here("output", "sim", "simulated_rf_results.csv"))
+lr_perfs <- read.csv(here("output", "sim", "simulated_lr_results.csv"))
+times <- read.csv(here("output", "sim", "times.csv"))
 
 rename_methods <- function(perf) {
   perf$method <- factor(perf$method,
@@ -21,14 +21,14 @@ lr_perfs$method <- factor(lr_perfs$method, levels = levels(rf_perfs$method))
 
 # MCC vs. pct
 
-dir.create(here("sim", "plots"))
+dir.create(here("output", "sim", "plots"))
 
 rf_mcc_vs_pct <- ggplot(subset(rf_perfs, method != "k-NN")) + 
   geom_boxplot(aes(x = factor(pct), y = mcc)) + 
   xlab("Intended missingness percentage") + 
   ylab("MCC") + 
   facet_wrap(vars(method))
-ggsave(filename = "rf_mcc_versus_miss_pct.pdf", plot = rf_mcc_vs_pct, device = "pdf", path = here("sim", "plots"), width = 170, height = 200, units = "mm")
+ggsave(filename = "rf_mcc_versus_miss_pct.pdf", plot = rf_mcc_vs_pct, device = "pdf", path = here("output", "sim", "plots"), width = 170, height = 200, units = "mm")
 
 rf_mcc_vs_obs_pct <- ggplot(subset(rf_perfs, method != "k-NN")) + 
   geom_point(aes(x = na_prop, y = mcc), alpha = 0.3) + 
@@ -36,14 +36,14 @@ rf_mcc_vs_obs_pct <- ggplot(subset(rf_perfs, method != "k-NN")) +
   xlab("Observed missingness percentage") + 
   ylab("MCC") + 
   facet_wrap(vars(method))
-ggsave(filename = "rf_mcc_versus_miss_pct_observed.pdf", plot = rf_mcc_vs_obs_pct, device = "pdf", path = here("sim", "plots"), width = 170, height = 200, units = "mm")
+ggsave(filename = "rf_mcc_versus_miss_pct_observed.pdf", plot = rf_mcc_vs_obs_pct, device = "pdf", path = here("output", "sim", "plots"), width = 170, height = 200, units = "mm")
 
 lr_mcc_vs_pct <- ggplot(subset(lr_perfs, method != "k-NN")) + 
   geom_boxplot(aes(x = factor(pct), y = mcc)) + 
   xlab("Intended missingness percentage") + 
   ylab("MCC") + 
   facet_wrap(vars(method))
-ggsave(filename = "lr_mcc_versus_miss_pct.pdf", plot = lr_mcc_vs_pct, device = "pdf", path = here("sim", "plots"), width = 170, height = 200, units = "mm")
+ggsave(filename = "lr_mcc_versus_miss_pct.pdf", plot = lr_mcc_vs_pct, device = "pdf", path = here("output", "sim", "plots"), width = 170, height = 200, units = "mm")
 
 lr_mcc_vs_obs_pct <- ggplot(subset(lr_perfs, method != "k-NN")) + 
   geom_point(aes(x = na_prop, y = mcc), alpha = 0.3)  + 
@@ -51,12 +51,11 @@ lr_mcc_vs_obs_pct <- ggplot(subset(lr_perfs, method != "k-NN")) +
   xlab("Observed missingness percentage") + 
   ylab("MCC") + 
   facet_wrap(vars(method))
-ggsave(filename = "lr_mcc_versus_miss_pct_observed.pdf", plot = lr_mcc_vs_obs_pct, device = "pdf", path = here("sim", "plots"), width = 170, height = 200, units = "mm")
-
+ggsave(filename = "lr_mcc_versus_miss_pct_observed.pdf", plot = lr_mcc_vs_obs_pct, device = "pdf", path = here("output", "sim", "plots"), width = 170, height = 200, units = "mm") 
 # RMSE
 
-dir.create(here("sim", "plots", "rmse", "fixed_scales"), recursive = TRUE)
-dir.create(here("sim", "plots", "rmse", "free_x_scale"), recursive = TRUE)
+dir.create(here("output", "sim", "plots", "rmse", "fixed_scales"), recursive = TRUE)
+dir.create(here("output", "sim", "plots", "rmse", "free_x_scale"), recursive = TRUE)
 
 form_and_save_rmse_plots <- function(data, prefix, path, x_scale=NULL, y_scale = c(0.4, 0.85), drop_methods=c("Missingness indicators", "missForest")) {
   
@@ -104,8 +103,8 @@ form_and_save_rmse_plots <- function(data, prefix, path, x_scale=NULL, y_scale =
   }
 }
 
-form_and_save_rmse_plots(rf_perfs, "rf", here("sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(0.4, 0.85), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
-form_and_save_rmse_plots(lr_perfs, "lr", here("sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(-0.25, 0.75), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
+form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(0.4, 0.85), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
+form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(-0.25, 0.75), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
 
-form_and_save_rmse_plots(rf_perfs, "rf", here("sim", "plots", "rmse", "free_x_scale"), y_scale = c(0.4, 0.85))
-form_and_save_rmse_plots(lr_perfs, "lr", here("sim", "plots", "rmse", "free_x_scale"), y_scale = c(-0.25, 0.75))
+form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(0.4, 0.85))
+form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(-0.25, 0.75))
