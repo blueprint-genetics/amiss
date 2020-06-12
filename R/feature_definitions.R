@@ -8,7 +8,6 @@ numeric_features <- make.names(c(
   "MutationAssessor_score",
   "FATHMM_score",
   "PROVEAN_score",
-  "M-CAP_score",
   "MutPred_score",
   "fathmm-MKL_coding_score",
   "GenoCanyon_score",
