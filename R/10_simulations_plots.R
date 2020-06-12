@@ -110,7 +110,6 @@ form_and_save_rmse_plots <- function(data, prefix, path, x_scale=NULL, y_scale =
 
 form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(0.4, 0.85), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
 form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(-0.25, 0.75), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
-<<<<<<< HEAD
 
 form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(0.4, 0.85))
 form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(-0.25, 0.75))
@@ -123,8 +122,3 @@ for (metric in c("TP", "FP", "FN", "TN", "Brier", "Accuracy", "MCC", "AUC", "Sen
   double_boxplots <- doubleboxplot(metric, rf_perfs_pc, lr_perfs_pc, TRUE)
   ggsave(filename = here("output", "sim", "plots", paste0(metric, "_double_boxplots_perconseq.pdf")), plot = double_boxplots, device = "pdf", width = 340, height = 220, units = "mm")
 }
-=======
-
-form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(0.4, 0.85))
-form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(-0.25, 0.75))
->>>>>>> master
