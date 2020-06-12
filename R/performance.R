@@ -18,6 +18,7 @@ performance_stats <- function(predictions, outcome) {
   })
 
   extract_stat <- function(stat) function(x) x %>% use_series("byClass") %>% extract(stat)
+  extract_accuracy <- function(x) x %>% use_series("overall") %>% extract("Accuracy")
 
   positive_outcome_indicator <- as.integer(outcome == outcome_lvls[1])
 
@@ -32,24 +33,24 @@ performance_stats <- function(predictions, outcome) {
   fn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[2], outcome_lvls[1]) %>% as.numeric %>% set_names("fn"))
   tn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[2], outcome_lvls[2]) %>% as.numeric %>% set_names("tn"))
   
+  accuracy <- recursive_apply_cm(confusion_matrices, extract_accuracy)
   sensitivity <- recursive_apply_cm(confusion_matrices, extract_stat("Sensitivity"))
   specificity <- recursive_apply_cm(confusion_matrices, extract_stat("Specificity"))
   f1 <- recursive_apply_cm(confusion_matrices, extract_stat("F1"))
   precision <- recursive_apply_cm(confusion_matrices, extract_stat("Precision"))
-  recall <- recursive_apply_cm(confusion_matrices, extract_stat("Recall"))
 
   perfs <- list(tp = tp,
                 fp = fp,
                 fn = fn,
                 tn = tn,
+                accuracy = accuracy,
                 brier = brier,
                 mcc = mcc,
                 auc = auc,
                 sensitivity = sensitivity,
                 specificity = specificity,
                 f1 = f1,
-                precision = precision,
-                recall = recall)
+                precision = precision)
 
   return(perfs)
 
