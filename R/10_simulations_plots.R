@@ -10,6 +10,7 @@ rf_perfs <- read.csv(here("output", "sim", FILE_SIMULATED_RF_RESULTS_CSV))
 lr_perfs <- read.csv(here("output", "sim", FILE_SIMULATED_LR_RESULTS_CSV))
 rf_perfs_pc <- read.csv(here("output", "sim", FILE_SIMULATED_RF_RESULTS_PER_CONSEQUENCE_CSV))
 lr_perfs_pc <- read.csv(here("output", "sim", FILE_SIMULATED_LR_RESULTS_PER_CONSEQUENCE_CSV))
+
 times <- read.csv(here("output", "sim", "times.csv"))
 
 rename_methods <- function(perf) {
@@ -57,8 +58,6 @@ lr_mcc_vs_obs_pct <- ggplot(subset(lr_perfs, method != "k-NN")) +
   ylab("MCC") + 
   facet_wrap(vars(method))
 ggsave(filename = "lr_mcc_versus_miss_pct_observed.pdf", plot = lr_mcc_vs_obs_pct, device = "pdf", path = here("output", "sim", "plots"), width = 170, height = 200, units = "mm")
-
-# RMSE
 
 dir.create(here("output", "sim", "plots", "rmse", "fixed_scales"), recursive = TRUE)
 dir.create(here("output", "sim", "plots", "rmse", "free_x_scale"), recursive = TRUE)
@@ -111,6 +110,7 @@ form_and_save_rmse_plots <- function(data, prefix, path, x_scale=NULL, y_scale =
 
 form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(0.4, 0.85), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
 form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "fixed_scales"), x_scale = c(0,8), y_scale = c(-0.25, 0.75), drop_methods = c("Outlier", "Missingness indicators", "missForest"))
+<<<<<<< HEAD
 
 form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(0.4, 0.85))
 form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(-0.25, 0.75))
@@ -123,3 +123,8 @@ for (metric in c("TP", "FP", "FN", "TN", "Brier", "Accuracy", "MCC", "AUC", "Sen
   double_boxplots <- doubleboxplot(metric, rf_perfs_pc, lr_perfs_pc, TRUE)
   ggsave(filename = here("output", "sim", "plots", paste0(metric, "_double_boxplots_perconseq.pdf")), plot = double_boxplots, device = "pdf", width = 340, height = 220, units = "mm")
 }
+=======
+
+form_and_save_rmse_plots(rf_perfs, "rf", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(0.4, 0.85))
+form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", "free_x_scale"), y_scale = c(-0.25, 0.75))
+>>>>>>> master
