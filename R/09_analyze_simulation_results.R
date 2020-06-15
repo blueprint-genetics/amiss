@@ -12,6 +12,8 @@ rf_rmses <- file.path(sim_result_paths, FILE_RF_RMSE_CSV)
 lr_rmses <- file.path(sim_result_paths, FILE_LR_RMSE_CSV)
 rf_perfs <- file.path(sim_result_paths, FILE_RF_PERFORMANCE_CSV)
 lr_perfs <- file.path(sim_result_paths, FILE_LR_PERFORMANCE_CSV)
+rf_perfs_pc <- file.path(sim_result_paths, FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV)
+lr_perfs_pc <- file.path(sim_result_paths, FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
 
 rf_times <- file.path(sim_result_paths, "rf_run_times.csv")
 lr_times <- file.path(sim_result_paths, "lr_run_times.csv")
@@ -34,12 +36,17 @@ colnames(lr_rmse_df)[colnames(lr_rmse_df) == "X"] <- "method"
 
 rf_perf_df <- rbind_csvs(rf_perfs)
 lr_perf_df <- rbind_csvs(lr_perfs)
+rf_perf_pc_df <- rbind_csvs(rf_perfs_pc)
+lr_perf_pc_df <- rbind_csvs(lr_perfs_pc)
 
 rf_df <- merge(rf_perf_df, rf_rmse_df, by = c("repeat", "pct", "mech", "method"), all = TRUE)
 lr_df <- merge(lr_perf_df, lr_rmse_df, by = c("repeat", "pct", "mech", "method"), all = TRUE)
 
 write.csv(x = rf_df, here("output", "sim", FILE_SIMULATED_RF_RESULTS_CSV))
 write.csv(x = lr_df, here("output", "sim", FILE_SIMULATED_LR_RESULTS_CSV))
+write.csv(x = rf_perf_pc_df, here("output", "sim", FILE_SIMULATED_RF_RESULTS_PER_CONSEQUENCE_CSV))
+write.csv(x = lr_perf_pc_df, here("output", "sim", FILE_SIMULATED_LR_RESULTS_PER_CONSEQUENCE_CSV))
+
 
 rf_times_df <- rbind_csvs(rf_times)
 rf_times_df$X <- NULL # Row names

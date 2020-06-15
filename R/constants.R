@@ -38,6 +38,11 @@ FILE_LR_CLASSIFIERS_RDS <- "lr_classifiers.rds"
 FILE_LR_PERFORMANCE_CSV <- "lr_performance.csv"
 FILE_RF_PERFORMANCE_CSV <- "rf_performance.csv"
 
+FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV <- "lr_performance_per_consequence.csv"
+FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV <- "rf_performance_per_consequence.csv"
+FILE_SIMULATED_RF_RESULTS_PER_CONSEQUENCE_CSV <- "simulated_rf_results_per_consequence.csv"
+FILE_SIMULATED_LR_RESULTS_PER_CONSEQUENCE_CSV <- "simulated_lr_results_per_consequence.csv"
+
 FILE_RF_HP_CONFIGS_RDS <- "rf_hp_configs.rds"
 FILE_LR_HP_CONFIGS_RDS <- "lr_hp_configs.rds"
 
@@ -63,3 +68,5 @@ FILE_LR_RUNTIMES_CSV <- "lr_run_times.csv"
 
 FILE_RF_IMPUTERS_RDS <- "rf_imputers.rds"
 FILE_LR_IMPUTERS_RDS <- "lr_imputers.rds"
+
+CONSEQUENCE_COLUMN <- "Consequence.x"
