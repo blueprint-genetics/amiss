@@ -10,6 +10,7 @@ rf_perfs <- read.csv(here("output", "sim", FILE_SIMULATED_RF_RESULTS_CSV))
 lr_perfs <- read.csv(here("output", "sim", FILE_SIMULATED_LR_RESULTS_CSV))
 rf_perfs_pc <- read.csv(here("output", "sim", FILE_SIMULATED_RF_RESULTS_PER_CONSEQUENCE_CSV))
 lr_perfs_pc <- read.csv(here("output", "sim", FILE_SIMULATED_LR_RESULTS_PER_CONSEQUENCE_CSV))
+
 times <- read.csv(here("output", "sim", "times.csv"))
 
 rename_methods <- function(perf) {
@@ -57,8 +58,6 @@ lr_mcc_vs_obs_pct <- ggplot(subset(lr_perfs, method != "k-NN")) +
   ylab("MCC") + 
   facet_wrap(vars(method))
 ggsave(filename = "lr_mcc_versus_miss_pct_observed.pdf", plot = lr_mcc_vs_obs_pct, device = "pdf", path = here("output", "sim", "plots"), width = 170, height = 200, units = "mm")
-
-# RMSE
 
 dir.create(here("output", "sim", "plots", "rmse", "fixed_scales"), recursive = TRUE)
 dir.create(here("output", "sim", "plots", "rmse", "free_x_scale"), recursive = TRUE)
