@@ -20,7 +20,7 @@ FILE_TRAINING_DATA_CSV <- "training_data.csv"
 FILE_TEST_DATA_CSV <- "test_data.csv"
 FILE_PREPROCESSED_TRAINING_DATA_CSV <- "preprocessed_training_data.csv"
 FILE_PREPROCESSED_TEST_DATA_CSV <- "preprocessed_test_data.csv"
-FILE_PREPROCESSED_W_CATEGORICAL_VARS_TRAINING_DATA_CSV <- "preprocessed_w_categorical_vars_training_data.csv"
+FILE_TRAINING_DATA_FOR_STATS_CSV <- "training_data_for_stats.csv"
 FILE_TRAINING_OUTCOMES_CSV <- "training_outcomes.csv"
 FILE_TEST_OUTCOMES_CSV <- "test_outcomes.csv"
 

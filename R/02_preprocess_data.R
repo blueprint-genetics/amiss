@@ -70,20 +70,6 @@ test_outcome <- code_labels(test_set$CLNSIG, positive_classes, negative_classes)
 names(test_outcome) <- row.names(test_set)
 flog.info(table(test_outcome) %>% capture.output)
 
-### Using a priori information to impute by constants
-
-# Some variables have missing values that can be imputed with sensible default values using *a priori* information.
-# For example, `motifEHIPos` is a variable that indicates whether the variant is highly informative to an overlapping motif.
-# It is set to `NA` when there are no overlapping motifs. We can decide to impute the variable with `FALSE`, which is
-# equivalent to defining that a variant is never highly informative to the inexistent motif. The information provided by the
-# `NA` should be encoded in a different variable, which indicates whether the variant overlaps any motif. This actually exists
-# as the variable `motifECount`, which contains the count of overlapping motifs, and `NA` when one does not exist. Again, it
-# makes sense to impute this variable with `0`.
-
-flog.info("Performing a priori imputation")
-training_set <- a_priori_impute(training_set, default_imputations)
-test_set <- a_priori_impute(test_set, default_imputations)
-
 ### Dummy variables
 
 # Categorical variables are processed into sets of dummy variables. Note that here each category is represented by a dummy variable.
@@ -160,18 +146,33 @@ test_outcome <- test_outcome[!te_variants_w_unbalanced_class]
 flog.info("Remaining variants in training set: %d", nrow(training_set))
 flog.info("Remaining variants in test set: %d", nrow(test_set))
 
+write.csv(training_set, here("output", "data", FILE_TRAINING_DATA_FOR_STATS_CSV), row.names = TRUE)
+
+### Using a priori information to impute by constants
+
+# Some variables have missing values that can be imputed with sensible default values using *a priori* information.
+# For example, `motifEHIPos` is a variable that indicates whether the variant is highly informative to an overlapping motif.
+# It is set to `NA` when there are no overlapping motifs. We can decide to impute the variable with `FALSE`, which is
+# equivalent to defining that a variant is never highly informative to the inexistent motif. The information provided by the
+# `NA` should be encoded in a different variable, which indicates whether the variant overlaps any motif. This actually exists
+# as the variable `motifECount`, which contains the count of overlapping motifs, and `NA` when one does not exist. Again, it
+# makes sense to impute this variable with `0`.
+
+flog.info("Performing a priori imputation")
+training_set <- a_priori_impute(training_set, default_imputations)
+test_set <- a_priori_impute(test_set, default_imputations)
+
 ## Feature selection 
 # The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier. 
 # Only dummy variable versions of categorical features are kept here.
 flog.info("Performing feature selection")
-training_set_selected <- select_features(training_set, numeric_features, categorical_features)
-test_set_selected <- select_features(test_set, numeric_features, categorical_features)
+training_set <- select_features(training_set, numeric_features, categorical_features)
+test_set <- select_features(test_set, numeric_features, categorical_features)
 
 # Finally, write out the processed data CSV file.
 flog.info("Writing files")
-write.csv(training_set, here("output", "data", FILE_PREPROCESSED_W_CATEGORICAL_VARS_TRAINING_DATA_CSV), row.names = TRUE)
-write.csv(training_set_selected, here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = TRUE)
-write.csv(test_set_selected, here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV), row.names = TRUE)
+write.csv(training_set, here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = TRUE)
+write.csv(test_set, here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV), row.names = TRUE)
 write.csv(training_outcome, here("output", "data", FILE_TRAINING_OUTCOMES_CSV), row.names = TRUE)
 write.csv(test_outcome, here("output", "data", FILE_TEST_OUTCOMES_CSV), row.names = TRUE)
 
