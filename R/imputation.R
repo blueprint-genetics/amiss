@@ -33,13 +33,15 @@ single_value_univariate_imputation <- function(f) {
   }
   imp_func <- function(dataframe) {
 
-    cols_w_nas <- sapply(dataframe, . %>% is.na %>% any)
-    if (!all(sapply(dataframe[,cols_w_nas, drop = FALSE], is.numeric))) stop("All columns with missingness must be numeric")
-
-    imp_data <- lapply(dataframe, replace_na)
-    estimates <- lapply(imp_data, function(col) attr(col, IMPUTATION_REUSE_PARAMETERS))
-    names(estimates) <- colnames(dataframe)
-    df <- data.frame(imp_data)
+    timing <- system.time({
+      cols_w_nas <- sapply(dataframe, . %>% is.na %>% any)
+      if (!all(sapply(dataframe[,cols_w_nas, drop = FALSE], is.numeric))) stop("All columns with missingness must be numeric")
+      imp_data <- lapply(dataframe, replace_na)
+      estimates <- lapply(imp_data, function(col) attr(col, IMPUTATION_REUSE_PARAMETERS))
+      names(estimates) <- colnames(dataframe)
+      df <- data.frame(imp_data)
+    })
+    attr(df, TIMING_ATTR) <- timing
     attr(df, IMPUTATION_REUSE_PARAMETERS) <- estimates
     return(df)
   }
@@ -97,6 +99,9 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
                                       ... = hyperparams)
 
       completed_datasets <- mice::complete(imputation_object, action = "all")
+      if (sapply(completed_datasets, function(d) any(is.na(d))) %>% any) {
+        stop("Error: missing values remain after imputation")
+      }
 
       list(
         completed_datasets = completed_datasets,
