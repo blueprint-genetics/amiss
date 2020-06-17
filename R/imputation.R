@@ -99,7 +99,7 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
                                       ... = hyperparams)
 
       completed_datasets <- mice::complete(imputation_object, action = "all")
-      if (sapply(completed_datasets, function(data) any(is.na(data)))) {
+      if (sapply(completed_datasets, function(d) any(is.na(d))) %>% any) {
         stop("Error: missing values remain after imputation")
       }
 
