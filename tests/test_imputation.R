@@ -5,11 +5,11 @@ source("R/imputation.R")
 
 mock_data <- data.frame(
   a = 1:10/10,
-  b = 10:1/10,
+  b = c(5:1/10, 6:10/10),
   c = c(0.1, 0.6, 0.22, 0.1, 0.2, 0.1, 0.8, 0.8, 0.0, 1),
   d = c(rep("a", 5), rep("b", 5)),
   o = factor(c("a", rep("b", 3), "a", rep("a", 3), "b", "b"), c("a", "b"))
-) 
+)
 mock_data_w_missingness <- mock_data
 mock_data_w_missingness[c(2,3,6,8), c(2)] <- NA
 
@@ -21,11 +21,11 @@ mock_imp_tree_knn_failed <- list(
   knnImputation = list(imp_hp_1 = list(NULL)),
   zero_imp = list(imp_hp_1 = list(completed_datasets = list(`1` = zero_imp(mock_data_w_missingness[,-5]))))
 )
- 
-test_that("check_method_results succeeds on no empty imputations", { 
+
+test_that("check_method_results succeeds on no empty imputations", {
   expect_silent(check_method_results(mock_imp_tree))
 })
-test_that("check_method_results succeeds on no empty imputations", { 
+test_that("check_method_results succeeds on no empty imputations", {
   expect_false(all(check_method_results(mock_imp_tree_knn_failed)))
 })
 
@@ -36,19 +36,23 @@ test_that("impute_over_grid produces imputed datasets", {
                                         pmm = data.frame(donors = 1, ridge = 0.001, matchtype = 1)
                                       ),
                                       seed = 1,
-                                      times = 2, 
+                                      times = 2,
                                       iterations = 2)
   expect_true(
-    all(map_depth(observed_output, 
-                  .depth = 2, 
+    all(map_depth(observed_output,
+                  .depth = 2,
                   . %>% extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
     )
   )
-  expect_equal(map_depth(observed_output, .depth = 4, is.data.frame) %>% unlist %>% sum, 6)
+  expect_equal(
+    map_depth(observed_output, .depth = 2,
+              . %>% extract2("completed_datasets") %>% sapply(is.data.frame)) %>% unlist %>% sum,
+    4
+  )
 })
-                  
+
 test_that("impute_with_hyperparameters produces imputed datasets", {
-  
+
   observed_output <- impute_with_hyperparameters(mock_data_w_missingness,
                                                        method_name = "knn",
                                                        impute_function = run_knn,
@@ -56,8 +60,8 @@ test_that("impute_with_hyperparameters produces imputed datasets", {
                                                        seed = 1, times = 2)
   expect_true(
     all(
-      map_depth(observed_output, 
-                  .depth = 1, 
+      map_depth(observed_output,
+                  .depth = 1,
                   . %>% extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
     )
   )
@@ -75,13 +79,13 @@ test_that("method_to_function fails correctly", {
 
 mi_expected_output <- data.frame(
   a = 1:10/10,
-  b = c(1.0, 0, 0, 0.7, 0.6, 0, 0.4, 0,0.2,0.1),
+  b = c(0.5, 0, 0, 0.2, 0.1, 0, 0.7, 0,0.9,1.0),
   c = c(0.1, 0.6, 0.22, 0.1, 0.2, 0.1, 0.8, 0.8, 0.0, 1),
   d = c(rep("a", 5), rep("b", 5)),
   o = factor(c("a", rep("b", 3), "a", rep("a", 3), "b", "b"), c("a", "b")),
   a_missing = c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE),
   b_missing = c(FALSE,TRUE,TRUE,FALSE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE)
-) 
+)
 mi_observed_output <- missingness_indicators(data = mock_data_w_missingness)
 test_that("missingness_indicators produces missingness indicators", {
   expect_equivalent(mi_observed_output, mi_expected_output)
@@ -91,13 +95,13 @@ test_that("missingness_indicator produces the same columns on a separate set", {
   # This test describes a situation where a separate set would actually lead to more unique missingness columns.
   # It is an unfortunate situation, but cannot be avoided unless we specifically want to keep *all* indicator columns
   # regardless of their equality.
-  
+
   modified_mock_data <- mock_data_w_missingness
   modified_mock_data[1, "a"] <- NA # Since a, c and d were all observed on the training set and thus equal, only the one describing a was kept.
   observed_output <- missingness_indicators(modified_mock_data, remove_vector = attr(mi_observed_output, IMPUTATION_REUSE_PARAMETERS))
   expected_output <- mi_expected_output %>% (function(x) {
     # Now a will have a missing value, and implicitly the data looks like c and d would have as well, even if it isn't true.
-    x$a[1] <- 0  
+    x$a[1] <- 0
     x$a_missing[1] <- TRUE
     return(x)
   })
@@ -149,7 +153,7 @@ test_that("run_knn imputes", {
   )
 })
 test_that("run_mice_pmm imputes", {
-  
+
   expect_true(
     run_mice_pmm(data = mock_data_w_missingness_2[,1:3], hyperparameters = list(donors = 1), times = 1, iterations = 1)$
       completed_datasets$`1` %>% is.null %>% `!`
@@ -161,7 +165,7 @@ test_that("run_mice_pmm imputes", {
 })
 
 test_that("run_missforest imputes", {
-  
+
   expect_true(
     run_missforest(data = mock_data_w_missingness_2[,1:3], hyperparams = list(ntree = 3), times = 1, iterations = 1)$
       completed_datasets$`1` %>% is.null %>% `!`
