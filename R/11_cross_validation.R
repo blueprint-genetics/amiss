@@ -10,6 +10,7 @@ source(here("R", "imputation_definitions.R"))
 cores <- get_env_cores()
 
 seed <- 42
+set.seed(seed)
 
 training_data <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = 1, as.is = TRUE)
 outcomes <- read.csv(here("output", "data", FILE_TRAINING_OUTCOMES_CSV), row.names = 1, as.is = TRUE)[[1]]
@@ -22,7 +23,7 @@ reordering <- sample(1:rows, rows, replace = FALSE)
 training_data <- training_data[reordering,]
 outcomes <- outcomes[reordering]
 
-folds <- split(1:rows, (1:rows) %% n_folds)
+folds <- replicate(10, sample(1:rows, 0.7*rows, replace = TRUE), simplify = FALSE)
 
 fold_tr_datas <- lapply(folds, function(fold) training_data[-fold, ])
 fold_tr_outcomes <- lapply(folds, function(fold) outcomes[-fold])
@@ -51,8 +52,8 @@ for (i in 1:length(folds)) {
   write.csv(fold_te_outcomes[[i]], te_outcome_path)
   
   impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
-                   mice_hyperparameter_grids = NULL, other_hyperparameter_grids = NULL, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
-                   cores = cores, seed = 42, lean = TRUE)
+                   mice_hyperparameter_grids = mice_hyperparameter_grids, other_hyperparameter_grids = other_hyperparameter_grids, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
+                   cores = 12, seed = 42, lean = TRUE)
   predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = cores, seed = 42, lean = TRUE)
   
   rf_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
@@ -80,5 +81,5 @@ ggsave(filename = here("output", "cv", "si_cv_double_boxplots.pdf"),
 
 ggsave(filename = here("output", "cv", "si_cv_double_boxplots_pc.pdf"), 
        plot = doubleboxplot("MCC", rf_pc_results, lr_pc_results, TRUE),
-       device = "pdf", width = 170, height = 180, units = "mm")
+       device = "pdf", width = 340, height = 360, units = "mm")
 
