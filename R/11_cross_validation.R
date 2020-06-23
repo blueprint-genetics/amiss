@@ -60,10 +60,6 @@ for (i in 1:length(folds)) {
   rf_results[[i]]$fold <- i
   lr_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV))
   lr_results[[i]]$fold <- i
-  rf_pc_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV))
-  rf_pc_results[[i]]$fold <- i
-  lr_pc_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV))
-  lr_pc_results[[i]]$fold <- i
 }
 rf_results <- do.call(rbind, rf_results)
 lr_results <- do.call(rbind, lr_results)
