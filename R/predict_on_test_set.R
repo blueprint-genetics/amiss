@@ -78,6 +78,8 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
 
   compute_perfs_per_conseq <- function(conseq, completions, models) {
     if(length(conseq) > 1) {
+      # If there are multiple consequences, they are assumed to represent all possible consequences,
+      # and we are looking for variants that are not part of any of them. Thus comparison to 0.
       data_w_conseq_ix <- apply(test_data[, conseq, drop = FALSE] == 0, MARGIN = 1, all)
     } else {
       data_w_conseq_ix <- test_data[[conseq]] == 1

@@ -67,19 +67,15 @@ for (i in 1:length(folds)) {
 }
 rf_results <- do.call(rbind, rf_results)
 lr_results <- do.call(rbind, lr_results)
-rf_pc_results <- do.call(rbind, rf_pc_results)
-lr_pc_results <- do.call(rbind, lr_pc_results)
+
+rf_results <- rename_methods(rf_results)
+rf_results$method <- reorder(rf_results$method, rf_results$MCC, mean)
+lr_results <- rename_methods(lr_results)
 
 write.csv(rf_results, here("output", "cv", FILE_RF_CROSSVALIDATION_RESULTS_CSV))
 write.csv(lr_results, here("output", "cv", FILE_LR_CROSSVALIDATION_RESULTS_CSV))
-write.csv(rf_pc_results, here("output", "cv", FILE_RF_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV))
-write.csv(lr_pc_results, here("output", "cv", FILE_LR_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV))
 
 ggsave(filename = here("output", "cv", "si_cv_double_boxplots.pdf"), 
        plot = doubleboxplot("MCC", rf_results, lr_results, FALSE),
        device = "pdf", width = 170, height = 180, units = "mm")
-
-ggsave(filename = here("output", "cv", "si_cv_double_boxplots_pc.pdf"), 
-       plot = doubleboxplot("MCC", rf_pc_results, lr_pc_results, TRUE),
-       device = "pdf", width = 340, height = 360, units = "mm")
 

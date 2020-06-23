@@ -8,22 +8,12 @@ source(here("R/constants.R"))
 
 rf_perfs <- read.csv(here("output", "sim", FILE_SIMULATED_RF_RESULTS_CSV))
 lr_perfs <- read.csv(here("output", "sim", FILE_SIMULATED_LR_RESULTS_CSV))
-rf_perfs_pc <- read.csv(here("output", "sim", FILE_SIMULATED_RF_RESULTS_PER_CONSEQUENCE_CSV))
-lr_perfs_pc <- read.csv(here("output", "sim", FILE_SIMULATED_LR_RESULTS_PER_CONSEQUENCE_CSV))
 
 times <- read.csv(here("output", "sim", "times.csv"))
 
-rename_methods <- function(perf) {
-  perf$method <- factor(perf$method,
-                        c("missForest", "bpca", "norm.predict", "pmm", "norm", "rf", "outlier_imp", "max_imp", "min_imp", "zero_imp", "knnImputation", "median_imp", "missingness_indicators", "mean_imp"),
-                        c("missForest", "BPCA", "MICE Regr.", "MICE PMM", "MICE Bayes r.", "MICE RF", "Outlier", "Maximum", "Minimum", "Zero", "k-NN", "Median", "Missingness ind.", "Mean"))
-  return(perf)
-}
-
-rf_perfs <- rename_methods(rf_perfs)
+rf_perfs <- rename_methods(rf_perfs) %>% add_n_to_method_name
 rf_perfs$method <- reorder(rf_perfs$method, rf_perfs$MCC, mean)
-lr_perfs <- rename_methods(lr_perfs)
-lr_perfs$method <- factor(lr_perfs$method, levels = levels(rf_perfs$method))
+lr_perfs <- rename_methods(lr_perfs) %>% add_n_to_method_name
 
 # MCC vs. pct
 
@@ -117,8 +107,4 @@ form_and_save_rmse_plots(lr_perfs, "lr", here("output", "sim", "plots", "rmse", 
 for (metric in c("TP", "FP", "FN", "TN", "Brier", "Accuracy", "MCC", "AUC", "Sensitivity", "Specificity", "F1", "Precision")) {
   double_boxplots <- doubleboxplot(metric, rf_perfs, lr_perfs, FALSE)
   ggsave(filename = here("output", "sim", "plots", paste0(metric, "_double_boxplots.pdf")), plot = double_boxplots, device = "pdf", width = 170, height = 180, units = "mm")
-}
-for (metric in c("TP", "FP", "FN", "TN", "Brier", "Accuracy", "MCC", "AUC", "Sensitivity", "Specificity", "F1", "Precision")) {
-  double_boxplots <- doubleboxplot(metric, rf_perfs_pc, lr_perfs_pc, TRUE)
-  ggsave(filename = here("output", "sim", "plots", paste0(metric, "_double_boxplots_perconseq.pdf")), plot = double_boxplots, device = "pdf", width = 340, height = 220, units = "mm")
 }

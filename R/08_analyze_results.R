@@ -72,29 +72,15 @@ for (name in names(lr_perf_pc_aggregations)) {
             row.names = FALSE)
 }
 
-
-rename_methods <- function(perf) {
-  perf$method <- factor(perf$method,
-                        c("missForest", "bpca", "norm.predict", "pmm", "norm", "rf", "outlier_imp", "max_imp", "min_imp", "zero_imp", "knnImputation", "median_imp", "missingness_indicators", "mean_imp"),
-                        c("missForest", "BPCA", "MICE Regr.", "MICE PMM", "MICE Bayes r.", "MICE RF", "Outlier", "Maximum", "Minimum", "Zero", "k-NN", "Median", "Missingness ind.", "Mean"))
-  return(perf)
-}
-rename_consequences <- function(perf) {
-  perf$consequence <- factor(perf$consequence,
-                             perf$consequence %>% unique,
-                             gsub(CONSEQUENCE_COLUMN %>% paste0("."), "", perf$consequence %>% unique))
-  return(perf)
-}
-
-rf_perf <- rename_methods(rf_perf_table)
+rf_perf <- rename_methods(rf_perf_table) %>% add_n_to_method_name("MCC")
 rf_perf$method <- reorder(rf_perf$method, rf_perf$MCC, mean)
-lr_perf <- rename_methods(lr_perf_table)
+lr_perf <- rename_methods(lr_perf_table) %>% add_n_to_method_name("MCC")
 
 rf_perf_pc <- rename_methods(rf_perf_pc_table)
 rf_perf_pc$method <- reorder(rf_perf_pc$method, rf_perf_pc$MCC, mean)
 lr_perf_pc <- rename_methods(lr_perf_pc_table)
-rf_perf_pc %<>% rename_consequences
-lr_perf_pc %<>% rename_consequences
+rf_perf_pc %<>% rename_consequences %>% add_n_to_consequence_name
+lr_perf_pc %<>% rename_consequences %>% add_n_to_consequence_name
 
 for (metric in c("TP", "FP", "FN", "TN", "Brier", "Accuracy", "MCC", "AUC", "Sensitivity", "Specificity", "F1", "Precision")) {
   double_boxplots <- doubleboxplot(metric, rf_perf, lr_perf, FALSE)
