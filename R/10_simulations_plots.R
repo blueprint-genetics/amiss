@@ -73,7 +73,7 @@ form_and_save_rmse_plots <- function(data, prefix, path, x_scale=NULL, y_scale =
   # Overall
   plots <- lapply(setdiff(levels(data$method), drop_methods), function(m) { 
     rmses <- ggplot(subset(rmse_perf, method == m)) + 
-      geom_point(aes(x = RMSE, y = MCC)) +
+      geom_point(aes(x = RMSE, y = MCC), alpha = 0.3) +
       theme_bw() +
       xlab('RMSE') +
       ylab('MCC') +
@@ -92,7 +92,7 @@ form_and_save_rmse_plots <- function(data, prefix, path, x_scale=NULL, y_scale =
     plots <- lapply(setdiff(levels(data$method), drop_methods), function(m) { 
       f_var <- rlang::sym(f)
       rmses <- ggplot(subset(data, method == m)) + 
-        geom_point(aes(x = !!f_var, y = MCC)) +
+        geom_point(aes(x = !!f_var, y = MCC), alpha = 0.3) +
         theme_bw() +
         xlab('RMSE') +
         ylab('MCC') +
