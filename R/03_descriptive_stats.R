@@ -73,7 +73,7 @@ ggsave(filename = here("output", "stats", "MI_vs_value_correlations_positive_lab
 ## Feature value distributions
 
 flog.pid.info("Plotting feature histograms")
-# Next, plot distributions of each feature. Are they normal or linear?
+# Next, plot distributions of each numeric feature. Are they normal or linear?
 feature_distribution_plots <- lapply(numeric_features,
                                      function(column) {
                                        ggplot2::quickplot(
@@ -91,6 +91,18 @@ ggsave(filename = here("output", "stats", "feature_histograms.pdf"),
        ),
        device = "pdf", width = 340, height = 340, units = "mm")
 # They are not, and thus it might be worth considering data transformations. In the case of random forest, however, monotone transformations should have no effect.
+
+## Correlations with outcome indicator
+
+feature_to_outcome_correlations <- sapply(numeric_features, function(feature) cor(training_set[[feature]], outcome == "positive", use = "pairwise.complete.obs"))
+feature_to_outcome_correlations <- data.frame(Feature = numeric_features, Correlation = feature_to_outcome_correlations)
+ggsave(filename = here("output", "stats", "feature_to_outcome_correlation.pdf"),
+       ggplot(feature_to_outcome_correlations) +
+         geom_col(aes(x=Feature, y = Correlation)) +
+         theme_bw() +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+               legend.text.align = 1),
+       device = "pdf", width = 280, height = 140, units = "mm")
 
 ## Categorical level occurence counts
 
