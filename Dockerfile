@@ -1,4 +1,4 @@
-FROM rocker/r-ver:3.6.2
+FROM rocker/r-ver:3.6.0
 RUN apt-get update && \
 	apt-get install -y zlib1g-dev && \
 	apt-get install -y libcurl4-openssl-dev && \
