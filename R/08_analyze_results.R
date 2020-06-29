@@ -72,9 +72,9 @@ for (name in names(lr_perf_pc_aggregations)) {
             row.names = FALSE)
 }
 
-rf_perf <- rename_methods(rf_perf_table) %>% add_n_to_method_name("MCC")
+rf_perf <- rename_methods(rf_perf_table)
 rf_perf$method <- reorder(rf_perf$method, rf_perf$MCC, mean)
-lr_perf <- rename_methods(lr_perf_table) %>% add_n_to_method_name("MCC")
+lr_perf <- rename_methods(lr_perf_table)
 
 rf_perf_pc <- rename_methods(rf_perf_pc_table)
 rf_perf_pc$method <- reorder(rf_perf_pc$method, rf_perf_pc$MCC, mean)

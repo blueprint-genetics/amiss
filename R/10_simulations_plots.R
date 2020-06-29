@@ -11,9 +11,9 @@ lr_perfs <- read.csv(here("output", "sim", FILE_SIMULATED_LR_RESULTS_CSV))
 
 times <- read.csv(here("output", "sim", "times.csv"))
 
-rf_perfs <- rename_methods(rf_perfs) %>% add_n_to_method_name
+rf_perfs <- rename_methods(rf_perfs)
 rf_perfs$method <- reorder(rf_perfs$method, rf_perfs$MCC, mean)
-lr_perfs <- rename_methods(lr_perfs) %>% add_n_to_method_name
+lr_perfs <- rename_methods(lr_perfs)
 
 # MCC vs. pct
 

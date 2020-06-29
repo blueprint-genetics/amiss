@@ -109,15 +109,6 @@ rename_consequences <- function(perf) {
                              gsub(CONSEQUENCE_COLUMN %>% paste0("."), "", perf$consequence %>% unique))
   return(perf)
 }
-add_n_to_method_name <- function(perf) {
-
-  method_names <- unique(perf$method)
-  method_n <- sapply(method_names, function(name) sum(perf$method == name))
-  new_method_names <- paste0(method_names, " (n = ", method_n, ")")
-  perf$method <- factor(perf$method, method_names, new_method_names)
-
-  return(perf)
-}
 
 add_n_to_consequence_name <-  function(perf) {
   consequence_names <- unique(perf$consequence)
