@@ -10,6 +10,6 @@ predict_on_test_set(test_path = here("output", "data", FILE_PREPROCESSED_TEST_DA
                     outcome_path = here("output", "data", FILE_TEST_OUTCOMES_CSV),
                     tr_output_path = here("output"),
                     results_dir_path = here("output", "results"),
-                    lean = FALSE, cores = cores, seed = 42)
+                    lean = FALSE, cores = cores, seed = 10)
 
 write(capture.output(sessionInfo()), here("output", "05_run_prediction_sessioninfo.txt"))

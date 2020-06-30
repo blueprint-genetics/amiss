@@ -13,6 +13,6 @@ impute_and_train(training_path = here("output", "data", FILE_PREPROCESSED_TRAINI
                  mice_hyperparameter_grids = mice_hyperparameter_grids,
                  other_hyperparameter_grids = other_hyperparameter_grids,
                  single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
-                 cores = cores, seed = 42, lean = FALSE)
+                 cores = cores, seed = 10, lean = FALSE)
 
 write(capture.output(sessionInfo()), here("output", "04_run_impute_and_train_sessioninfo.txt"))

@@ -9,7 +9,7 @@ source(here("R", "imputation_definitions.R"))
 
 cores <- get_env_cores()
 
-seed <- 42
+seed <- 10
 set.seed(seed)
 
 training_data <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = 1, as.is = TRUE)

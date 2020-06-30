@@ -12,7 +12,7 @@ other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it
 flog.appender(appender.tee(here("output", "07_run_simulations.log")), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
 
-seed <- 42
+seed <- 10
 cores <- get_env_cores()
 
 registerDoParallel(cores)
