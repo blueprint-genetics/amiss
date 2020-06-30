@@ -23,7 +23,7 @@ reordering <- sample(1:rows, rows, replace = FALSE)
 training_data <- training_data[reordering,]
 outcomes <- outcomes[reordering]
 
-folds <- replicate(10, sample(1:rows, 0.7*rows, replace = TRUE), simplify = FALSE)
+folds <- replicate(n_folds, sample(1:rows, 0.7*rows, replace = TRUE), simplify = FALSE)
 
 fold_tr_datas <- lapply(folds, function(fold) training_data[-fold, ])
 fold_tr_outcomes <- lapply(folds, function(fold) outcomes[-fold])
@@ -53,7 +53,7 @@ for (i in 1:length(folds)) {
   
   impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
                    mice_hyperparameter_grids = mice_hyperparameter_grids, other_hyperparameter_grids = other_hyperparameter_grids, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
-                   cores = 12, seed = 42, lean = TRUE)
+                   cores = cores, seed = 42, lean = TRUE)
   predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = cores, seed = 42, lean = TRUE)
   
   rf_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
