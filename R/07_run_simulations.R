@@ -7,6 +7,8 @@ source(here("R", "predict_on_test_set.R"))
 source(here("R", "utils.R"))
 source(here("R", "imputation_definitions.R"))
 
+other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
+
 flog.appender(appender.tee(here("output", "07_run_simulations.log")), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
 

@@ -32,7 +32,6 @@ impute_and_train <- function(training_path,
   if (lean) {
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
     other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
-    other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
   }
 
   flog.pid.info("impute_and_train.R")
