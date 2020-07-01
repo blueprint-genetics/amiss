@@ -143,9 +143,11 @@ cluster <- function(data) {
   if (is.null(colnames(data))) {
     stop("Input must have column names")
   }
+  data <- data[order(row.names(data)), order(colnames(data))]
   hx <- stats::hclust(stats::dist(data[, colnames(data) != "consequence"]))
   hy <- stats::hclust(stats::dist(data[, colnames(data) != "consequence"] %>% t))
-  d <-  pivot_longer(data, cols = -consequence)
+  d <- gather(data, "name", "value", -consequence, factor_key = TRUE)
+  d <- d[order(d$consequence),]
   data$consequence <- NULL
   d$consequence <- factor(d$consequence, unique(d$consequence)[hx$order])
   d$name <- factor(d$name, d$name[hy$order])
