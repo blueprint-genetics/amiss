@@ -68,8 +68,8 @@ plot_missingness_vs_observed_correlations <- function(data, features, title) {
 
 doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
 
-  rf_perf %<>% pivot_longer(cols = metric, names_to = "metric", values_to = "value")
-  lr_perf %<>% pivot_longer(cols = metric, names_to = "metric", values_to = "value")
+  rf_perf %<>% gather("metric", "value", metric)
+  lr_perf %<>% gather("metric", "value", metric)
 
   by <- if (per_consequence) c("method", "metric", "consequence") else c("method", "metric")
   rf_med <- aggregate(rf_perf[["value"]], by = rf_perf[, by, drop = FALSE], FUN = median)
