@@ -5,11 +5,14 @@ source(here("R", "compute_rmse.R"))
 source(here("R", "impute_and_train.R"))
 source(here("R", "predict_on_test_set.R"))
 source(here("R", "utils.R"))
+source(here("R", "imputation_definitions.R"))
+
+other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
 
 flog.appender(appender.tee(here("output", "07_run_simulations.log")), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
 
-seed <- 42
+seed <- 10
 cores <- get_env_cores()
 
 registerDoParallel(cores)
@@ -26,6 +29,9 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
     iat_params <- list(training_path = sim_data_path,
                        outcome_path = here("output", "data", FILE_TRAINING_OUTCOMES_CSV),
                        output_path = output_path,
+                       mice_hyperparameter_grids = mice_hyperparameter_grids,
+                       other_hyperparameter_grids = other_hyperparameter_grids,
+                       single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
                        cores = 1,
                        seed = seed,
                        lean = TRUE)

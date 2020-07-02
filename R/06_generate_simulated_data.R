@@ -21,7 +21,7 @@ flog.threshold(DEBUG, name = "simulation_logger")
 flog.pid.info("Using %d cores", cores,  name = "simulation_logger")
 registerDoParallel(cores)
 
-seed <- 42
+seed <- 10
 flog.pid.info("Using seed %d", seed,  name = "simulation_logger")
 set.seed(seed)
 

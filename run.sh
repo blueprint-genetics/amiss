@@ -13,4 +13,5 @@ Rscript $1/R/07_run_simulations.R
 Rscript $1/R/08_analyze_results.R
 Rscript $1/R/09_analyze_simulation_results.R
 Rscript $1/R/10_simulations_plots.R
+Rscript $1/R/11_cross_validation.R
 

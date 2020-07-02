@@ -68,8 +68,8 @@ plot_missingness_vs_observed_correlations <- function(data, features, title) {
 
 doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
 
-  rf_perf %<>% pivot_longer(cols = metric, names_to = "metric", values_to = "value")
-  lr_perf %<>% pivot_longer(cols = metric, names_to = "metric", values_to = "value")
+  rf_perf %<>% gather("metric", "value", metric)
+  lr_perf %<>% gather("metric", "value", metric)
 
   by <- if (per_consequence) c("method", "metric", "consequence") else c("method", "metric")
   rf_med <- aggregate(rf_perf[["value"]], by = rf_perf[, by, drop = FALSE], FUN = median)
@@ -95,4 +95,36 @@ doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
   }
 
   return(double_boxplots)
+}
+
+rename_methods <- function(perf) {
+  perf$method <- factor(perf$method,
+                        c("missForest", "bpca", "norm.predict", "pmm", "norm", "rf", "outlier_imp", "max_imp", "min_imp", "zero_imp", "knnImputation", "median_imp", "missingness_indicators", "mean_imp"),
+                        c("missForest", "BPCA", "MICE Regr.", "MICE PMM", "MICE Bayes r.", "MICE RF", "Outlier", "Maximum", "Minimum", "Zero", "k-NN", "Median", "Missingness ind.", "Mean"))
+  return(perf)
+}
+rename_consequences <- function(perf) {
+  perf$consequence <- factor(perf$consequence,
+                             perf$consequence %>% unique,
+                             gsub(CONSEQUENCE_COLUMN %>% paste0("."), "", perf$consequence %>% unique))
+  return(perf)
+}
+
+add_n_to_consequence_name <-  function(perf) {
+  consequence_names <- unique(perf$consequence)
+  n <- perf$TP + perf$FP + perf$FN + perf$TN
+  pos <- perf$TP + perf$FN
+  neg <- perf$FP + perf$TN
+  df <- data.frame(n = n, pos = pos, neg = neg)
+  df <- lapply(consequence_names, function(name) df[perf$consequence == name,][1,])
+  df <- do.call(rbind, df)
+  row.names(df) <- consequence_names
+
+  stopifnot(all(sapply(consequence_names, function(name) all(n[perf$consequence == name] == df[name, "n"]))))
+
+  new_consequence_names <- paste0(consequence_names, "\nN = ", df$n, ", positive = ", df$pos, ", negative = ", df$neg )
+  perf$consequence <- factor(perf$consequence, consequence_names, new_consequence_names)
+
+  return(perf)
+
 }

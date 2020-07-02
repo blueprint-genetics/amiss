@@ -9,14 +9,19 @@ library(doRNG)
 library(here)
 
 source(here("R", "utils.R"))
-source(here("R", "imputation_definitions.R"))
 source(here("R", "training_functions.R"))
 source(here("R", "recursive_application.R"))
 source(here("R", "imputation.R"))
 source(here("R", "constants.R"))
 
 
-impute_and_train <- function(training_path, outcome_path, output_path, cores, seed = 42, lean) {
+impute_and_train <- function(training_path,
+                             outcome_path,
+                             output_path,
+                             mice_hyperparameter_grids,
+                             other_hyperparameter_grids,
+                             single_value_imputation_hyperparameter_grids,
+                             cores, seed = 42, lean) {
   
   create_dir(output_path)
 
@@ -27,7 +32,6 @@ impute_and_train <- function(training_path, outcome_path, output_path, cores, se
   if (lean) {
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
     other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
-    other_hyperparameter_grids$missForest <- NULL # missForest takes so long that it is not worth running in simulations
   }
 
   flog.pid.info("impute_and_train.R")

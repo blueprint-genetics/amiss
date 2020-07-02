@@ -54,11 +54,11 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
 
   flog.pid.info("Starting imputation of test set")
   if (!lean) {
-    times <- 10
+    times <- IMPUTE_TIMES
   } else {
-    times <- 1
+    times <- SIMULATION_IMPUTE_TIMES
   }
-  iters <- 10
+  iters <- MICE_ITERATIONS
   flog.pid.info("For MICE methods, imputing %d times, with max. %d iterations", times, iters)
 
   flog.pid.info("Imputation of test set with best hyperparameter configurations for RF")
@@ -76,36 +76,40 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
   flog.pid.info("Starting prediction by LR models")
   lr_predictions <- prediction(lr_models, lr_completions)
 
-  compute_perfs_per_conseq <- function(conseq, completions, models) {
-    if(length(conseq) > 1) {
-      data_w_conseq_ix <- apply(test_data[, conseq, drop = FALSE] == 0, MARGIN = 1, all)
-    } else {
-      data_w_conseq_ix <- test_data[[conseq]] == 1
+  if (!lean) {
+    compute_perfs_per_conseq <- function(conseq, completions, models) {
+      if(length(conseq) > 1) {
+        # If there are multiple consequences, they are assumed to represent all possible consequences,
+        # and we are looking for variants that are not part of any of them. Thus comparison to 0.
+        data_w_conseq_ix <- apply(test_data[, conseq, drop = FALSE] == 0, MARGIN = 1, all)
+      } else {
+        data_w_conseq_ix <- test_data[[conseq]] == 1
+      }
+      outcome_w_conseq <- outcome[data_w_conseq_ix]
+      completed_data_per_consequence <- recursive_apply(completions, fun = function(df) df[data_w_conseq_ix,,drop = FALSE], x_class = "data.frame")
+      predictions <- prediction(models, completed_data_per_consequence)
+      perf <- performance_stats(predictions, outcome = outcome_w_conseq)
+      perf_table <- lapply(perf, turn_table) %>% merge_tables
+      if(length(conseq) > 1) {
+        perf_table$consequence <- "Other"
+      } else {
+        perf_table$consequence <- conseq
+      }
+      return(perf_table)
     }
-    outcome_w_conseq <- outcome[data_w_conseq_ix]
-    completed_data_per_consequence <- recursive_apply(completions, fun = function(df) df[data_w_conseq_ix,,drop = FALSE], x_class = "data.frame")
-    predictions <- prediction(models, completed_data_per_consequence)
-    perf <- performance_stats(predictions, outcome = outcome_w_conseq)
-    perf_table <- lapply(perf, turn_table) %>% merge_tables
-    if(length(conseq) > 1) {
-      perf_table$consequence <- "Other"
-    } else {
-      perf_table$consequence <- conseq
-    }
-    return(perf_table)
+    # Per consequence
+    consequences <- find_dummies(CONSEQUENCE_COLUMN, colnames(test_data))
+    flog.pid.info("Computing performance statistics per consequences:")
+    flog.pid.info(consequences)
+    rf_perf_table_per_consequence <- lapply(consequences, . %>% compute_perfs_per_conseq(rf_completions, rf_models))
+    rf_perf_table_per_consequence <- c(rf_perf_table_per_consequence, list(compute_perfs_per_conseq(consequences, rf_completions, rf_models)))
+    rf_perf_table_per_consequence <- do.call(rbind, rf_perf_table_per_consequence)
+    lr_perf_table_per_consequence <- lapply(consequences, . %>% compute_perfs_per_conseq(lr_completions, lr_models))
+    lr_perf_table_per_consequence <- c(lr_perf_table_per_consequence, list(compute_perfs_per_conseq(consequences, lr_completions, lr_models)))
+    lr_perf_table_per_consequence <- do.call(rbind, lr_perf_table_per_consequence)
+    write.csv(x = rf_perf_table_per_consequence, file = file.path(results_dir_path, FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV), row.names = FALSE)
+    write.csv(x = lr_perf_table_per_consequence, file = file.path(results_dir_path, FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV), row.names = FALSE)
   }
-  # Per consequence
-  consequences <- find_dummies(CONSEQUENCE_COLUMN, colnames(test_data))
-  flog.pid.info("Computing performance statistics per consequences:")
-  flog.pid.info(consequences)
-  rf_perf_table_per_consequence <- lapply(consequences, . %>% compute_perfs_per_conseq(rf_completions, rf_models))
-  rf_perf_table_per_consequence <- c(rf_perf_table_per_consequence, list(compute_perfs_per_conseq(consequences, rf_completions, rf_models)))
-  rf_perf_table_per_consequence <- do.call(rbind, rf_perf_table_per_consequence)
-  lr_perf_table_per_consequence <- lapply(consequences, . %>% compute_perfs_per_conseq(lr_completions, lr_models))
-  lr_perf_table_per_consequence <- c(lr_perf_table_per_consequence, list(compute_perfs_per_conseq(consequences, lr_completions, lr_models)))
-  lr_perf_table_per_consequence <- do.call(rbind, lr_perf_table_per_consequence)
-  write.csv(x = rf_perf_table_per_consequence, file = file.path(results_dir_path, FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV), row.names = FALSE)
-  write.csv(x = lr_perf_table_per_consequence, file = file.path(results_dir_path, FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV), row.names = FALSE)
 
   ## Compute performance statistics on the test set
   flog.pid.info("Computing performance statistics")
