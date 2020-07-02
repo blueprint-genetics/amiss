@@ -11,6 +11,9 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
   
     pred_per_model <- lapply(models[[method]], function(model) {
 
+      if (is.null(completions[[method]]) || length(completions[[method]]) < 1) {
+        return(list(NA))
+      }
       pred_per_completion <- foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
         if (!is.null(completed_dataset)) {
           tryCatch({

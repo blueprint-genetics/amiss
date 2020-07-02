@@ -54,11 +54,11 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
 
   flog.pid.info("Starting imputation of test set")
   if (!lean) {
-    times <- 10
+    times <- IMPUTE_TIMES
   } else {
-    times <- 1
+    times <- SIMULATION_IMPUTE_TIMES
   }
-  iters <- 10
+  iters <- MICE_ITERATIONS
   flog.pid.info("For MICE methods, imputing %d times, with max. %d iterations", times, iters)
 
   flog.pid.info("Imputation of test set with best hyperparameter configurations for RF")
