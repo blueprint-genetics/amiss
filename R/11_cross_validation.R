@@ -15,7 +15,7 @@ set.seed(seed)
 training_data <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = 1, as.is = TRUE)
 outcomes <- read.csv(here("output", "data", FILE_TRAINING_OUTCOMES_CSV), row.names = 1, as.is = TRUE)[[1]]
 
-n_folds <- 5
+n_folds <- 100
 rows <- NROW(training_data)
 
 # Reorder rows
