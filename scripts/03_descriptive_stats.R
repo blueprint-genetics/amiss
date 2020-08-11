@@ -25,9 +25,9 @@ if (!dir.exists(here("output", "stats"))) {
 
 flog.pid.info("Reading data")
 training_set <- read.csv(here("output", "data", FILE_TRAINING_DATA_FOR_STATS_CSV), row.names = 1, as.is = TRUE)
-outcome <- read.csv(here("output", "data", FILE_TRAINING_OUTCOMES_CSV), row.names = 1)[,1]
+tr_outcome <- read.csv(here("output", "data", FILE_TRAINING_OUTCOMES_CSV), row.names = 1)[,1]
 
-stopifnot(row.names(training_set) == row.names(outcome))
+stopifnot(row.names(training_set) == row.names(tr_outcome))
 
 features <- colnames(training_set)
 
@@ -35,8 +35,8 @@ features <- colnames(training_set)
 
 flog.pid.info("Plotting correlations")
 # Plot correlation matrices of missingness indicators against missingness indicators, observed values against observed values, and missingness indicators against observed values.
-positive_data <- training_set[outcome == "positive", ]
-negative_data <- training_set[outcome == "negative", ]
+positive_data <- training_set[tr_outcome == "positive", ]
+negative_data <- training_set[tr_outcome == "negative", ]
 
 # Missingness indicator correlations
 ggsave(filename = here("output", "stats", "MI_correlations.pdf"),
@@ -95,7 +95,7 @@ ggsave(filename = here("output", "stats", "feature_histograms.pdf"),
 
 ## Correlations with outcome indicator
 
-feature_to_outcome_correlations <- sapply(numeric_features, function(feature) cor(training_set[[feature]], outcome == "positive", use = "pairwise.complete.obs"))
+feature_to_outcome_correlations <- sapply(numeric_features, function(feature) cor(training_set[[feature]], tr_outcome == "positive", use = "pairwise.complete.obs"))
 feature_to_outcome_correlations <- data.frame(Feature = numeric_features, Correlation = feature_to_outcome_correlations)
 ggsave(filename = here("output", "stats", "feature_to_outcome_correlation.pdf"),
        ggplot(feature_to_outcome_correlations) +
@@ -165,5 +165,21 @@ ggsave(filename = here("output", "stats", "missingness_heatmap_log1p.pdf"),
   device = "pdf", width = 340, height = 300, units = "mm")
 
 # Stop-gained and non-synonymous variants have much less missingness in certain variables (as expected), and missingness rates are somewhat constant over different consequences in epigenetics variables.
+
+## Basic stats on preprocessed data
+
+training_set <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), as.is = TRUE)
+test_set <- read.csv(here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV), as.is = TRUE)
+te_outcome <- read.csv(here("output", "data", FILE_TEST_OUTCOMES_CSV), row.names = 1)[,1]
+flog.info("Number of training set variants: %d", nrow(training_set))
+flog.info("Number of test set variants: %d", nrow(test_set))
+flog.info("Number of positive training set variants: %d", sum(tr_outcome == "positive"))
+flog.info("Number of negative training set variants: %d", sum(tr_outcome == "negative"))
+flog.info("Number of positive test set variants: %d", sum(te_outcome == "positive"))
+flog.info("Number of negative test set variants: %d", sum(te_outcome == "negative"))
+flog.info("Number of complete training set cases: %d", sum(complete.cases(training_set)))
+flog.info("Number of complete test set cases: %d", sum(complete.cases(test_set)))
+flog.info("Missingness percentage in training data: %f", sum(is.na(training_set))/NCOL(training_set)/NROW(training_set))
+
 
 write(capture.output(sessionInfo()), here("output", "03_descriptive_stats_sessioninfo.txt"))
