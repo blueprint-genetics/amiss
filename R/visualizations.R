@@ -80,6 +80,7 @@ doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
     geom_boxplot(data = rf_perf, aes(x = method, y = value, fill = "Random forest"), outlier.color = "#41444C" ) +
     geom_point(data = lr_med, color = "#A82026", aes(x = method, y = x, fill = "Logistic regression"), shape = 18, size = 3) +
     geom_point(data = rf_med, aes(x = method, y = x,  fill = "Random forest"), shape = 18, size = 3) +
+    scale_y_continuous(breaks = scales::extended_breaks(n = 8)) +
     theme_bw() +
     xlab(label = NULL) +
     (if (length(metric) == 1) ylab(metric) else ylab("Value")) +
