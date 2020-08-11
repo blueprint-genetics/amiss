@@ -74,11 +74,12 @@ doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
   rf_med <- aggregate(rf_perf[["value"]], by = rf_perf[, by, drop = FALSE], FUN = median)
   lr_med <- aggregate(lr_perf[["value"]], by = lr_perf[, by, drop = FALSE], FUN = median)
 
-  double_boxplots <- ggplot2::ggplot() +
+  double_boxplots <- ggplot() +
     ggplot2::geom_boxplot(data = lr_perf, color = "#A82026", ggplot2::aes(x=method, y=value, fill = "Logistic regression"), outlier.color = "#DB607A" ) +
     ggplot2::geom_boxplot(data = rf_perf, ggplot2::aes(x = method, y = value, fill = "Random forest"), outlier.color = "#41444C" ) +
     ggplot2::geom_point(data = lr_med, color = "#A82026", ggplot2::aes(x = method, y = x, fill = "Logistic regression"), shape = 18, size = 3) +
     ggplot2::geom_point(data = rf_med, ggplot2::aes(x = method, y = x,  fill = "Random forest"), shape = 18, size = 3) +
+    ggplot2::scale_y_continuous(breaks = scales::extended_breaks(n = 8)) +
     ggplot2::theme_bw() +
     ggplot2::xlab(label = NULL) +
     (if (length(metric) == 1) ggplot2::ylab(metric) else ggplot2::ylab("Value")) +
