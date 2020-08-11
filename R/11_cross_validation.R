@@ -8,6 +8,7 @@ source(here("R", "utils.R"))
 source(here("R", "imputation_definitions.R"))
 
 cores <- get_env_cores()
+only_redraw_plot <- Sys.getenv("ONLY_REDRAW_PLOT")
 
 seed <- 10
 set.seed(seed)
@@ -46,15 +47,17 @@ for (i in 1:length(folds)) {
   te_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_DATA, "_", i, ".csv"))
   te_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_OUTCOMES, "_", i, ".csv") )
    
-  write.csv(fold_tr_datas[[i]], tr_data_path)
-  write.csv(fold_tr_outcomes[[i]],  tr_outcome_path)
-  write.csv(fold_te_datas[[i]], te_data_path)
-  write.csv(fold_te_outcomes[[i]], te_outcome_path)
+  if(only_redraw_plot != "TRUE") {
+    write.csv(fold_tr_datas[[i]], tr_data_path)
+    write.csv(fold_tr_outcomes[[i]],  tr_outcome_path)
+    write.csv(fold_te_datas[[i]], te_data_path)
+    write.csv(fold_te_outcomes[[i]], te_outcome_path)
   
-  impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
-                   mice_hyperparameter_grids = mice_hyperparameter_grids, other_hyperparameter_grids = other_hyperparameter_grids, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
-                   cores = cores, seed = 42, lean = TRUE)
-  predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = cores, seed = 42, lean = TRUE)
+    impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
+		     mice_hyperparameter_grids = mice_hyperparameter_grids, other_hyperparameter_grids = other_hyperparameter_grids, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
+		     cores = cores, seed = 42, lean = TRUE)
+    predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = cores, seed = 42, lean = TRUE)
+  }
   
   rf_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
   rf_results[[i]]$fold <- i
@@ -68,8 +71,10 @@ rf_results <- rename_methods(rf_results)
 rf_results$method <- reorder(rf_results$method, rf_results$MCC, mean)
 lr_results <- rename_methods(lr_results)
 
-write.csv(rf_results, here("output", "cv", FILE_RF_CROSSVALIDATION_RESULTS_CSV))
-write.csv(lr_results, here("output", "cv", FILE_LR_CROSSVALIDATION_RESULTS_CSV))
+if (only_redraw_plot != "TRUE") {
+  write.csv(rf_results, here("output", "cv", FILE_RF_CROSSVALIDATION_RESULTS_CSV))
+  write.csv(lr_results, here("output", "cv", FILE_LR_CROSSVALIDATION_RESULTS_CSV))
+}
 
 ggsave(filename = here("output", "cv", "si_cv_double_boxplots.pdf"), 
        plot = doubleboxplot("MCC", rf_results, lr_results, FALSE),
