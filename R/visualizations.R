@@ -1,4 +1,5 @@
 library(ggcorrplot)
+library(tidyr)
 
 #' Plot correlation matrix over missingness indicators
 #'
@@ -62,5 +63,68 @@ plot_missingness_vs_observed_correlations <- function(data, features, title) {
   # This makes hierarchical clustering work, and produces a gray square in the plot as desired
   missingness_vs_value_corr[is.na(missingness_vs_value_corr)] <- -2.0
   ggcorrplot(missingness_vs_value_corr, title = title)
+
+}
+
+doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
+
+  rf_perf %<>% gather("metric", "value", metric)
+  lr_perf %<>% gather("metric", "value", metric)
+
+  by <- if (per_consequence) c("method", "metric", "consequence") else c("method", "metric")
+  rf_med <- aggregate(rf_perf[["value"]], by = rf_perf[, by, drop = FALSE], FUN = median)
+  lr_med <- aggregate(lr_perf[["value"]], by = lr_perf[, by, drop = FALSE], FUN = median)
+
+  double_boxplots <- ggplot() +
+    geom_boxplot(data = lr_perf, color = "#A82026", aes(x=method, y=value, fill = "Logistic regression"), outlier.color = "#DB607A" ) +
+    geom_boxplot(data = rf_perf, aes(x = method, y = value, fill = "Random forest"), outlier.color = "#41444C" ) +
+    geom_point(data = lr_med, color = "#A82026", aes(x = method, y = x, fill = "Logistic regression"), shape = 18, size = 3) +
+    geom_point(data = rf_med, aes(x = method, y = x,  fill = "Random forest"), shape = 18, size = 3) +
+    theme_bw() +
+    xlab(label = NULL) +
+    (if (length(metric) == 1) ylab(metric) else ylab("Value")) +
+    coord_flip() +
+    theme(legend.position = 'bottom', legend.direction = "vertical") +
+    theme(text = element_text(size = 18)) +
+    scale_fill_manual("Classifier", values = c("#DB607A", "#41444C", "#11222A"))
+  if (per_consequence) {
+    double_boxplots <- double_boxplots + facet_wrap(vars(consequence))
+  }
+  if (length(metric) > 1) {
+    double_boxplots <- double_boxplots + coord_flip(ylim = c(0.25, 1.0), clip = "on") + facet_wrap(vars(metric), scales = "fixed")
+  }
+
+  return(double_boxplots)
+}
+
+rename_methods <- function(perf) {
+  perf$method <- factor(perf$method,
+                        c("missForest", "bpca", "norm.predict", "pmm", "norm", "rf", "outlier_imp", "max_imp", "min_imp", "zero_imp", "knnImputation", "median_imp", "missingness_indicators", "mean_imp"),
+                        c("missForest", "BPCA", "MICE Regr.", "MICE PMM", "MICE Bayes r.", "MICE RF", "Outlier", "Maximum", "Minimum", "Zero", "k-NN", "Median", "Missingness ind.", "Mean"))
+  return(perf)
+}
+rename_consequences <- function(perf) {
+  perf$consequence <- factor(perf$consequence,
+                             perf$consequence %>% unique,
+                             gsub(CONSEQUENCE_COLUMN %>% paste0("."), "", perf$consequence %>% unique))
+  return(perf)
+}
+
+add_n_to_consequence_name <-  function(perf) {
+  consequence_names <- unique(perf$consequence)
+  n <- perf$TP + perf$FP + perf$FN + perf$TN
+  pos <- perf$TP + perf$FN
+  neg <- perf$FP + perf$TN
+  df <- data.frame(n = n, pos = pos, neg = neg)
+  df <- lapply(consequence_names, function(name) df[perf$consequence == name,][1,])
+  df <- do.call(rbind, df)
+  row.names(df) <- consequence_names
+
+  stopifnot(all(sapply(consequence_names, function(name) all(n[perf$consequence == name] == df[name, "n"]))))
+
+  new_consequence_names <- paste0(consequence_names, "\nN = ", df$n, ", positive = ", df$pos, ", negative = ", df$neg )
+  perf$consequence <- factor(perf$consequence, consequence_names, new_consequence_names)
+
+  return(perf)
 
 }
