@@ -1,6 +1,6 @@
 # Materials and methods
 
-We implement a framework that enables comparison of imputation methods by their contribution to the performance of machine-learning classifiers, specifically for prediction of variant pathogenicity. For this purpose, the framework preprocesses variant data to a usable format, performs imputation, trains a classifier and computes relevant performance statistics.
+We implement a framework that enables comparison of imputation methods by their contribution to the performance of machine-learning classifiers, specifically for prediction of variant pathogenicity. For this purpose, the framework preprocesses variant data to a usable format, performs imputation, trains a classifier, and computes relevant performance statistics.
 
 This framework is used to perform three experiments:
 
@@ -12,15 +12,15 @@ This framework is used to perform three experiments:
 
 ### ClinGen dataset
 
-The dataset consists of ClinGen[@clingen] expert-reviewed single-nucleotide variants from ClinVar[@clinvar2013; @clinvar2016; @clinvar2017], downloaded on 28 June 2019. We annotated the variants using the Ensembl Variant Effect Predictor (VEP)[@vep] version $96$ with Ensembl transcripts and dbNSFP3.5 [@dbnsfp1; @dbnsfp3]. We selected transcripts annotated canonical by VEP for each variant and removed the others, and where values were present for several transcripts, discarded values unrelated to the selected transcript. 
+The dataset consists of ClinGen[@clingen] expert-reviewed single-nucleotide variants from ClinVar[@clinvar2013; @clinvar2016; @clinvar2017], downloaded on 28 June 2019. We annotated the variants using the Ensembl Variant Effect Predictor (VEP)[@vep] version $96$ with Ensembl transcripts and dbNSFP3.5 [@dbnsfp1; @dbnsfp3]. We selected transcripts annotated canonical by VEP for each variant and removed the other transcripts, and where values were present for several transcripts, discarded values unrelated to the selected transcript. 
 Any variants whose canonical VEP-annotated transcript ID did not match that from dbNSFP were discarded.
-In addition, we incorporated annotations used by CADD [@cadd2018], matching them by transcript to the VEP-annotated Ensembl transcripts. At this stage,the dataset contained $12282$ rows.
+In addition, we incorporated annotations used by CADD [@cadd2018], matching them by transcript to the VEP-annotated Ensembl transcripts. At this stage, the dataset contained $12282$ rows.
 
 ## Preprocessing {#preprocessing}
 
 The overall preprocessing process is depicted in Figure \ref{figure:preprocessing}. 
 
-![Preprocessing diagram. Data processing is roughly divisible into annotation, data parsing and preprocessing. Some preprocessing actions are deferred to the training phase, as their results may change due to simulated additional missing values.\label{figure:preprocessing}](preprocessing.pdf){height=100%, width=100%}
+![Preprocessing diagram. Data processing is divided into annotation, data parsing and preprocessing steps. Some preprocessing actions are deferred to the training phase, as their results may change due to simulated additional missing values.\label{figure:preprocessing}](preprocessing.pdf){height=100%, width=100%}
 
 The feature vectors of some sets of variants may be equal (that is, duplicated). We removed variants with duplicated feature vectors (N$=320$), retaining only one variant from each equivalence class formed by duplicated feature vectors. We also chose to drop variants of uncertain significance (VUS, N $=1157$) from the dataset.
 
@@ -49,9 +49,9 @@ Feature name        Feature interpretation                      Default value
 Table: Features imputed with default values.
 
 
-The final processed dataset contains $3736$ variants divided into a training set with a total of $2606$ variants, of which $1088$ are positive and $1518$ are negative, and a test set with a total of $1130$ variants, of which $476$ are positive and $654$ are negative.
+The final processed dataset contains $3736$ variants divided into a training set with a total of $2606$ variants, of which $1088$ belong to the positive class and $1518$ belong to the negative class, and a test set with a total of $1130$ variants, of which $476$ belong to the positive class and $654$ belong to the negative class.
 
-To minimize issues due to singular matrices with some imputation methods (e.g. MICE linear regression, MICE predictive mean matching), we removed features with fewer than $1~\%$ unique values. For feature pairs with high correlation, we kept only one of the features. Removal of features with few unique values or high correlation is performed as part of the training process, just before imputation, since they may be affected by introduction of additional missing values for simulations (see [Simulations](#simulations)). It is possible that some imputation methods would be able to deal with feature sets for which the above treatment was not done, and perhaps gain an advantage due to the additional information. However, we chose to use the same restricted feature set for all imputation methods for simplicity and comparability.
+To minimize issues due to singular matrices with some imputation methods (e.g. MICE linear regression, MICE predictive mean matching), we removed features with fewer than $1~\%$ unique values. For feature pairs with high correlation (Pearson correlation coefficient $> 0.9$), we kept only one of the features. Removal of features with few unique values or high correlation is performed as part of the training process, just before imputation, since they may be affected by introduction of additional missing values for simulations (see [Simulations](#simulations)). It is possible that some imputation methods would be able to deal with feature sets for which the above treatment was not done, and gain an advantage due to the additional information. However, we chose to use the same restricted feature set for all imputation methods for simplicity and comparability.
 
 A mock-up illustrating the preprocessed data format is shown in Table \ref{mockup}.
 
@@ -100,7 +100,7 @@ To assess whether there is informative missingness in the data, we computed each
 
 ### Univariate imputation
 
-The simplest imputation methods impute every missing value within a feature with the same value, which may either be a constant or a statistic estimated from the observed values of the feature.
+The simplest imputation methods impute every missing value within a feature with the same value, which may either be a constant or a statistic estimated from the observed values of the feature. These methods are called univariate imputation methods.
 
 In the case of missingness indicators, features with identical missingness patterns produce identical indicator vectors, of which only one is kept.
 
@@ -113,12 +113,12 @@ Multiple imputation by chained equations (MICE) [@vanbuuren2006; @vanbuuren2007;
 
 Step 2 is repeated until some maximum number of iterations or some measure of convergence is reached.
 
-We used the R `mice` package [@mice] to perform the imputation. The following methods provided by `mice` were used:
+We used the R `mice` package [@mice] to perform the imputation.
 Each method was run with maximum $10$ iterations.
 
 ### Other imputation methods {#other}
 
-Besides unconditional univariate methods and MICE methods, we tested three popular imputation methods.
+Besides unconditional univariate methods and MICE methods, we tested three popular imputation methods: k-Nearest Neighbors (k-NN), Bayesian Principal Components Analysis (BPCA) [@bpca] and missForest [@missforest].
 
 For k-NN, you must have enough complete cases to start imputation, depending on $k$. As described above, the data had very few complete cases, and thus the largest $k$ that could be used was $2$.
 
@@ -172,7 +172,7 @@ Each imputation method is used on the training set, producing at least one imput
 Multiple imputation methods can be used to produce several imputed datasets using the same hyperparameter configuration, and we make use of this in the main experiment. For probabilistic single imputation methods, the method can be run multiple times with different seeds, producing a set of imputed datasets analogous to that generated via multiple imputation. We apply this approach to MissForest.  
 For each completed dataset from a probabilistic or multiple imputation method, we train a separate classifier (performing its usual hyperparameter search and model selection procedure separately on each dataset). 
 
-In order to maximize the performance of each imputation method for fair comparison, hyperparameter grids were defined for each method for which different hyperparameters[^hyper] could be passed. For the simulation and cross-validation experiments we decided to save time by using fewer hyperparameter configuration, sampling a maximum of 8 hyperparameter configurations for each imputation method used on a dataset. The hyperparameter grids are described in table \ref{imphyps}. 
+To maximize the performance of each imputation method for fair comparison, hyperparameter grids were defined for each method for which different hyperparameters[^hyper] could be passed. For the simulation and cross-validation experiments we decided to save time by using fewer hyperparameter configuration, sampling a maximum of 8 hyperparameter configurations for each imputation method used on a dataset. The hyperparameter grids are described in table \ref{imphyps}. 
 
 Method                  Varied hyperparameters          Number of combinations
 --------------          -----------------------         ------------------------
@@ -223,7 +223,7 @@ where $y_i$ is the $i$th true value, $\hat{y}_i$ is the $i$th prediction (in thi
 
 We performed simulations with additional missing values in order to
 
-1. compare the sensitivity of imputation methods to different levels of missingness, 
+1. compare the sensitivity of imputation methods to various levels of missingness, 
 2. relate downstream classifier performance and an imputation method's predictive performance, i.e. the capability of the imputation method to predict the original value underlying a missing value.
 
 A common strategy for studying imputation methods' performance is simulation of missing values either on fully simulated data, or on the complete subsets of real datasets. 
@@ -235,7 +235,7 @@ Instead, we chose to take the full, incomplete dataset as the basis of simulatio
 3. Compute RMSE for each simulated dataset with respect to values that were observed in the original dataset but missing in the simulated dataset
 4. Train a classifier on each imputed simulated training dataset, and evaluate performance on imputed original test set
 
-We use nine percentages of additional missingness, from $10~\%$ to $90~\%$, each producing 100 datasets with the respective amount of additional missingness. We therefore have 900 simulated datasets on which the framework is executed. To reduce the computational requirements, we downsample the hyperparameter grids of each imputation method (in comparison to the main experiment). In addition, since MissForest is significantly more computationally expensive than other imputation methods, it is not included in the simulation experiment.
+We use nine percentage categories of additional missingness, from $10~\%$ to $90~\%$, each producing $100$ datasets with the respective amount of additional missingness. We therefore have $900$ simulated datasets on which the framework is executed. To reduce the computational requirements, we downsample the hyperparameter grids of each imputation method (in comparison to the main experiment). In addition, since MissForest is significantly more computationally expensive than other imputation methods, it is not included in the simulation experiment.
 
 ### Amputing additional missing values
 
