@@ -11,6 +11,11 @@ set.seed(seed)
 
 source(here("R", "constants.R"))
 source(here("R", "preprocessing.R"))
+source(here("R", "configuration.R"))
+source(here("R", "parameters.R"))
+
+args <- commandArgs(trailingOnly = TRUE)
+config <- get_config(args)
 
 flog.info("Reading data")
 merged_data <- read.csv(here("output", "data", FILE_MERGED_DATA_CSV), as.is = TRUE)
@@ -55,10 +60,19 @@ write.csv(file = here("output", "data", FILE_TEST_DATA_CSV), x = test_set, row.n
 ### Coding response
 
 # The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive).
-
 flog.info("Encoding outcome")
 positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", "Pathogenic/Likely_pathogenic,_drug_response")
 negative_classes <- c("Benign", "Likely_benign")
+if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
+  negative_classes <- c(negative_classes, "Uncertain_significance")
+} else if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
+  positive_classes <- c(positive_classes, "Uncertain_significance")
+} else if (config[[VUS_INCLUSION]] == VUS_EXCLUDE) {
+  # Do nothing
+} else stop(
+  paste0("Unknown value \"", config[[VUS_INCLUSION]], "\" for parameter \"", VUS_INCLUSION, "\"")
+)
+
 flog.info("Positive classes: %s", paste0(positive_classes, collapse = ", "))
 flog.info("Negative classes: %s", paste0(negative_classes, collapse = ", "))
 
@@ -76,46 +90,52 @@ flog.info(table(test_outcome) %>% capture.output)
 # An extra category corresponding a missing value is represented as another dummy variable; this is one strategy
 # for handling missing values in categorical variables. This approach is equivalent to the missingness indicator method. We choose
 # to fix this choice for simplicity, since many imputation methods make no sense on dummy variables (e.g. regression imputation).
-flog.info("Encoding categorical variables via dummy variables")
-training_dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
-test_dummy_categoricals <- dummify_categoricals(test_set[, categorical_features, drop = FALSE])
-
-# If some dummy variables are present on the test set but not on the training set, the classifier cannot learn to use them and thus
-# should just be removed. If some dummy variables are present on the training set but not on the test set, the classifier may still
-# benefit from the additional training information, and a constant zero variable should be created on the test set to indicate lack
-# of belonging to that class.
-
-# Since the latter scenario does not apply in our case, the implementation beyond checking for it is skipped.
-flog.info("Checking that dummy variables match between training and test sets")
-training_dummy_names <- training_dummy_categoricals %>% colnames
-test_dummy_names <- test_dummy_categoricals %>% colnames
-
-if (!setequal(training_dummy_names, test_dummy_names)) {
-
-  not_in_test_set <- setdiff(training_dummy_names, test_dummy_names)
-  not_in_training_set <- setdiff(test_dummy_names, training_dummy_names)
-
-  if (length(not_in_test_set) > 0) {
-    flog.info(not_in_test_set %>% paste0(collapse = ", ") %>% paste0(" not in the test set"))
+flog.info("Encoding categorical variables")
+if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
+  training_dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
+  test_dummy_categoricals <- dummify_categoricals(test_set[, categorical_features, drop = FALSE])
+  
+  # If some dummy variables are present on the test set but not on the training set, the classifier cannot learn to use them and thus
+  # should just be removed. If some dummy variables are present on the training set but not on the test set, the classifier may still
+  # benefit from the additional training information, and a constant zero variable should be created on the test set to indicate lack
+  # of belonging to that class.
+  
+  # Since the latter scenario does not apply in our case, the implementation beyond checking for it is skipped.
+  flog.info("Checking that dummy variables match between training and test sets")
+  training_dummy_names <- training_dummy_categoricals %>% colnames
+  test_dummy_names <- test_dummy_categoricals %>% colnames
+  
+  if (!setequal(training_dummy_names, test_dummy_names)) {
+  
+    not_in_test_set <- setdiff(training_dummy_names, test_dummy_names)
+    not_in_training_set <- setdiff(test_dummy_names, training_dummy_names)
+  
+    if (length(not_in_test_set) > 0) {
+      flog.info(not_in_test_set %>% paste0(collapse = ", ") %>% paste0(" not in the test set"))
+    }
+  
+    if (length(not_in_training_set) > 0) {
+       flog.info(not_in_training_set %>% paste0(collapse = ", ") %>% paste0(" not in the training set; removing"))
+       test_dummy_categoricals[, not_in_training_set] <- NULL
+    }
   }
-
-  if (length(not_in_training_set) > 0) {
-     flog.info(not_in_training_set %>% paste0(collapse = ", ") %>% paste0(" not in the training set; removing"))
-     test_dummy_categoricals[, not_in_training_set] <- NULL
-  }
-}
-
-# Next, the new dummy variables are bound to the `data.frame`. We keep also the original categorical variables, since they are easier
-# to use for certain statistics computations.
-flog.info("Binding dummy variables to data")
-training_set <- cbind(
-  training_set,
-  training_dummy_categoricals
-)
-
-test_set <- cbind(
-  test_set,
-  test_dummy_categoricals
+  
+  # Next, the new dummy variables are bound to the `data.frame`. We keep also the original categorical variables, since they are easier
+  # to use for certain statistics computations.
+  flog.info("Binding dummy variables to data")
+  training_set <- cbind(
+    training_set,
+    training_dummy_categoricals
+  )
+  
+  test_set <- cbind(
+    test_set,
+    test_dummy_categoricals
+  )
+} else if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
+  # Do nothing
+} else stop(
+  paste0("Unknown value \"", config[[CATEGORICAL_ENCODING]], "\" for parameter \"", CATEGORICAL_ENCODING, "\"")
 )
 
 ## Class distribution per consequence
@@ -162,7 +182,7 @@ flog.info("Performing a priori imputation")
 training_set <- a_priori_impute(training_set, default_imputations)
 test_set <- a_priori_impute(test_set, default_imputations)
 
-## Feature selection 
+## Feature selection
 # The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier. 
 # Only dummy variable versions of categorical features are kept here.
 flog.info("Performing feature selection")
@@ -178,5 +198,3 @@ write.csv(test_outcome, here("output", "data", FILE_TEST_OUTCOMES_CSV), row.name
 
 write(capture.output(sessionInfo()), here("output", "02_preprocess_data_sessioninfo.txt"))
 flog.info("Done writing files")
-
-
