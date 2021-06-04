@@ -16,9 +16,9 @@ set.seed(10)
 dir.create(here("output"))
 dir.create(here("output", "data"))
 
-vcf_filename <- here("..", "..", "amiss_data", "clinvar_20190624.vep.vcf_head_10000")
-cadd_snv_filename <- here("..", "..", "amiss_data", "CADD_clingen.tsv")
-cadd_indel_filename <- here("..", "..", "amiss_data", "CADD_clingen_indel.tsv")
+vcf_filename <- here("..", "amiss_data", "clinvar_20190624.vep.vcf")
+cadd_snv_filename <- here("..", "amiss_data", "CADD_clingen.tsv")
+cadd_indel_filename <- here("..", "amiss_data", "CADD_clingen_indel.tsv")
 
 if (!file.exists(vcf_filename))
   stop(paste("Input VCF file", vcf_filename, "does not exist. Stopping."))

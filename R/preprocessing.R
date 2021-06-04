@@ -29,7 +29,8 @@ split_train_test <- function(dataframe, proportion) {
 
   datasplit <- list(
     training_set = dataframe[index, ],
-    test_set = dataframe[!index, ]
+    test_set = dataframe[!index, ],
+    index = index
   )
 
   return(datasplit)
@@ -51,7 +52,7 @@ code_labels <- function(class_vector, positive_classes, negative_classes) {
   # If classification is not any of these, raise and error
   undefined_class_ind <- !class_vector %in% c(positive_classes, negative_classes)
   if (any(undefined_class_ind)) {
-    error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(unique(class_vector[undefined_class_ind]))
+    error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(paste0(unique(class_vector[undefined_class_ind]), collapse=", "))
     stop(error_msg)
   }
 

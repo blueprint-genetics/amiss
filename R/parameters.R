@@ -15,3 +15,7 @@ VUS_EXCLUDE <- "exclude"
 CATEGORICAL_ENCODING <- "categorical"
 CATEGORICAL_AS_FACTOR <- "factor"
 CATEGORICAL_AS_DUMMY <- "dummy"
+
+RESTRICTION_MISSENSE <- "restriction"
+MISSENSE_ONLY <- "missense"
+ALL <- "all"

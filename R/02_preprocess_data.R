@@ -34,12 +34,39 @@ flog.info("Number of duplicated rows: %d", sum(merged_data_duplicates))
 
 merged_data <- merged_data[!merged_data_duplicates, ]
 
-## Drop VUSes
+### Coding response
 
-flog.info("Dropping VUS variants")
-vus <- merged_data$CLNSIG == "Uncertain_significance"
-flog.info("Number of VUS variants: %d", sum(vus))
-merged_data <- merged_data[!vus, ]
+# The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive).
+flog.info("Encoding outcome")
+positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", 
+                      "Pathogenic/Likely_pathogenic,_drug_response", "Pathogenic/Likely_pathogenic", 
+                      "Pathogenic,_other", "Pathogenic/Likely_pathogenic,_risk_factor", 
+                      "Pathogenic/Likely_pathogenic,_other", "Pathogenic,_other,_risk_factor")
+negative_classes <- c("Benign", "Likely_benign", "Benign/Likely_benign", "Benign/Likely_benign,_other", 
+                      "Likely_benign,_other", "Benign/Likely_benign,_risk_factor", 
+                      "Benign/Likely_benign,_drug_response", "Benign,_risk_factor", 
+                      "Benign/Likely_benign,_protective", "Benign/Likely_benign,_drug_response,_risk_factor",  
+                      "Benign/Likely_benign,_Affects", "Benign,_other", "Likely_benign,_drug_response,_other", 
+                      "Likely_benign,_risk_factor", "Benign,_drug_response", "Likely_benign,_other,_risk_factor", 
+                      "Benign/Likely_benign,_protective,_risk_factor", "Benign/Likely_benign,_association")
+flog.info("Positive classes: %s", paste0(positive_classes, collapse = ", "))
+flog.info("Negative classes: %s", paste0(negative_classes, collapse = ", "))
+
+uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", "other")
+if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
+  negative_classes <- c(negative_classes, uncertain_classes)
+} else if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
+  positive_classes <- c(positive_classes, uncertain_classes)
+} else if (config[[VUS_INCLUSION]] == VUS_EXCLUDE) {
+  flog.info("Dropping VUS variants")
+  vus <- merged_data$CLNSIG %in% uncertain_classes
+  flog.info("Number of VUS variants: %d", sum(vus))
+  merged_data <- merged_data[!vus, ]
+} else stop(
+  paste0("Unknown value \"", config[[VUS_INCLUSION]], "\" for parameter \"", VUS_INCLUSION, "\"")
+)
+
+outcome <- code_labels(merged_data$CLNSIG, positive_classes, negative_classes)
 
 ## Data split
 flog.info("Splitting data to training and test sets")
@@ -52,37 +79,20 @@ flog.info("Number of training set variants: %d", nrow(training_set))
 test_set <- data_split$test_set
 flog.info("Number of test set variants: %d", nrow(test_set))
 
+training_outcome <- outcome[data_split$index]
+names(training_outcome) <- row.names(training_set)
+flog.info(table(training_outcome) %>% capture.output)
+
+test_outcome <- outcome[-data_split$index]
+names(test_outcome) <- row.names(test_set)
+flog.info(table(test_outcome) %>% capture.output)
+
+
 write.csv(file = here("output", "data", FILE_TRAINING_DATA_CSV), x = training_set, row.names = FALSE)
 write.csv(file = here("output", "data", FILE_TEST_DATA_CSV), x = test_set, row.names = FALSE)
 
 ## Process variables
 
-### Coding response
-
-# The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive).
-flog.info("Encoding outcome")
-positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", "Pathogenic/Likely_pathogenic,_drug_response")
-negative_classes <- c("Benign", "Likely_benign")
-if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
-  negative_classes <- c(negative_classes, "Uncertain_significance")
-} else if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
-  positive_classes <- c(positive_classes, "Uncertain_significance")
-} else if (config[[VUS_INCLUSION]] == VUS_EXCLUDE) {
-  # Do nothing
-} else stop(
-  paste0("Unknown value \"", config[[VUS_INCLUSION]], "\" for parameter \"", VUS_INCLUSION, "\"")
-)
-
-flog.info("Positive classes: %s", paste0(positive_classes, collapse = ", "))
-flog.info("Negative classes: %s", paste0(negative_classes, collapse = ", "))
-
-training_outcome <- code_labels(training_set$CLNSIG, positive_classes, negative_classes)
-names(training_outcome) <- row.names(training_set)
-flog.info(table(training_outcome) %>% capture.output)
-
-test_outcome <- code_labels(test_set$CLNSIG, positive_classes, negative_classes)
-names(test_outcome) <- row.names(test_set)
-flog.info(table(test_outcome) %>% capture.output)
 
 ### Dummy variables
 
