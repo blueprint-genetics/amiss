@@ -37,8 +37,8 @@ impute_and_train <- function(training_path,
   flog.pid.info("impute_and_train.R")
   flog.pid.info("Arguments: %s", paste0(list(training_path, outcome_path, output_path, cores, lean), collapse = ", "))
 
-  flog.pid.info("Using %d cores", cores)
-  registerDoParallel(cores)
+  #flog.pid.info("Using %d cores", cores)
+  #registerDoParallel(cores)
 
   if(!is.null(seed)) {
     flog.pid.info("Using seed: %d", seed)
@@ -110,8 +110,8 @@ impute_and_train <- function(training_path,
   single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
     imputations <- list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
     imputations <- lapply(imputations, function(hp_set) {
-      timings <- hp_set %>% extract2("completed_datasets") %>% extract2(1) %>% attr(TIMING_ATTR)
-      attr(hp_set, TIMING_ATTR) <- timings
+      timings <- hp_set %>% extract2("completed_datasets") %>% extract2(1) %>% attr("timing")
+      attr(hp_set, "timing") <- timings
       return(hp_set)
     })
     return(imputations)

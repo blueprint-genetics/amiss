@@ -80,13 +80,13 @@ bind_imp_parameters_for_reuse <- function(hyperparams, imputers) {
     # kNN allows use of another dataset to find the neighbors. Thus, let's store the completed dataset.
     if (h == "knnImputation") {
       if (is.null(imputers[[h]][["completed_datasets"]][[1]])) stop(paste("Recycling parameters for method ", h, " were NULL"))
-      attr(hyperparams[[h]], IMPUTATION_REUSE_PARAMETERS) <- imputers[[h]][["completed_datasets"]][[1]]
+      attr(hyperparams[[h]], "imputation_reuse_parameters") <- imputers[[h]][["completed_datasets"]][[1]]
     }
     # E.g. median imputations should impute the test set with the median of the training set instead of
     # the median of the test set. Thus such values must be stored.
     if (h %in% SINGLE_IMP_METHODS) {
-      if (is.null(attr(imputers[[h]][["completed_datasets"]][[1]], IMPUTATION_REUSE_PARAMETERS))) stop(paste("Recycling parameters for method ", h, " were NULL"))
-      attr(hyperparams[[h]], IMPUTATION_REUSE_PARAMETERS) <- attr(imputers[[h]][["completed_datasets"]][[1]], IMPUTATION_REUSE_PARAMETERS)
+      if (is.null(attr(imputers[[h]][["completed_datasets"]][[1]], "imputation_reuse_parameters"))) stop(paste("Recycling parameters for method ", h, " were NULL"))
+      attr(hyperparams[[h]], "imputation_reuse_parameters") <- attr(imputers[[h]][["completed_datasets"]][[1]],"imputation_reuse_parameters")
     }
   }
   return(hyperparams)

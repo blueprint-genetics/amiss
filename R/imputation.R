@@ -24,11 +24,12 @@ source(here("R", "constants.R"))
 #' each missing value in each column with the output of `f`
 #' on that column.
 single_value_univariate_imputation <- function(f) {
+  force(f)
   replace_na <- function(column) {
     missing <- is.na(column)
     impute_value <- f(column[!missing])
     column[missing] <- rep(impute_value, sum(missing))
-    attr(column, IMPUTATION_REUSE_PARAMETERS) <- impute_value
+    attr(column, "imputation_reuse_parameters") <- impute_value
     return(column)
   }
   imp_func <- function(dataframe) {
@@ -37,12 +38,12 @@ single_value_univariate_imputation <- function(f) {
       cols_w_nas <- sapply(dataframe, . %>% is.na %>% any)
       if (!all(sapply(dataframe[,cols_w_nas, drop = FALSE], is.numeric))) stop("All columns with missingness must be numeric")
       imp_data <- lapply(dataframe, replace_na)
-      estimates <- lapply(imp_data, function(col) attr(col, IMPUTATION_REUSE_PARAMETERS))
+      estimates <- lapply(imp_data, function(col) attr(col, "imputation_reuse_parameters"))
       names(estimates) <- colnames(dataframe)
       df <- data.frame(imp_data)
     })
-    attr(df, TIMING_ATTR) <- timing
-    attr(df, IMPUTATION_REUSE_PARAMETERS) <- estimates
+    attr(df, "timing") <- timing
+    attr(df, "imputation_reuse_parameters") <- estimates
     return(df)
   }
   return(imp_func)
@@ -60,7 +61,6 @@ mean_imp <- single_value_univariate_imputation(mean)
 median_imp <- single_value_univariate_imputation(median)
 zero_imp <- single_value_univariate_imputation(function(x) 0.0)
 outlier_imp <- single_value_univariate_imputation(produce_outlier)
-
 
 reimpute <- function(dataframe, value) {
   if (!setequal(names(value), colnames(dataframe))) stop("Names of `value` and column names of `dataframe` do not match")
@@ -117,7 +117,7 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
     })
   )
 
-  attr(result, TIMING_ATTR) <- timing
+  attr(result, "timing") <- timing
 
   return(result)
 }
@@ -166,7 +166,7 @@ run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
     completed_datasets = list(`1` = dat),
     imputation_object = list(`1` = imputation)
   )
-  attr(result, TIMING_ATTR) <- timing
+  attr(result, "timing") <- timing
 
   return(result)
 }
@@ -200,7 +200,7 @@ run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data
     completed_datasets = list(`1` = imputation),
     imputation_object = NULL
   )
-  attr(result, TIMING_ATTR) <- timing
+  attr(result, "timing") <- timing
 
   return(result)
 
@@ -234,7 +234,7 @@ run_missforest <- function(data, hyperparams, times, iterations = NULL) {
     completed_datasets = completed_datasets,
     imputation_object = NULL
   )
-  attr(result, TIMING_ATTR) <- timing
+  attr(result, "timing") <- timing
 
   return(result)
 
@@ -266,9 +266,9 @@ missingness_indicators <- function(data, remove_vector = NULL) {
     data <- zero_imp(data)
     data <- cbind(data, miss_inds)
 
-    attr(data, IMPUTATION_REUSE_PARAMETERS) <- remove_vector
+    attr(data, "imputation_reuse_parameters") <- remove_vector
   })
-  attr(data, TIMING_ATTR) <- timing
+  attr(data, "timing") <- timing
   return(data)
 }
 
@@ -317,13 +317,13 @@ impute_with_hyperparameters <- function(data, impute_function, method_name, hype
 }
 impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
 
-  imputations <- foreach(hyperparameter_grid = enumerate(hyperparameter_grids)) %do% {
+  imputations <- lapply(enumerate(hyperparameter_grids), function(hyperparameter_grid) {
     impute_with_hyperparameters(data = data, impute_function = method_to_function(hyperparameter_grid$name), method_name = hyperparameter_grid$name, hyperparameters = hyperparameter_grid$value, seed = seed, times = times, ... = ...)
-  }
+  })
   # Combine timings of different hyperparameter configs
-  timings <- do.call(rbind, lapply(imputations, . %>% attr(TIMING_ATTR)))
+  timings <- do.call(rbind, lapply(imputations, . %>% attr("timing")))
   # Return them along with the imputation object
-  attr(imputations, TIMING_ATTR) <- timings
+  attr(imputations, "timing") <- timings
 
   names(imputations) <- names(hyperparameter_grids)
 
@@ -335,7 +335,7 @@ impute_w_hps <- function(data, hp_tree, times, iters, seed){
   imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
     # The imputation parameters estimated from the training set should be used
     # where possible.
-    estimates <- attr(hps$value, IMPUTATION_REUSE_PARAMETERS)
+    estimates <- attr(hps$value, "imputation_reuse_parameters")
 
     method <- hps$name
     flog.pid.info("Imputing with method %s", method)
