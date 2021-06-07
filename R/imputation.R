@@ -4,7 +4,7 @@ library(doParallel)
 library(doRNG)
 library(magrittr)
 library(pcaMethods)
-library(DMwR)
+library(DMwR2)
 library(missForest)
 library(here)
 

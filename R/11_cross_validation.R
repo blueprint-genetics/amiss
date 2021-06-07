@@ -36,7 +36,7 @@ fold_te_outcomes <- lapply(folds, function(fold) outcomes[fold])
 
 create_dir(here("output", "cv"))
 
-results_pair <- foreach(i = 1:length(folds), .packages = c("purrr", "doRNG", "caret", "futile.logger", "here", "magrittr", "DMwR", "ModelMetrics"), .export = c("max_imp", "min_imp", "mean_imp", "median_imp", "produce_outlier", "outlier_imp")) %dopar% {
+results_pair <- foreach(i = 1:length(folds), .packages = c("purrr", "doRNG", "caret", "futile.logger", "here", "magrittr", "DMwR2", "ModelMetrics"), .export = c("max_imp", "min_imp", "mean_imp", "median_imp", "produce_outlier", "outlier_imp")) %dopar% {
   
   dir_path <- here("output", "cv", paste0("fold_", i))
   create_dir(dir_path)
