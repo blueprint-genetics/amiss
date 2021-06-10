@@ -1,9 +1,4 @@
-library(ModelMetrics)
-library(magrittr)
-library(here)
-
-source(here("R", "recursive_application.R"))
-source(here("R", "constants.R"))
+#' @importFrom magrittr %>%
 
 performance_stats <- function(predictions, outcome) {
   
@@ -17,21 +12,21 @@ performance_stats <- function(predictions, outcome) {
     caret::confusionMatrix(pred, outcome)
   })
 
-  extract_stat <- function(stat) function(x) x %>% use_series("byClass") %>% extract(stat)
-  extract_accuracy <- function(x) x %>% use_series("overall") %>% extract("Accuracy")
+  extract_stat <- function(stat) function(x) x %>% magrittr::use_series("byClass") %>% magrittr::extract(stat)
+  extract_accuracy <- function(x) x %>% magrittr::use_series("overall") %>% magrittr::extract("Accuracy")
 
   positive_outcome_indicator <- as.integer(outcome == outcome_lvls[1])
 
-  brier <- recursive_apply_numeric(predictions, . %>% brier(actual = positive_outcome_indicator, predicted = .))
-  mcc <- recursive_apply_numeric(predictions, . %>% mcc(actual = positive_outcome_indicator, predicted = ., cutoff = 0.5))
-  auc <- recursive_apply_numeric(predictions, . %>% auc(actual = positive_outcome_indicator, predicted = .))
+  brier <- recursive_apply_numeric(predictions, . %>% ModelMetrics::brier(actual = positive_outcome_indicator, predicted = .))
+  mcc <- recursive_apply_numeric(predictions, . %>% ModelMetrics::mcc(actual = positive_outcome_indicator, predicted = ., cutoff = 0.5))
+  auc <- recursive_apply_numeric(predictions, . %>% ModelMetrics::auc(actual = positive_outcome_indicator, predicted = .))
 
   recursive_apply_cm <- function(x, fun) recursive_apply(x = x, fun = fun, x_class = "confusionMatrix")
 
-  tp <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[1], outcome_lvls[1]) %>% as.numeric %>% set_names("tp"))
-  fp <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[1], outcome_lvls[2]) %>% as.numeric %>% set_names("fp"))
-  fn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[2], outcome_lvls[1]) %>% as.numeric %>% set_names("fn"))
-  tn <- recursive_apply_cm(confusion_matrices, . %>% use_series("table") %>% extract(outcome_lvls[2], outcome_lvls[2]) %>% as.numeric %>% set_names("tn"))
+  tp <- recursive_apply_cm(confusion_matrices, . %>% magrittr::use_series("table") %>% magrittr::extract(outcome_lvls[1], outcome_lvls[1]) %>% as.numeric %>% magrittr::set_names("tp"))
+  fp <- recursive_apply_cm(confusion_matrices, . %>% magrittr::use_series("table") %>% magrittr::extract(outcome_lvls[1], outcome_lvls[2]) %>% as.numeric %>% magrittr::set_names("fp"))
+  fn <- recursive_apply_cm(confusion_matrices, . %>% magrittr::use_series("table") %>% magrittr::extract(outcome_lvls[2], outcome_lvls[1]) %>% as.numeric %>% magrittr::set_names("fn"))
+  tn <- recursive_apply_cm(confusion_matrices, . %>% magrittr::use_series("table") %>% magrittr::extract(outcome_lvls[2], outcome_lvls[2]) %>% as.numeric %>% magrittr::set_names("tn"))
   
   accuracy <- recursive_apply_cm(confusion_matrices, extract_accuracy)
   sensitivity <- recursive_apply_cm(confusion_matrices, extract_stat("Sensitivity"))

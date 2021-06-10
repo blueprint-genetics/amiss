@@ -1,19 +1,5 @@
-library(purrr)
-library(magrittr)
-library(futile.logger)
-library(caret)
-library(ModelMetrics)
-library(foreach)
-library(doParallel)
-library(doRNG)
-library(here)
-
-source(here("R", "utils.R"))
-source(here("R", "training_functions.R"))
-source(here("R", "recursive_application.R"))
-source(here("R", "imputation.R"))
-source(here("R", "constants.R"))
-
+#' @importFrom magrittr %>%
+#' @importFrom foreach %do%
 
 impute_and_train <- function(training_path,
                              outcome_path,
@@ -25,9 +11,9 @@ impute_and_train <- function(training_path,
   
   create_dir(output_path)
 
-  flog.appender(appender.tee(file.path(output_path, "impute_and_train.log")))
+  futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_path, "impute_and_train.log")))
 
-  flog.threshold(DEBUG)
+  futile.logger::flog.threshold(futile.logger::DEBUG)
 
   if (lean) {
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
@@ -38,7 +24,7 @@ impute_and_train <- function(training_path,
   flog.pid.info("Arguments: %s", paste0(list(training_path, outcome_path, output_path, cores, lean), collapse = ", "))
 
   flog.pid.info("Using %d cores", cores)
-  registerDoParallel(cores)
+  doParallel::registerDoParallel(cores)
 
   if(!is.null(seed)) {
     flog.pid.info("Using seed: %d", seed)
@@ -93,7 +79,7 @@ impute_and_train <- function(training_path,
 
   ### MICE
   flog.pid.info("Starting MICE imputation")
-  if(!lean) {
+  if (!lean) {
     times <- IMPUTE_TIMES
   } else {
     times <- SIMULATION_IMPUTE_TIMES
@@ -110,12 +96,12 @@ impute_and_train <- function(training_path,
   single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
     imputations <- list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
     imputations <- lapply(imputations, function(hp_set) {
-      timings <- hp_set %>% extract2("completed_datasets") %>% extract2(1) %>% attr(TIMING_ATTR)
+      timings <- hp_set %>% magrittr::extract2("completed_datasets") %>% magrittr::extract2(1) %>% attr(TIMING_ATTR)
       attr(hp_set, TIMING_ATTR) <- timings
       return(hp_set)
     })
     return(imputations)
-  }) %>% set_names(names(single_value_imputation_hyperparameter_grids))
+  }) %>% magrittr::set_names(names(single_value_imputation_hyperparameter_grids))
 
   ### List and drop imputation methods that failed completely
   imputations <- c(mice_imputations, other_imputations, single_value_imputations)
@@ -128,12 +114,12 @@ impute_and_train <- function(training_path,
   flog.pid.info("Hyperparameter grid:")
   flog.pid.info(capture.output(print(RF_HYPERPARAMETER_GRID)))
 
-  rf_training_settings <- trainControl(classProbs = TRUE,
+  rf_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
                                        method = "oob",  # Use out-of-bag error estimate for model selection
                                        returnResamp = "final",
                                        allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
-  lr_training_settings <- trainControl(classProbs = TRUE,
+  lr_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
                                        allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
 
@@ -161,8 +147,8 @@ impute_and_train <- function(training_path,
 
   flog.pid.info("Saving data")
   # Save run time information for imputers
-  write.csv(x = form_run_time_df(rf_bests$imputers, times = times), file = file.path(output_path, FILE_RF_RUNTIMES_CSV))
-  write.csv(x = form_run_time_df(lr_bests$imputers, times = times), file = file.path(output_path, FILE_LR_RUNTIMES_CSV))
+  write.csv(x = form_run_time_df(rf_bests$imputers, times_imputed = times), file = file.path(output_path, FILE_RF_RUNTIMES_CSV))
+  write.csv(x = form_run_time_df(lr_bests$imputers, times_imputed = times), file = file.path(output_path, FILE_LR_RUNTIMES_CSV))
 
   ## Saving model
   saveRDS(rf_bests$models, file = file.path(output_path, FILE_RF_CLASSIFIERS_RDS))

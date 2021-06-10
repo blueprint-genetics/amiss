@@ -1,36 +1,16 @@
-library(magrittr)
-library(futile.logger)
-library(mice)
-library(ModelMetrics)
-library(caret)
-library(stringr)
-library(foreach)
-library(doParallel)
-library(doRNG)
-library(DMwR)
-library(missForest)
-library(here)
-
-source(here("R", "utils.R"))
-source(here("R", "recursive_application.R"))
-source(here("R", "imputation_definitions.R"))
-source(here("R", "imputation.R"))
-source(here("R", "prediction.R"))
-source(here("R", "performance.R"))
-source(here("R", "constants.R"))
 
 predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed = 42) {
 
   create_dir(results_dir_path)
 
-  flog.appender(appender.tee(file.path(results_dir_path, "predict_on_test_set.log")))
-  flog.threshold(DEBUG)
+  futile.logger::flog.appender(futile.logger::appender.tee(file.path(results_dir_path, "predict_on_test_set.log")))
+  futile.logger::flog.threshold(futile.logger::DEBUG)
 
   flog.pid.info("predict_on_test_set.R")
   flog.pid.info("Arguments: %s", paste0(list(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed), collapse = ", "))
 
   flog.pid.info("Using %d cores", cores)
-  registerDoParallel(cores)
+  doParallel::registerDoParallel(cores)
 
   if(!is.null(seed)) {
     flog.pid.info("Using seed: %d", seed)

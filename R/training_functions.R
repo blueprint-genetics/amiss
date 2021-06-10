@@ -1,14 +1,6 @@
-library(magrittr)
-library(purrr)
-library(foreach)
-library(doParallel)
-library(doRNG)
-library(here)
-
-
-source(here("R", "recursive_application.R")) # for enumerate
-source(here("R", "utils.R")) # for flog.pid.*
-source(here("R", "constants.R"))
+#' @importFrom magrittr %>%
+#' @importFrom foreach %do%
+#' @importFrom doRNG %dorng%
 
 sample_max <- function(x, size) {
   if (!is.data.frame(x)) stop("`x` must be a data.frame")
@@ -23,7 +15,7 @@ extract_mcc_performance <- function(model) {
   if (is.null(model)) return(NULL)
   if (!class(model) == "train") stop("`model` must be a caret `train` object")
   preds <- predict(model)
-  positive_label <- model$trainingData$.outcome %>% levels %>% extract(1)
+  positive_label <- model$trainingData$.outcome %>% levels %>% magrittr::extract(1)
 
   return(ModelMetrics::mcc(as.integer(model$trainingData$.outcome == positive_label), as.integer(preds == positive_label), 0.5))
 }
@@ -40,8 +32,8 @@ inf_NULLs <- function(x) {
 }
 
 get_model_performance_estimates <- function(models) {
-  perf <- map_depth(models, .f = function(model) extract_mcc_performance(model), .depth = 3)
-  perf <- map_depth(perf, . %>% inf_NULLs, .depth = 2)
+  perf <- purrr::map_depth(models, .f = function(model) extract_mcc_performance(model), .depth = 3)
+  perf <- purrr::map_depth(perf, . %>% inf_NULLs, .depth = 2)
 
   return(perf)
 }
@@ -50,8 +42,8 @@ get_best_model_index <- function(perf_tree) {
 
   # The estimates are in lists with one value per completed dataset.
   # Unlisting that list before mean gives mean the desired input type (numeric vector).
-  mean_perf <- map_depth(perf_tree, . %>% unlist %>% mean, .depth = 2)
-  best_model_ix <- map_int(mean_perf, which.max)
+  mean_perf <- purrr::map_depth(perf_tree, . %>% unlist %>% mean, .depth = 2)
+  best_model_ix <- purrr::map_int(mean_perf, which.max)
 
   return(best_model_ix)
 }
@@ -60,7 +52,7 @@ get_best_model_index <- function(perf_tree) {
 select_from_tree <- function(tree, ix) {
 
   # Extract the best models, best imputers and their best hyperparameters for each method
-  selected <- map(enumerate(ix), . %>% with(tree[[name]][[value]]))
+  selected <- purrr::map(enumerate(ix), . %>% with(tree[[name]][[value]]))
 
   return(selected)
 }
@@ -68,7 +60,7 @@ select_from_tree <- function(tree, ix) {
 select_hyperparams <- function(hyperparams, imputers, ix) {
   if (!all(names(ix) %in% names(hyperparams))) stop("Index names do not match hyperparameter names")
 
-  best_hyperparams <- map(enumerate(ix), . %>% with(hyperparams[[name]][value, , drop = FALSE]))
+  best_hyperparams <- purrr::map(enumerate(ix), . %>% with(hyperparams[[name]][value, , drop = FALSE]))
 
   return(best_hyperparams)
 }
@@ -160,11 +152,11 @@ loop_models <- function(training_function, classifier_name, imputations, control
   if (!is.factor(outcome)) stop("`outcome` must be a factor")
   if (!is.numeric(seed) || length(seed) != 1) stop("`seed` must be a numeric vector of length 1")
 
-  foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
+  foreach::foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
     flog.pid.info("Starting execution of %s on datasets produced by %s", classifier_name, method$name)
-    foreach(mi_iter = method$value) %do% {
-      model_per_dataset <- foreach(data = mi_iter$completed_datasets) %do% training_function(data = data, outcome = outcome, control = control, grid = grid)
-      return(model_per_dataset %>% set_names(names(mi_iter$completed_datasets)))
-    } %>% set_names(names(method$value))
-  } %>% set_names(names(imputations))
+    foreach::foreach(mi_iter = method$value) %do% {
+      model_per_dataset <- foreach::foreach(data = mi_iter$completed_datasets) %do% training_function(data = data, outcome = outcome, control = control, grid = grid)
+      return(model_per_dataset %>% magrittr::set_names(names(mi_iter$completed_datasets)))
+    } %>% magrittr::set_names(names(method$value))
+  } %>% magrittr::set_names(names(imputations))
 }
