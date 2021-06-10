@@ -1,6 +1,3 @@
-library(testthat)
-source("R/preprocessing.R")
-
 # split_train_test
 set.seed(1)
 mock_data <- data.frame(
