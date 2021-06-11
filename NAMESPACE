@@ -3,6 +3,7 @@
 export(S01_parse_vcf)
 export(S02_preprocess_data)
 export(S11_cross_validation)
+export(cv_loop)
 importFrom(doRNG,"%dorng%")
 importFrom(foreach,"%do%")
 importFrom(foreach,"%dopar%")

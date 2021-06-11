@@ -1,3 +1,43 @@
+#' Title
+#'
+#' @param fold_tr_datas
+#' @param fold_te_datas
+#' @param fold_tr_outcomes
+#' @param fold_te_outcomes
+#' @param output_path
+#' @param i
+#'
+#' @return
+#' @export
+#'
+#' @examples
+cv_loop <- function(fold_tr_datas, fold_te_datas, fold_tr_outcomes, fold_te_outcomes, output_path, i) {
+    dir_path <- file.path(output_path, paste0("fold_", i))
+    create_dir(dir_path)
+    
+    tr_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_DATA, "_", i, ".csv"))
+    tr_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_OUTCOMES, "_", i, ".csv"))
+    te_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_DATA, "_", i, ".csv"))
+    te_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_OUTCOMES, "_", i, ".csv") )
+    
+    write.csv(fold_tr_datas[[i]], tr_data_path)
+    write.csv(fold_tr_outcomes[[i]],  tr_outcome_path)
+    write.csv(fold_te_datas[[i]], te_data_path)
+    write.csv(fold_te_outcomes[[i]], te_outcome_path)
+    
+    impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
+                     mice_hyperparameter_grids = mice_hyperparameter_grids, other_hyperparameter_grids = other_hyperparameter_grids, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
+                     cores = 1, seed = 42, lean = TRUE)
+    predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = 1, seed = 42, lean = TRUE)
+    
+    rf_results <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
+    rf_results$fold <- i
+    lr_results <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV))
+    lr_results$fold <- i
+    
+    return(list(rf_results, lr_results))
+}
+
 #' Script 11, cross-validation
 #'
 #' @param preprocessed_data_path
@@ -8,17 +48,10 @@
 #'
 #' @return
 #' @export
-S11_cross_validation <- function(preprocessed_data_path, output_path, n_folds, cores = get_env_cores(), seed = 10) {
-  cores <- get_env_cores()
-  cl <- doMPI::startMPIcluster(count=cores)
-  doMPI::registerDoMPI(cl)
-  
-  seed <- 10
-  set.seed(seed)
+S11_cross_validation <- function(preprocessed_data_path, output_path, n_folds, seed = 10) {
   
   training_data <- read.csv(file.path(preprocessed_data_path, FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = 1, as.is = TRUE)
   outcomes <- read.csv(file.path(preprocessed_data_path, FILE_TRAINING_OUTCOMES_CSV), row.names = 1, as.is = TRUE)[[1]]
-  n_folds <- 3
   rows <- NROW(training_data)
   
   # Reorder rows
@@ -33,24 +66,9 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, n_folds, c
   fold_te_datas <- lapply(folds, function(fold) training_data[fold, ])
   fold_te_outcomes <- lapply(folds, function(fold) outcomes[fold])
   
-  create_dir(here("output", "cv"))
+  create_dir(output_path)
   
-  results_pair <- foreach(i = 1:length(folds), .packages = c("purrr", "doRNG", "caret", "futile.logger", "here", "magrittr", "DMwR2", "ModelMetrics"), .export = c("max_imp", "min_imp", "mean_imp", "median_imp", "produce_outlier", "outlier_imp")) %dopar% {
-    
-    set.seed(seed)
-    
-    impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
-                     mice_hyperparameter_grids = mice_hyperparameter_grids, other_hyperparameter_grids = other_hyperparameter_grids, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
-                     cores = 1, seed = 42, lean = TRUE)
-    predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = 1, seed = 42, lean = TRUE)
-    
-    rf_results <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
-    rf_results$fold <- i
-    lr_results <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV))
-    lr_results$fold <- i
-    
-    return(list(rf_results, lr_results))
-  }
+  results_pair <- foreach::foreach(i = 1:length(folds), .packages = c("amiss", "purrr", "doRNG", "caret", "futile.logger", "magrittr", "DMwR2", "ModelMetrics")) %dopar% amiss::cv_loop(fold_tr_datas,fold_te_datas, fold_tr_outcomes, fold_te_outcomes, output_path, i)
   rf_results <- lapply(results_pair, function(x) x[[1]])
   lr_results <- lapply(results_pair, function(x) x[[2]])
   rf_results <- do.call(rbind, rf_results)
@@ -60,15 +78,11 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, n_folds, c
   rf_results$method <- reorder(rf_results$method, rf_results$MCC, mean)
   lr_results <- rename_methods(lr_results)
   
-  write.csv(rf_results, here("output", "cv", FILE_RF_CROSSVALIDATION_RESULTS_CSV))
-  write.csv(lr_results, here("output", "cv", FILE_LR_CROSSVALIDATION_RESULTS_CSV))
+  write.csv(rf_results, file.path(output_path, FILE_RF_CROSSVALIDATION_RESULTS_CSV))
+  write.csv(lr_results, file.path(output_path, FILE_LR_CROSSVALIDATION_RESULTS_CSV))
   
-  ggsave(filename = here("output", "cv", "si_cv_double_boxplots.pdf"), 
+  ggplot2::ggsave(filename = file.path(output_path, "si_cv_double_boxplots.pdf"), 
          plot = doubleboxplot("MCC", rf_results, lr_results, FALSE),
          device = "pdf", width = 170, height = 180, units = "mm")
   
-  
-  #mpi.finalize()
-  #mpi.exit()
-  #closeCluster(cl)
 }
