@@ -24,7 +24,6 @@ impute_and_train <- function(training_path,
   flog.pid.info("Arguments: %s", paste0(list(training_path, outcome_path, output_path, cores, lean), collapse = ", "))
 
   flog.pid.info("Using %d cores", cores)
-  doParallel::registerDoParallel(cores)
 
   if(!is.null(seed)) {
     flog.pid.info("Using seed: %d", seed)

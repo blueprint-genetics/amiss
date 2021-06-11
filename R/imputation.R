@@ -1,7 +1,3 @@
-# source(here::here("R", "utils.R"))
-# source(here::here("R", "recursive_application.R"))
-# source(here::here("R", "constants.R"))
-
 #' Produce a function that replaces all missing values
 #' with column-specific outputs
 #'
@@ -20,6 +16,7 @@
 #' @importFrom doRNG %dorng%
 
 single_value_univariate_imputation <- function(f) {
+  force(f)
   replace_na <- function(column) {
     missing <- is.na(column)
     impute_value <- f(column[!missing])
@@ -56,7 +53,6 @@ mean_imp <- single_value_univariate_imputation(mean)
 median_imp <- single_value_univariate_imputation(median)
 zero_imp <- single_value_univariate_imputation(function(x) 0.0)
 outlier_imp <- single_value_univariate_imputation(produce_outlier)
-
 
 reimpute <- function(dataframe, value) {
   if (!setequal(names(value), colnames(dataframe))) stop("Names of `value` and column names of `dataframe` do not match")
@@ -313,9 +309,9 @@ impute_with_hyperparameters <- function(data, impute_function, method_name, hype
 }
 impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
 
-  imputations <- foreach::foreach(hyperparameter_grid = enumerate(hyperparameter_grids)) %do% {
+  imputations <- lapply(enumerate(hyperparameter_grids), function(hyperparameter_grid) {
     impute_with_hyperparameters(data = data, impute_function = method_to_function(hyperparameter_grid$name), method_name = hyperparameter_grid$name, hyperparameters = hyperparameter_grid$value, seed = seed, times = times, ... = ...)
-  }
+  })
   # Combine timings of different hyperparameter configs
   timings <- do.call(rbind, lapply(imputations, . %>% attr(TIMING_ATTR)))
   # Return them along with the imputation object

@@ -10,7 +10,6 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
   flog.pid.info("Arguments: %s", paste0(list(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed), collapse = ", "))
 
   flog.pid.info("Using %d cores", cores)
-  doParallel::registerDoParallel(cores)
 
   if(!is.null(seed)) {
     flog.pid.info("Using seed: %d", seed)
