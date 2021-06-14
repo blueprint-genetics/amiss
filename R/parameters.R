@@ -19,3 +19,5 @@ CATEGORICAL_AS_DUMMY <- "dummy"
 RESTRICTION_MISSENSE <- "restriction"
 MISSENSE_ONLY <- "missense"
 ALL <- "all"
+
+IMPUTATION_METHOD <- "imputation"
