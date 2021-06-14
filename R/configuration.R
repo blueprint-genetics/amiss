@@ -1,8 +1,6 @@
-library(rjson)
-
 get_config <- function (filename) {
   config <- readLines(filename)
-  return(fromJSON(config))
+  return(rjson::fromJSON(config))
 }
 
 generate_parameter_combination <- function(parameter_grid) {
@@ -14,7 +12,7 @@ generate_parameter_combination <- function(parameter_grid) {
 }
 
 write_config <- function(config_list, filename) {
-  json_config <- toJSON(config_list)
+  json_config <- rjson::toJSON(config_list)
   writeLines(json_config, con = filename)
 }
 

@@ -1,0 +1,44 @@
+Package: amiss
+Title: What the Package Does (One Line, Title Case)
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Mikko",
+           family = "Särkkä",
+           role = c("aut", "cre"),
+           email = "mikko.sarkka@blueprintgenetics.com",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: What the package does (one paragraph).
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Imports: 
+    here,
+    foreach,
+    magrittr,
+    mice,
+    doRNG,
+    doParallel,
+    caret,
+    futile.logger,
+    purrr,
+    ggplot2,
+    ModelMetrics,
+    ggcorrplot,
+    vcfR,
+    tidyr,
+    iterators,
+    missForest,
+    DMwR,
+    rngtools,
+    lattice,
+    itertools,
+    randomForest,
+    stringr,
+    gridExtra,
+    digest,
+    testthat,
+    e1071,
+    pcaMethods,
+    rjson

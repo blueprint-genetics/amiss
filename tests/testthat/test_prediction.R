@@ -1,7 +1,3 @@
-library(testthat)
-library(caret)
-source("R/prediction.R")
-
 mock_data <- data.frame(
   a = 1:10/10,
   b = 10:1/10,

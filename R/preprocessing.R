@@ -1,15 +1,10 @@
-library(magrittr)
-library(here)
-
-source(here("R", "recursive_application.R")) # for enumerate
-source(here("R", "utils.R")) # for find_dummies
-
 #' Partition dataset into a training and a test set
 #'
 #' @param dataframe A data.frame that will be partitioned into two.
 #' @param proportion Proportional size of training set compared to test set
 #'
 #' @return Two-element list containing the training and test sets.
+#' @importFrom magrittr %<>%
 split_train_test <- function(dataframe, proportion) {
 
   stopifnot(class(dataframe) == "data.frame")

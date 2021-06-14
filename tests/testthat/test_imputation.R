@@ -1,8 +1,3 @@
-library(testthat)
-library(purrr)
-
-source("R/imputation.R")
-
 mock_data <- data.frame(
   a = 1:10/10,
   b = c(5:1/10, 6:10/10),
@@ -39,14 +34,14 @@ test_that("impute_over_grid produces imputed datasets", {
                                       times = 2,
                                       iterations = 2)
   expect_true(
-    all(map_depth(observed_output,
+    all(purrr::map_depth(observed_output,
                   .depth = 2,
-                  . %>% extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
+                  . %>% magrittr::extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
     )
   )
   expect_equal(
-    map_depth(observed_output, .depth = 2,
-              . %>% extract2("completed_datasets") %>% sapply(is.data.frame)) %>% unlist %>% sum,
+    purrr::map_depth(observed_output, .depth = 2,
+              . %>% magrittr::extract2("completed_datasets") %>% sapply(is.data.frame)) %>% unlist %>% sum,
     4
   )
 })
@@ -60,12 +55,12 @@ test_that("impute_with_hyperparameters produces imputed datasets", {
                                                        seed = 1, times = 2)
   expect_true(
     all(
-      map_depth(observed_output,
+      purrr::map_depth(observed_output,
                   .depth = 1,
-                  . %>% extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
+                  . %>% magrittr::extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
     )
   )
-  expect_equal(map_depth(observed_output, .depth = 3, is.data.frame) %>% unlist %>% sum, 2)
+  expect_equal(purrr::map_depth(observed_output, .depth = 3, is.data.frame) %>% unlist %>% sum, 2)
 
 })
 
