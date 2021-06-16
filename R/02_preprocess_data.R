@@ -44,7 +44,7 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   futile.logger::flog.info("Negative classes: %s", paste0(negative_classes, collapse = ", "))
   
   uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", "other")
-  if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
+  if (config[[VUS_INCLUSION]] == VUS_AS_BENIGN) {
     negative_classes <- c(negative_classes, uncertain_classes)
   } else if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
     positive_classes <- c(positive_classes, uncertain_classes)
