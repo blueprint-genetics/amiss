@@ -20,7 +20,7 @@ S01_parse_vcf <- function(
 
   set.seed(10)
 
-  output_path <- file.path(path.expand(output_root_dir), "output")
+  output_path <- file.path(path.expand(output_root_dir))
   output_data_path <- file.path(output_path, "data")
   dir.create(output_path)
   dir.create(output_data_path)

@@ -110,10 +110,10 @@ a_priori_impute <- function(data, default_imputations) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
   if (!is.list(default_imputations)) stop("`default_imputations` must be a list")
-  if (!all(sapply(names(default_imputations), FUN = function(x) is.numeric(default_imputations[[x]]) == is.numeric(data[[x]])))) stop("Imputed values must match data by class")
-  if (!all(sapply(names(default_imputations), FUN = function(x) is.character(default_imputations[[x]]) == is.character(data[[x]])))) stop("Imputed values must match data by class")
-  if (any(sapply(default_imputations, is.factor))) stop("Please pass categorical variables as character vectors")
-  if (any(sapply(data, is.factor))) stop("Please pass categorical variables as character vectors")
+  #if (!all(sapply(names(default_imputations), FUN = function(x) is.numeric(default_imputations[[x]]) == is.numeric(data[[x]])))) stop("Imputed values must match data by class")
+  #if (!all(sapply(names(default_imputations), FUN = function(x) is.character(default_imputations[[x]]) == is.character(data[[x]])))) stop("Imputed values must match data by class")
+  #if (any(sapply(default_imputations, is.factor))) stop("Please pass categorical variables as character vectors")
+  #if (any(sapply(data, is.factor))) stop("Please pass categorical variables as character vectors")
 
   for (col in enumerate(default_imputations)) {
     miss_ind <- is.na(data[, col$name])
