@@ -1,9 +1,27 @@
-#' Script 02, preprocess parsed data
+#' Step 02: Preprocess parsed and merged data from step 1.
 #'
-#' @param parsed_data_path
-#' @param output_path
+#' This step preprocesses the data from step 1. This includes:
+#' - Encoding of labels
+#' - Training/test split
+#' - Categorical feature encoding
+#' - Removal of variants from predicted consequence classes that are very
+#' infrequent
+#' - A-priori imputation, i.e. constant imputation with known correct values
+#' - (Pre-specified) selection of features
+#' 
+#' Parameters used by this step (presented via constant names; see
+#' R/parameters.R for explicit string values):
+#' - VUS_INCLUSION, which specifies whether VUS should be included in positive
+#'  or negative labels or excluded
+#' - CATEGORICAL_ENCODING, which specifies whether categorical features should
+#' be encoded as dummy variables
 #'
-#' @return
+#' @param parsed_data_path Path to parsed data directory produced in step 01
+#' @param parameters_path Path to parameter combination file
+#' @param output_path Path to directory in which to write output files
+#' @param seed Seed value
+#'
+#' @return Path to directory in which output files were written
 #' @export
 S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, seed = 10) {
   futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_path, "02_preprocess_data.log")))

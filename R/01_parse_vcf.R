@@ -1,13 +1,26 @@
-
-#' Script 01: parse ClinVar VCF and CADD annotation files
+#' Step 01: parse annotated ClinVar VCF and CADD annotation files
 #'
-#' @param vcf_filename
-#' @param cadd_snv_filename
-#' @param cadd_indel_filename
-#' @param parameters_path
-#' @param output_root_dir
+#' This step parses VEP-annotated VCF data into a matrix of values and merges
+#' that matrix with additional annotations obtained from CADD's annotation
+#' files.
 #'
-#' @return
+#' Parameters used by this step (presented via constant names; see
+#' R/parameters.R for explicit string values):
+#' - TRANSCRIPT, which determines whether or not only canonical transcripts
+#' are retained
+#' - CLASSIFICATION_QUALITY, which determines the lowest ClinVar quality tier
+#' for which variants are retained
+#' - RESTRICTION_MISSENSE, which determines whether only missense variants are
+#' allowed
+#'
+#' @param vcf_filename Path to VEP-annotated ClinVar VCF
+#' @param cadd_snv_filename Path to CADD SNV file
+#' @param cadd_indel_filename Path to CADD indel file
+#' @param parameters_path Path to file defining parameter combination to use
+#' @param output_root_dir Path to root output directory, in which the directory
+#'   containing script outputs will be created
+#'
+#' @return Path to directory in which output files were written
 #' @export
 S01_parse_vcf <- function(
   vcf_filename,

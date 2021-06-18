@@ -1,16 +1,16 @@
-#' Title
+#' This function constitutes the body inside a cross-validation loop.
+#' I.e. it performs training and testing with a given parameter combination,
+#' training data and testing data sets and their respective label vectors.
 #'
-#' @param fold_tr_datas
-#' @param fold_te_datas
-#' @param fold_tr_outcomes
-#' @param fold_te_outcomes
-#' @param output_path
-#' @param i
+#' @param fold_tr_datas List of training datasets for each cross-validation fold
+#' @param fold_te_datas List of test datasets for each cross-validation fold
+#' @param fold_tr_outcomes List of training outcome vectors for each cross-validation fold
+#' @param fold_te_outcomes List of test outcome vectors for each cross-validation fold
+#' @param output_path Path to directory to write results in
+#' @param i Fold index
 #'
-#' @return
+#' @return A pair (2-element list) of results for random forest and logistic regression, respectively.
 #' @export
-#'
-#' @examples
 cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, fold_te_outcomes, output_path, i) {
     dir_path <- file.path(output_path, paste0("fold_", i))
     create_dir(dir_path)
@@ -51,14 +51,19 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     return(list(rf_results, lr_results))
 }
 
-#' Script 11, cross-validation
-#'
-#' @param preprocessed_data_path
-#' @param output_path
-#' @param parameters_path
-#' @param n_folds
-#' @param cores
-#' @param seed
+#' Step 11: Cross-validation
+#' 
+#' This step performs parallel cross-validation with a specified parameter combination.
+#' 
+#' Parameters used by this step (referenced with constant names,
+#' see R/parameters.R for explicit string values):
+#' - IMPUTATION_METHOD, which specifies the imputation method to be used
+#' 
+#' @param preprocessed_data_path Path to directory containing the results from step 02
+#' @param output_path Path to directory in which outputs will be written
+#' @param parameters_path Path to file specifying parameter combination
+#' @param n_folds Number of cross-validation folds
+#' @param seed Seed value
 #'
 #' @return
 #' @export

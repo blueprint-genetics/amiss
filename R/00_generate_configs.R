@@ -1,16 +1,18 @@
-#' Script 00: generate parameter combination files
+#' Step 00: generate parameter combination files
 #'
-#' @param spec_filename 
-#' @param parameter_grid_filename 
+#' This step produces parameter combination files from a parameter grid
+#' JSON file.
+#' 
+#' @param spec_path Path to file defining experiment parameters
+#' @param parameter_grid_path Path to file defining the parameter grid
+#' to sample from
 #'
 #' @return
 #' @export
-#'
-#' @examples
-S00_generate_configs <- function(spec_filename = "experiment_spec.json", parameter_grid_filename = "parameter_grid.json") {
+S00_generate_configs <- function(spec_path = "experiment_spec.json", parameter_grid_path = "parameter_grid.json") {
   
-  spec <- get_config(spec_filename)
-  parameter_grid <- get_config(parameter_grid_filename)
+  spec <- get_config(spec_path)
+  parameter_grid <- get_config(parameter_grid_path)
   
   stopifnot("n_combinations" %in% names(spec))
   
