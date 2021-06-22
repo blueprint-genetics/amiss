@@ -61,7 +61,8 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   futile.logger::flog.info("Positive classes: %s", paste0(positive_classes, collapse = ", "))
   futile.logger::flog.info("Negative classes: %s", paste0(negative_classes, collapse = ", "))
   
-  uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", "other")
+  uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", 
+                         "other", "Affects", "risk_factor", "association_not_found", "association", "protective")
   if (config[[VUS_INCLUSION]] == VUS_AS_BENIGN) {
     negative_classes <- c(negative_classes, uncertain_classes)
   } else if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
@@ -203,6 +204,30 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   futile.logger::flog.info("Performing feature selection")
   training_set <- select_features(training_set, numeric_features, categorical_features)
   test_set <- select_features(test_set, numeric_features, categorical_features)
+  
+  ## Downsampling majority class
+  if (config[[DOWNSAMPLING]] == DOWNSAMPLING_ON) {
+    futile.logger::flog.info("Performing downsampling of majority class")
+    majority_class <- table(training_outcome)
+    majority_class <- majority_class[which.max(majority_class)]
+    minority_class <- table(training_outcome)
+    minority_class <- minority_class[which.min(minority_class)]
+    
+    futile.logger::flog.info(paste0("Majority class is \"", names(majority_class), "\""))
+    
+    # Drop n majority class instances, where n is the number 
+    # by which majority class size exceeds minority class size
+    drop_idx <- sample(which(training_outcome == names(majority_class)), majority_class - minority_class)
+    futile.logger::flog.info(paste0("Dropping ", length(drop_idx), " instances of the majority class"))
+    training_outcome <- training_outcome[-drop_idx]
+    training_set <- training_set[-drop_idx,, drop = FALSE]
+    futile.logger::flog.info(table(training_outcome) %>% capture.output)
+     
+  } else if (config[[DOWNSAMPLING]] == DOWNSAMPLING_OFF) {
+    # Do nothing
+  } else stop(
+    paste0("Unknown value \"", config[[DOWNSAMPLING]], "\" for parameter \"", DOWNSAMPLING, "\"")
+  )
   
   # Finally, write out the processed data CSV file.
   futile.logger::flog.info("Writing files")

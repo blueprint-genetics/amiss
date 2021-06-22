@@ -21,3 +21,7 @@ MISSENSE_ONLY <- "missense"
 ALL <- "all"
 
 IMPUTATION_METHOD <- "imputation"
+
+DOWNSAMPLING <- "downsampling"
+DOWNSAMPLING_ON <- "on"
+DOWNSAMPLING_OFF <- "off"
