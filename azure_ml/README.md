@@ -1,10 +1,15 @@
 # Scaling the `amiss` R framework with Azure Machine Learning
 
-Since the `amiss` framework performs a grid search across a number of parameters, this process can be distributed across multiple nodes in a compute cluster.
+<h3 align="right">Quest Diagnostics, Blueprint Genetics, and BlueGranite</h3>
 
-Using Azure Machine Learning, a cloud-based service to help build, scale, monitor, and deploy machine learning models, we can distribute this search with ease.
+----------------------------
+
+Since the `amiss` framework performs a grid search across a number of parameters, this process can be distributed across multiple nodes in a compute cluster. Using Azure Machine Learning, a cloud-based service to help build, scale, monitor, and deploy machine learning models, we can distribute this search with ease.
 
 To learn more about Azure Machine Learning, click [here](https://docs.microsoft.com/en-us/azure/machine-learning/overview-what-is-azure-ml).
+
+
+<img src="https://raw.githubusercontent.com/colbyford/amiss/master/azure_ml/img/scalability_approach.png">
 
 
 ## How it works - HyperDrive
@@ -12,6 +17,8 @@ To learn more about Azure Machine Learning, click [here](https://docs.microsoft.
 As part of the Azure Machine Learning Python and R SDKs, there is a hyperparameter tuning package called [HyperDrive](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive?view=azure-ml-py).
 
 HyperDrive allows for more efficient hyperparameter tuning by distributing combinations of parameters to separate compute contexts on a cluster. This helps to find the set of parameters that result in the best performance.
+
+<img src="https://raw.githubusercontent.com/colbyford/amiss/master/azure_ml/img/hyperdrive_example.png">
 
 ## Running `amiss` in Azure ML
 
@@ -31,8 +38,6 @@ HyperDrive allows for more efficient hyperparameter tuning by distributing combi
 
 From this directory, run the following commands to build the custom Docker image. This docker image is built with the required Azure ML dependencies as well as the packages to run the `amiss` R package.
 
-Note: Replace `<YOUR DOCKERHUB USERNAME>` with your username for hub.docker.com.
-
 ```sh
 docker build -t amiss_aml .
 
@@ -44,3 +49,8 @@ docker push <YOUR DOCKERHUB USERNAME>/amiss_aml:latest
 # docker image tag amiss_aml cford38/amiss_aml:latest
 # docker push cford38/amiss_aml:latest
 ```
+
+Notes:
+ - This image is currently hosted under [`cford38/amiss_aml`](https://hub.docker.com/r/cford38/amiss_aml) if you don't want to rebuild it.
+ - If you choose to rebuild the image for yourself, update the `env <- r_environment("amiss-env", custom_docker_image = "<YOUR DOCKERHUB USERNAME>/amiss_aml")` line in the `aml_r_sdk_hyperdrive.rmd` notebook.
+ - Also, replace `<YOUR DOCKERHUB USERNAME>` with your username for [hub.docker.com](https://hub.docker.com/) below.
