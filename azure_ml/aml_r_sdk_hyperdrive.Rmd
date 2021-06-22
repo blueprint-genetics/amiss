@@ -1,0 +1,235 @@
+---
+title: "Scaling the `amiss` R framework with Azure Machine Learning"
+output:
+  html_document:
+    df_print: paged
+---
+
+# About Azure Machine Learning
+Azure Machine Learning is a cloud-based environment for training, deploying, managing, and tracking machine learning models. In this notebook, we are using the R SDK to automate and scale the `amiss` package's parameter search process using HyperDrive on a cluster computing environment.
+
+# Connect to the Workspace
+
+If you are executing this notebook from within an Azure Machine Learning Compute Instance, the following command will load the local workspace information from the local settings (using `load_workspace_from_config()`). Otherwise, you will need to use the `get_workspace` function and provide the resource group and subscription information.
+
+```{r}
+library(azuremlsdk)
+
+ws <- load_workspace_from_config()
+# ws <- get_workspace(name, subscription_id = "", resource_groups = "")
+experiment_name <- "amiss_experiment"
+exp <- experiment(ws, experiment_name)
+```
+
+# Create a Compute Target
+
+Provision an Azure Machine Learning compute target for distributing the `amiss` workload. A compute cluster is a managed-compute infrastructure that will remotely run machine learning tasks. Using a multi-node cluster, different parameter sets will be sent to each node to scale the search activities as part of the `amiss` framework.
+
+Notes:
+ - If `min_nodes = 0`, the cluster autoscales down to zero nodes when it isn't being used, and scales up automatically when a job is submitted.
+ - You should set the `max_nodes` setting to however many parameter combinations you wish to test.
+ - If you run into "memory allocation" errors, you may need to use large VM sizes (for example, use D15v2 VMs over D2v2 VMs).
+
+```{r}
+cluster_name <- "amiss-cluster"
+compute_target <- get_compute(ws, cluster_name = cluster_name)
+if (is.null(compute_target)) {
+  # vm_size <- "STANDARD_D2_V2"
+  # vm_size <- "STANDARD_D16_V3"
+  vm_size <- "STANDARD_D15_V2"
+  compute_target <- create_aml_compute(workspace = ws,
+                                       cluster_name = cluster_name,
+                                       vm_size = vm_size,
+                                       min_nodes = 0,
+                                       max_nodes = 20)
+  
+  
+  wait_for_provisioning_completion(compute_target, show_output = TRUE)
+}
+```
+
+# Upload data to Datastore
+
+This is an optional step to upload data from the local file system to the Azure Storage (Datastore).
+
+```{r}
+
+ds <- get_default_datastore(ws)
+
+target_path <- "data"
+upload_files_to_datastore(ds,
+                          list("./data/CADD_clingen_indel.tsv",
+                               "./data/CADD_clingen.tsv",
+                               "./data/clinvar_20190624.vep.vcf_head_10000"),
+                          target_path = target_path,
+                          overwrite = TRUE)
+```
+
+## Download files (from data lake)
+
+If you have previously uploaded data to the connected datalake, you can download them to the local filesystem, which will get replicated on the remote compute cluster when the run is submitted.
+
+```{r}
+ds = get_datastore(ws, "genomicsdatalake")
+
+download_from_datastore(
+  ds,
+  target_path = "data",
+  prefix = "amiss_data/clinvar_20190624.vep.vcf",
+  overwrite = FALSE,
+  show_progress = TRUE
+)
+
+```
+
+# Define Datasets
+
+Define the input filenames for the VCF file and the CADD SNV and Indel files. If your filename ends with a `.gz`, the file will automatically be unzipped before it is read into the `amiss` framework.
+
+```{r}
+vcf_filename = "clinvar_20190624.vep.vcf_head_10000.gz"
+# vcf_filename = "clinvar_20190624.vep.vcf.gz"
+cadd_snv_filename = "CADD_clingen.tsv"
+cadd_indel_filename = "CADD_clingen_indel.tsv"
+
+```
+
+
+# Set up Estimator
+
+An Estimator wraps run configuration information for specifying details of executing an R script.
+Below, we specify a number of settings:
+ - The environment, which pulls from a pre-built Docker container image on Dockerhub that contains all the dependencies to run the `amiss` package.
+ - The entry script, which runs on each node of the compute cluster. This is the training script that defines the steps to be performed on each parameter set.
+ - The general input information, such as the data folder, the number of cross-validation folds, and the input files.
+ - The compute target as defined above.
+
+```{r}
+env <- r_environment("amiss-env", custom_docker_image = "cford38/amiss_aml")
+
+## Create the estimator
+est <- estimator(source_directory = '.',
+                 entry_script = 'amiss_test_script.R',
+                 script_params = list("--data_folder" = "data/",
+                                      "--n_folds" = 10,
+                                      "--vcf_filename" = vcf_filename,
+                                      "--cadd_snv_filename" = cadd_snv_filename,
+                                      "--cadd_indel_filename" = cadd_indel_filename),
+                 compute_target = compute_target,
+                 environment = env)
+```
+
+# Set up HyperDrive
+
+HyperDrive is a tool within Azure Machine Learning that allows for scalable hyperparameter tuning. Here we define the total search grid from which random parameter combinations will be selected. In the `hyperdrive_config`, we specify the primary metric, the maximum total runs, and the maximum concurrent runs.
+
+Some considerations:
+ - The primary metric (which is the the Matthews correlation coefficient or `mcc`) is used to pick which parameter combination is optimal given the search space. Since we have se the primary metric's goal to `"MAXIMIZE"`, it will pick the run with the highest `mcc` value.
+ - `max_total_runs` defines how many parameter combinations to generate and distribute across the cluster. `max_concurrent_runs` defines how many of these runs can be performed at a time. Generally, the `max_concurrent_runs` should be equal to the number of nodes in the cluster or some multiple thereof such that the distribution of tasks up to the `max_total_runs` is distributed appropriately.
+ - In this example, we do not specify an early termination policy, but this is an option for HyperDrive. You can specify for the job to complete early if the performance of the runs is not improving. This is mainly used when parameters are numerical rather than categorical, as is seen here.
+
+```{r}
+param_sampling <- random_parameter_sampling(list("transcript" = choice(c("canonical", "keep_all")),
+                                               "quality" = choice(c("clingen", "twostar", "onestar")),
+                                               "restriction" = choice(c("missense", "all")),
+                                               "vus_inclusion" = choice(c("pathogenic", "benign", "exclude")),
+                                               "categorical" = choice(c("dummy", "dummy")),
+                                               "imputation" = choice(c("zero_imp", "max_imp", "min_imp", "knnImputation", "rf"))))
+
+## Worst Case
+# {"transcript":"keep_all","quality":"onestar","restriction":"all","vus_inclusion":"pathogenic","categorical":"dummy","imputation":"rf"}
+
+## Best Case
+# {"transcript":"canonical","quality":"clingen","restriction":"missense","vus_inclusion":"exclude","categorical":"dummy","imputation":"zero_imp"}
+
+
+## Define the primary metric goal
+goal = primary_metric_goal("MAXIMIZE")
+
+## Define the early termination policy
+# early_termination_policy = median_stopping_policy(evaluation_interval = 1L,
+#                                                   delay_evaluation = 5L)
+
+## Create the HyperDrive configuration
+hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampling,
+                                          primary_metric_name = 'mcc',
+                                          primary_metric_goal = goal,
+                                          max_total_runs = 40,
+                                          max_concurrent_runs = 20,
+                                          # policy = early_termination_policy,
+                                          estimator = est)
+```
+
+# Submit Experiment
+
+Once all of the configurations are set for the HyperDrive experiment, the run can be submitted to the remote compute cluster. You can then see the results of each child run (parameter combination) from the Azure Machine Learning workspace UI.
+
+```{r}
+## Submit the HyperDrive experiment
+run = submit_experiment(exp, hyperdrive_run_config)
+# run = submit_experiment(exp, est)
+```
+
+# Retrieve Results
+
+Once the run has completed, we can now retrieve the outputs from each child run/parameter set. Then, we can create a dataframe of all the results and attach the fila results set to the parent run.
+
+```{r}
+library(dplyr)
+
+child_run_ids <- (do.call(rbind, get_child_runs_sorted_by_primary_metric(run)) %>% as.data.frame())$run_id %>% unlist()
+
+results_df <- data.frame()
+
+## For each child run, capture the results
+for (i in seq_along(child_run_ids)){
+  child_run_id <- child_run_ids[i]
+  
+  child_run_iter <- get_run(exp, run_id = child_run_id)
+  
+  iter_args <- get_run_details(child_run_iter)$runDefinition$arguments
+  
+  iter_args_df <- data.frame(
+    parent_run_id = get_run_details(run)$runId,
+    child_run_id = child_run_id,
+    vcf_filename = iter_args[6],
+    cadd_snv_filename = iter_args[8],
+    cadd_indel_filename = iter_args[10],
+    categorical = iter_args[12],
+    imputation = iter_args[14],
+    quality = iter_args[16],
+    restriction = iter_args[18],
+    transcript = iter_args[20],
+    vus_inclusion = iter_args[22]
+  )
+  
+  
+  ## Get LR results
+  download_file_from_run(child_run, "outputs/cv_lr_results.csv")
+  lr_results <- read.csv("cv_lr_results.csv") %>% mutate(source = "lr_results")
+  file.remove("cv_lr_results.csv")
+  
+  ## Get RF results
+  download_file_from_run(child_run, "outputs/cv_rf_results.csv")
+  rf_results <- read.csv("cv_rf_results.csv") %>% mutate(source = "rf_result")
+  file.remove("cv_rf_results.csv")
+  
+  ## Append to dataframe
+  iter_results <- rbind(lr_results, rf_results)
+  iter_results <- cbind(iter_args_df, iter_results)
+  
+  results_df <- rbind(results_df, iter_results)
+}
+
+
+## Upload final results to Parent Run (or log them)
+# log_table_to_run("run_results", as.list(results_df), run = run)
+
+dir.create("outputs")
+write.csv(results_df, "outputs/final_cv_results.csv", row.names = FALSE)
+
+upload_folder_to_run(name = "outputs",
+                     path = "outputs",
+                     run = run)
+
+```
