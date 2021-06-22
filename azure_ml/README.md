@@ -7,11 +7,16 @@ Using Azure Machine Learning, a cloud-based service to help build, scale, monito
 To learn more about Azure Machine Learning, click [here](https://docs.microsoft.com/en-us/azure/machine-learning/overview-what-is-azure-ml).
 
 
+<img src="https://raw.githubusercontent.com/colbyford/amiss/master/azure_ml/img/scalability_approach.png">
+
+
 ## How it works - HyperDrive
 
 As part of the Azure Machine Learning Python and R SDKs, there is a hyperparameter tuning package called [HyperDrive](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive?view=azure-ml-py).
 
 HyperDrive allows for more efficient hyperparameter tuning by distributing combinations of parameters to separate compute contexts on a cluster. This helps to find the set of parameters that result in the best performance.
+
+<img src="https://raw.githubusercontent.com/colbyford/amiss/master/azure_ml/img/hyperdrive_example.png">
 
 ## Running `amiss` in Azure ML
 
