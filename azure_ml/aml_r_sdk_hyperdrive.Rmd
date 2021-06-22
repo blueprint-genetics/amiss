@@ -105,7 +105,9 @@ Below, we specify a number of settings:
  - The compute target as defined above.
 
 ```{r}
-env <- r_environment("amiss-env", custom_docker_image = "cford38/amiss_aml")
+
+env <- r_environment("amiss-env", custom_docker_image = "<YOUR DOCKERHUB USERNAME>/amiss_aml")
+# env <- r_environment("amiss-env", custom_docker_image = "cford38/amiss_aml")
 
 ## Create the estimator
 est <- estimator(source_directory = '.',
