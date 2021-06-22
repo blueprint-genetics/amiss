@@ -34,6 +34,8 @@ HyperDrive allows for more efficient hyperparameter tuning by distributing combi
 
 6. Change the values in the the `aml_r_sdk_hyperdrive.rmd` notebook to fit your desired computational workload.
 
+7. Run the cells from the `aml_r_sdk_hyperdrive.rmd` notebook to start the experiment runs in Azure ML. (You will not need to manually execute anything in the `amiss_test_script.R` script.)
+
 ## Building the Custom Docker Image
 
 From this directory, run the following commands to build the custom Docker image. This docker image is built with the required Azure ML dependencies as well as the packages to run the `amiss` R package.
