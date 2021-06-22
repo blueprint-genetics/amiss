@@ -43,7 +43,7 @@ From this directory, run the following commands to build the custom Docker image
 ```sh
 docker build -t amiss_aml .
 
-docker run --name amiss_aml --rm -p 8787:8787 amiss_aml
+# docker run --name amiss_aml --rm -p 8787:8787 amiss_aml
 
 docker image tag amiss_aml <YOUR DOCKERHUB USERNAME>/amiss_aml:latest
 docker push <YOUR DOCKERHUB USERNAME>/amiss_aml:latest
