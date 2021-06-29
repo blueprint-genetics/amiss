@@ -1,6 +1,4 @@
-library(here)
-library(magrittr)
-source(here("R", "recursive_application.R"))
+#' @importFrom magrittr %>%
 
 compute_rmse <- function(imputer_path, orig_data_path, simu_data_path, output_filename) {
 

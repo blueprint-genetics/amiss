@@ -1,15 +1,10 @@
-library(magrittr)
-library(here)
-
-source(here("R", "recursive_application.R")) # for enumerate
-source(here("R", "utils.R")) # for find_dummies
-
 #' Partition dataset into a training and a test set
 #'
 #' @param dataframe A data.frame that will be partitioned into two.
 #' @param proportion Proportional size of training set compared to test set
 #'
 #' @return Two-element list containing the training and test sets.
+#' @importFrom magrittr %<>%
 split_train_test <- function(dataframe, proportion) {
 
   stopifnot(class(dataframe) == "data.frame")
@@ -29,7 +24,8 @@ split_train_test <- function(dataframe, proportion) {
 
   datasplit <- list(
     training_set = dataframe[index, ],
-    test_set = dataframe[!index, ]
+    test_set = dataframe[!index, ],
+    index = index
   )
 
   return(datasplit)
@@ -51,7 +47,7 @@ code_labels <- function(class_vector, positive_classes, negative_classes) {
   # If classification is not any of these, raise and error
   undefined_class_ind <- !class_vector %in% c(positive_classes, negative_classes)
   if (any(undefined_class_ind)) {
-    error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(unique(class_vector[undefined_class_ind]))
+    error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(paste0(unique(class_vector[undefined_class_ind]), collapse=", "))
     stop(error_msg)
   }
 
@@ -114,10 +110,10 @@ a_priori_impute <- function(data, default_imputations) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
   if (!is.list(default_imputations)) stop("`default_imputations` must be a list")
-  if (!all(sapply(names(default_imputations), FUN = function(x) is.numeric(default_imputations[[x]]) == is.numeric(data[[x]])))) stop("Imputed values must match data by class")
-  if (!all(sapply(names(default_imputations), FUN = function(x) is.character(default_imputations[[x]]) == is.character(data[[x]])))) stop("Imputed values must match data by class")
-  if (any(sapply(default_imputations, is.factor))) stop("Please pass categorical variables as character vectors")
-  if (any(sapply(data, is.factor))) stop("Please pass categorical variables as character vectors")
+  #if (!all(sapply(names(default_imputations), FUN = function(x) is.numeric(default_imputations[[x]]) == is.numeric(data[[x]])))) stop("Imputed values must match data by class")
+  #if (!all(sapply(names(default_imputations), FUN = function(x) is.character(default_imputations[[x]]) == is.character(data[[x]])))) stop("Imputed values must match data by class")
+  #if (any(sapply(default_imputations, is.factor))) stop("Please pass categorical variables as character vectors")
+  #if (any(sapply(data, is.factor))) stop("Please pass categorical variables as character vectors")
 
   for (col in enumerate(default_imputations)) {
     miss_ind <- is.na(data[, col$name])

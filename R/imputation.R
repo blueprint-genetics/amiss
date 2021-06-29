@@ -1,17 +1,3 @@
-library(mice)
-library(foreach)
-library(doParallel)
-library(doRNG)
-library(magrittr)
-library(pcaMethods)
-library(DMwR)
-library(missForest)
-library(here)
-
-source(here("R", "utils.R"))
-source(here("R", "recursive_application.R"))
-source(here("R", "constants.R"))
-
 #' Produce a function that replaces all missing values
 #' with column-specific outputs
 #'
@@ -23,7 +9,14 @@ source(here("R", "constants.R"))
 #' @return A function that takes a data.frame and replaces
 #' each missing value in each column with the output of `f`
 #' on that column.
+#'
+#' @importFrom magrittr %>%
+#' @importFrom foreach %do%
+#' @importFrom foreach %dopar%
+#' @importFrom doRNG %dorng%
+
 single_value_univariate_imputation <- function(f) {
+  force(f)
   replace_na <- function(column) {
     missing <- is.na(column)
     impute_value <- f(column[!missing])
@@ -60,7 +53,6 @@ mean_imp <- single_value_univariate_imputation(mean)
 median_imp <- single_value_univariate_imputation(median)
 zero_imp <- single_value_univariate_imputation(function(x) 0.0)
 outlier_imp <- single_value_univariate_imputation(produce_outlier)
-
 
 reimpute <- function(dataframe, value) {
   if (!setequal(names(value), colnames(dataframe))) stop("Names of `value` and column names of `dataframe` do not match")
@@ -186,10 +178,10 @@ run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data
     imputation <- NULL
     tryCatch({
       if (!is.null(old_data)) {
-        imputation <- do.call(knnImputation, c(list(data = I(data)), hyperparams, distData = list(old_data)))
+        imputation <- do.call(DMwR::knnImputation, c(list(data = I(data)), hyperparams, distData = list(old_data)))
       }
       else {
-        imputation <- do.call(knnImputation, c(list(data = I(data)), hyperparams))
+        imputation <- do.call(DMwR::knnImputation, c(list(data = I(data)), hyperparams))
       }
     }, error = function(e) {
       flog.pid.debug("Trying to execute knnImputation, the following error occurred: %s", e$message)
@@ -219,15 +211,15 @@ run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data
 run_missforest <- function(data, hyperparams, times, iterations = NULL) {
 
   timing <- system.time({
-    completed_datasets <- foreach(i = 1:times) %do% {
+    completed_datasets <- foreach::foreach(i = 1:times) %do% {
       imputation <- NULL
       tryCatch({
-        imputation <- do.call(missForest, c(list(I(data)), hyperparams))
+        imputation <- do.call(missForest::missForest, c(list(I(data)), hyperparams))
       }, error = function(e) {
         flog.pid.debug("Trying to execute missForest, the following error occurred: %s", e$message)
       })
       return(imputation$ximp)
-    } %>% set_names(1:times)
+    } %>% magrittr::set_names(1:times)
   })
 
   result <- list(
@@ -308,18 +300,18 @@ impute_with_hyperparameters <- function(data, impute_function, method_name, hype
     imputations <- list(imp_hp_1 = impute_function(data, list(), times, ...))
   }
   else {
-    imputations <- foreach(hp_row = 1:nrow(hyperparameters), .options.RNG = seed) %dorng% {
+    imputations <- foreach::foreach(hp_row = 1:nrow(hyperparameters), .options.RNG = seed) %dorng% {
       flog.pid.info("Imputing with %s, parameters %s", method_name, paste0(names(hyperparameters), ": ", hyperparameters[hp_row, ], collapse = ", "))
       impute_function(data, unlist(hyperparameters[hp_row,]), times, ...)
-    } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparameters)))
+    } %>% magrittr::set_names(paste0("imp_hp_", 1:nrow(hyperparameters)))
   }
   return(imputations)
 }
 impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
 
-  imputations <- foreach(hyperparameter_grid = enumerate(hyperparameter_grids)) %do% {
+  imputations <- lapply(enumerate(hyperparameter_grids), function(hyperparameter_grid) {
     impute_with_hyperparameters(data = data, impute_function = method_to_function(hyperparameter_grid$name), method_name = hyperparameter_grid$name, hyperparameters = hyperparameter_grid$value, seed = seed, times = times, ... = ...)
-  }
+  })
   # Combine timings of different hyperparameter configs
   timings <- do.call(rbind, lapply(imputations, . %>% attr(TIMING_ATTR)))
   # Return them along with the imputation object
@@ -332,7 +324,7 @@ impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
 
 impute_w_hps <- function(data, hp_tree, times, iters, seed){
 
-  imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
+  imputations <- foreach::foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
     # The imputation parameters estimated from the training set should be used
     # where possible.
     estimates <- attr(hps$value, IMPUTATION_REUSE_PARAMETERS)
@@ -372,7 +364,7 @@ impute_w_hps <- function(data, hp_tree, times, iters, seed){
   }
   names(imputations) <- names(hp_tree)
 
-  completions <- imputations %>% lapply(. %>% extract2(1))
+  completions <- imputations %>% lapply(. %>% magrittr::extract2(1))
 
   return(completions)
 }

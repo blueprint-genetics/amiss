@@ -1,10 +1,3 @@
-library(tidyr)
-library(stringr)
-library(vcfR)
-library(here)
-
-source(here("R", "utils.R"))
-
 #' Spread data stored in key-value pairs in the INFO column
 #' 
 #' Spread data stored in key-value pairs in the INFO column
@@ -15,6 +8,8 @@ source(here("R", "utils.R"))
 #'
 #' @return A data.frame otherwise similar to `vcf@fix`, but with the INFO column spread as described.
 #'
+#' @importFrom magrittr "%>%"
+
 spread_info_column <- function(vcf, row_indices) {
   # TODO: check for existence of multiple ALT alleles
   
@@ -28,12 +23,12 @@ spread_info_column <- function(vcf, row_indices) {
   info <- vcf@fix[row_indices, "INFO", drop = TRUE] 
   
   # The INFO column consists of key-value pairs separated by semicolons
-  info_split <- stringr::str_split(string = info, pattern = fixed(";"))
+  info_split <- stringr::str_split(string = info, pattern = stringr::fixed(";"))
   
   # Split strings `key=value` into pairs c(key, value) (i.e. character vectors of length 2)
   info_key_value_pair_lists <- lapply(X = info_split, 
                                       FUN = function(x) {
-                                        stringr::str_split_fixed(string = x, pattern = fixed('='), n = 2)
+                                        stringr::str_split_fixed(string = x, pattern = stringr::fixed('='), n = 2)
                                       })
   
   # Form 2-column data.frames from the pairs in order to use tidyr::spread
@@ -101,7 +96,7 @@ get_info_keys <- function(vcf) {
   
   info_metadata <- vcfR::queryMETA(vcf, "INFO", nice = TRUE)
   keys <- lapply(X = info_metadata, FUN = function(x) x[1]) %>% unlist
-  keys <- stringr::str_split(string = keys, pattern = fixed("INFO=ID="), n = 2)
+  keys <- stringr::str_split(string = keys, pattern = stringr::fixed("INFO=ID="), n = 2)
   keys <- vapply(X = keys, FUN = function(x) x[2], FUN.VALUE = character(1))
   
   return(keys)
@@ -122,9 +117,9 @@ get_vep_field_names <- function(vcf) {
   # Get CSQ keys from metadata
   csq_keys <- vcfR::queryMETA(vcf, 'CSQ', nice = TRUE)[[1]][4]
   # Drop the part of the string before the format definition
-  csq_keys <- stringr::str_split(csq_keys, fixed("Format: "))[[1]][2] 
+  csq_keys <- stringr::str_split(csq_keys, stringr::fixed("Format: "))[[1]][2]
   # Produce character vector 
-  csq_keys <- stringr::str_split(csq_keys, fixed("|"))[[1]]
+  csq_keys <- stringr::str_split(csq_keys, stringr::fixed("|"))[[1]]
   
   return(csq_keys)
 }
@@ -154,7 +149,7 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
   
   # Split by transcript
   vep_data <- lapply(X = variant_dataframe[, "CSQ", drop = TRUE],
-                     FUN = . %>% str_split(string = ., pattern = ',', n = Inf) %>% unlist)
+                     FUN = . %>% stringr::str_split(string = ., pattern = ',', n = Inf) %>% unlist)
   variant_dataframe$CSQ <- NULL
   
   transcript_nums <- sapply(X = vep_data, FUN = length)
@@ -167,7 +162,7 @@ split_vep_fields <- function(variant_dataframe, vep_field_names) {
   # Replicate rows so that each transcript gets its own row
   variant_dataframe <- variant_dataframe[rep(1:nrow(variant_dataframe), times = unlist(transcript_nums)), ]
   
-  vep_data <- stringr::str_split_fixed(vep_data %>% unlist, fixed("|"), n = length(vep_field_names))
+  vep_data <- stringr::str_split_fixed(vep_data %>% unlist, stringr::fixed("|"), n = length(vep_field_names))
   colnames(vep_data) <- vep_field_names
   
   variant_dataframe <- data.frame(variant_dataframe, vep_data, stringsAsFactors = FALSE)
@@ -213,7 +208,7 @@ split_dbnsfp_values <- function(variant_dataframe) {
   # each of which is now a vector, since it may contain multiple values that were separated by '&'.
   # etsplits = list( col1 = list( row_1 = c("val1", "val2", ...), ... ), ... )
   etsplits <- lapply(X = variant_dataframe[, process_columns, drop = FALSE], 
-                     FUN = function(x) stringr::str_split(string = x, pattern = fixed("&")))
+                     FUN = function(x) stringr::str_split(string = x, pattern = stringr::fixed("&")))
   
   # For each row, try to match the transcript given by VEP (Feature-column)
   # to the vector of transcripts given by dbNSFP (Ensembl_transcriptid-column).
@@ -285,7 +280,7 @@ vcf_object_to_dataframe <- function(vcf, num_batches = 100, info_filters = NULL,
   # This should be trivial to parallelize
   process_batch <- function(batch, batch_i) {
 
-    flog.debug("Batch " %>% paste0(batch_i))
+    futile.logger::flog.debug("Batch " %>% paste0(batch_i))
     
     batch_df <- spread_info_column(vcf, row_indices = batch)
   

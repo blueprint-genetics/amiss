@@ -26,6 +26,34 @@ clingen <- function(variant) {
   variant[, "CLNREVSTAT", drop = TRUE] %in% c("reviewed_by_expert_panel", "practice_guideline")
 }
 
+#' Check whether variants have at least two stars in ClinVar
+#'
+#' @param variant A data.frame containing VEP-annotated variants (must have a "CLNREVSTAT"-column)
+#'
+#' @return A logical vector with as many values as rows in `variant`. Each value is `TRUE` 
+#' if the CLNREVSTAT field is either "criteria_provided,_multiple_submitters,_no_conflicts"
+#' or the variant passes the `clingen` filter, and `FALSE` otherwise.
+twostar <- function(variant) {
+  
+  stopifnot(class(variant) == "data.frame")
+  
+  (variant[, "CLNREVSTAT", drop = TRUE] == c("criteria_provided,_multiple_submitters,_no_conflicts")) | clingen(variant)
+}
+
+#' Check whether variants have at least one star in ClinVar (not allowing conflicting classifications)
+#'
+#' @param variant A data.frame containing VEP-annotated variants (must have a "CLNREVSTAT"-column)
+#'
+#' @return A logical vector with as many values as rows in `variant`. Each value is `TRUE` 
+#' if the CLNREVSTAT field is either "criteria_provided,_single_submitter"
+#' or the variant passes the `twostar` filter, and `FALSE` otherwise.
+onestar <- function(variant) {
+  
+  stopifnot(class(variant) == "data.frame")
+  
+  (variant[, "CLNREVSTAT", drop = TRUE] == c("criteria_provided,_single_submitter")) | twostar(variant)
+}
+
 #' Check whether transcripts are Ensembl-canonical
 #'
 #' @param variant A data.frame containing VEP-annotated variants (must have a "CANONICAL"-column)

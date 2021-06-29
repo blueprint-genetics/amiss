@@ -103,11 +103,11 @@ tree_as_df <- function(tree, x_class) {
 #' E.g.
 #' `> a <- list(list(1:5, 6:10), list(11:15))`
 #' `> leaf_apply(a, max, TRUE)`
-#' `[[1]]
-#' [1] 10
+#' `[[1]]`
+#' `[1] 10`
 #' 
-#' [[2]]
-#' [1] 15
+#' `[[2]]`
+#' `[1] 15`
 #'
 #' @param x List structure over whose leaves to apply.
 #' @param fun Function to apply.

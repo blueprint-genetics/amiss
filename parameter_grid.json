@@ -1,0 +1,1 @@
+{"transcript": ["canonical", "keep_all"], "quality": ["clingen", "twostar", "onestar"], "restriction": ["missense", "all"], "vus_inclusion": ["pathogenic", "benign", "exclude"], "categorical": ["dummy"], "imputation": ["zero_imp", "max_imp", "min_imp", "knnImputation"]} 

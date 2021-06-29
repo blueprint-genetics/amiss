@@ -1,0 +1,23 @@
+TRANSCRIPT <- "transcript"
+TRANSCRIPT_KEEP_ALL <- "keep_all"
+TRANSCRIPT_CANONICAL <- "canonical"
+
+CLASSIFICATION_QUALITY <- "quality"
+CLASSIFICATION_QUALITY_CLINGEN <- "clingen"
+CLASSIFICATION_QUALITY_TWOSTAR <- "twostar"
+CLASSIFICATION_QUALITY_ONESTAR <- "onestar"
+
+VUS_INCLUSION <- "vus_inclusion"
+VUS_AS_BENIGN <- "benign"
+VUS_AS_PATHOGENIC <- "pathogenic"
+VUS_EXCLUDE <- "exclude"
+
+CATEGORICAL_ENCODING <- "categorical"
+CATEGORICAL_AS_FACTOR <- "factor"
+CATEGORICAL_AS_DUMMY <- "dummy"
+
+RESTRICTION_MISSENSE <- "restriction"
+MISSENSE_ONLY <- "missense"
+ALL <- "all"
+
+IMPUTATION_METHOD <- "imputation"

@@ -1,9 +1,6 @@
-library(foreach)
-library(doParallel)
-library(doRNG)
-library(here)
-
-source(here("R", "imputation.R"))
+#' @importFrom magrittr %>%
+#' @importFrom foreach %do%
+#' @importFrom doRNG %dorng%
 
 prediction <- function(models, completions, positive_label = POSITIVE_LABEL, seed = 1) {
   
@@ -14,7 +11,7 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
       if (is.null(completions[[method]]) || length(completions[[method]]) < 1) {
         return(list(NA))
       }
-      pred_per_completion <- foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
+      pred_per_completion <- foreach::foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
         if (!is.null(completed_dataset)) {
           tryCatch({
             flog.pid.info("Predicting using best model for %s", method)
