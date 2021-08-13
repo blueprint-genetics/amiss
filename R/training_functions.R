@@ -123,6 +123,28 @@ train_rf <- function(data, outcome, control, grid) {
 
   return(rf_model)
 }
+train_xgboost <- function(data, outcome, control, grid) {
+
+  if (is.null(data)) {
+    flog.pid.info("Dataset was NULL; returning NULL")
+    return(NULL)
+  }
+
+  model <- tryCatch({
+    caret::train(x = data,
+                 y = outcome,
+                 method = "xgbTree",
+                 preProcess = c("center", "scale"),
+                 trControl = control,
+                 tuneGrid = grid)
+  }, error = function(e) {
+    flog.pid.debug(e)
+    return(NULL)
+  })
+
+  return(model)
+}
+
 train_lr <- function(data, outcome, control, grid) {
 
   if(is.null(data)) {
