@@ -1,6 +1,7 @@
 # FROM mcr.microsoft.com/azureml/base-gpu:openmpi3.1.2-cuda10.1-cudnn7-ubuntu18.04
 FROM mcr.microsoft.com/azureml/base:openmpi3.1.2-ubuntu18.04
 # FROM mcr.microsoft.com/azureml/openmpi3.1.2-ubuntu16.04
+ARG AMISS_BRANCH
 
 RUN conda install -c r -y conda=4.8.3 r-essentials openssl=1.1.1c && \
 	conda clean -ay && \
@@ -18,6 +19,5 @@ RUN R -e "install.packages('DMwR_0.4.1.tar.gz', repos = NULL, type = 'source')"
 RUN R -e "BiocManager::install('pcaMethods')"
 
 ## Install `amiss` from Github branch
-RUN R -e "remotes::install_github('blueprint-genetics/amiss', ref = 'get_current_code_running_fully', dependencies = TRUE)"
-
+RUN R -e "remotes::install_github('blueprint-genetics/amiss', ref = '"$AMISS_BRANCH"', dependencies = TRUE)"
 
