@@ -18,6 +18,6 @@ RUN R -e "install.packages('DMwR_0.4.1.tar.gz', repos = NULL, type = 'source')"
 RUN R -e "BiocManager::install('pcaMethods')"
 
 ## Install `amiss` from Github branch
-RUN R -e "remotes::install_github('blueprint-genetics/amiss', ref = 'parametrize_imputation_methods_w_fixes', dependencies = TRUE)"
+RUN R -e "remotes::install_github('blueprint-genetics/amiss', ref = 'get_current_code_running_fully', dependencies = TRUE)"
 
 
