@@ -110,10 +110,17 @@ impute_and_train <- function(training_path,
 
   ## Training classifier
   flog.pid.info("Starting classifier training")
-  flog.pid.info("Hyperparameter grid:")
+  flog.pid.info("Hyperparameter grid for RF:")
   flog.pid.info(capture.output(print(RF_HYPERPARAMETER_GRID)))
+  flog.pid.info("Hyperparameter grid for XGBoost:")
+  flog.pid.info(capture.output(print(XGBOOST_HYPERPARAMETER_GRID)))
 
   rf_training_settings <- caret::trainControl(classProbs = TRUE,
+                                       verboseIter = FALSE,
+                                       method = "oob",  # Use out-of-bag error estimate for model selection
+                                       returnResamp = "final",
+                                       allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
+  xg_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
                                        method = "oob",  # Use out-of-bag error estimate for model selection
                                        returnResamp = "final",
@@ -130,6 +137,13 @@ impute_and_train <- function(training_path,
                            control = rf_training_settings,
                            grid = RF_HYPERPARAMETER_GRID,
                            seed = seed)
+  xg_models <- loop_models(training_function = train_xgboost,
+                           classifier_name = "XGBoost",
+                           imputations = imputations,
+                           outcome = outcome,
+                           control = xg_training_settings,
+                           grid = XGBOOST_HYPERPARAMETER_GRID,
+                           seed = seed)
   lr_models <- loop_models(training_function = train_lr,
                            classifier_name = "LR",
                            imputations = imputations,
@@ -142,11 +156,13 @@ impute_and_train <- function(training_path,
   flog.pid.info("Starting model selection")
   all_hyperparameter_grids <- c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids)
   rf_bests <- select_best(rf_models, imputations, all_hyperparameter_grids)
+  xg_bests <- select_best(xg_models, imputations, all_hyperparameter_grids)
   lr_bests <- select_best(lr_models, imputations, all_hyperparameter_grids)
 
   flog.pid.info("Saving data")
   # Save run time information for imputers
   write.csv(x = form_run_time_df(rf_bests$imputers, times_imputed = times), file = file.path(output_path, FILE_RF_RUNTIMES_CSV))
+  write.csv(x = form_run_time_df(xg_bests$imputers, times_imputed = times), file = file.path(output_path, FILE_XGBOOST_RUNTIMES_CSV))
   write.csv(x = form_run_time_df(lr_bests$imputers, times_imputed = times), file = file.path(output_path, FILE_LR_RUNTIMES_CSV))
 
   ## Saving model
@@ -154,6 +170,10 @@ impute_and_train <- function(training_path,
   if (!lean) saveRDS(rf_bests$imputers, file = file.path(output_path, FILE_RF_IMPUTERS_RDS))
   saveRDS(rf_bests$hyperparams, file = file.path(output_path, FILE_RF_HP_CONFIGS_RDS))
 
+  saveRDS(xg_bests$models, file = file.path(output_path, FILE_XGBOOST_CLASSIFIERS_RDS))
+  if (!lean) saveRDS(xg_bests$imputers, file = file.path(output_path, FILE_XGBOOST_IMPUTERS_RDS))
+  saveRDS(xg_bests$hyperparams, file = file.path(output_path, FILE_XGBOOST_HP_CONFIGS_RDS))
+  
   # glm models in R contain references to environments, but for prediction it doesn't seem that
   # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
   # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).

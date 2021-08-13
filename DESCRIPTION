@@ -41,4 +41,5 @@ Imports:
     testthat,
     e1071,
     pcaMethods,
-    rjson
+    rjson,
+    xgboost
