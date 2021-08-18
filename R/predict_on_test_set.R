@@ -57,7 +57,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
   flog.pid.info("Starting prediction by RF models")
   rf_predictions <- prediction(rf_models, rf_completions)
   flog.pid.info("Starting prediction by XGBoost models")
-  xg_predictions <- prediction(rf_models, rf_completions)
+  xg_predictions <- prediction(xg_models, xg_completions)
   flog.pid.info("Starting prediction by LR models")
   lr_predictions <- prediction(lr_models, lr_completions)
 
