@@ -64,7 +64,15 @@ MICE_ITERATIONS <- 10L
 SIMULATION_HP_SAMPLE_SIZE <- 8L
 
 RF_HYPERPARAMETER_GRID <- data.frame(mtry = 1:5 * 8 - 1)
-XGBOOST_HYPERPARAMETER_GRID <- expand.grid(eta = (0:10) / 10, gamma = c(0, 1, 10, 100), max_depth = 1:10,subsample = (1:5)/5)
+XGBOOST_HYPERPARAMETER_GRID <- expand.grid(eta = (0:2) / 2,
+                                           nrounds = (1:2) * 200,
+                                           #n_estimators = (1:5) * 100,
+                                           gamma = c(0, 1, 10, 100),
+                                           max_depth = (1:2)*5,
+                                           subsample = (1:2)/2,
+                                           min_child_weight = exp(1:2),
+                                           #reg_lambda = c(0,1),
+                                           colsample_bytree = (1:2) / 2)
 
 UNIQUENESS_CUTOFF_PERCENTAGE <- 1
 
@@ -84,8 +92,8 @@ FILE_CROSSVALIDATION_TRAINING_OUTCOMES <- "cv_training_outcome"
 FILE_CROSSVALIDATION_TEST_OUTCOMES <- "cv_test_outcome"
 
 FILE_RF_CROSSVALIDATION_RESULTS_CSV <- "cv_rf_results.csv"
-FILE_XGBOOST_CROSSVALIDATION_RESULTS_CSV <- "cv_rf_results.csv"
+FILE_XGBOOST_CROSSVALIDATION_RESULTS_CSV <- "cv_xg_results.csv"
 FILE_LR_CROSSVALIDATION_RESULTS_CSV <- "cv_lr_results.csv"
 FILE_RF_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV <- "cv_rf_pc_results.csv"
-FILE_XGBOOST_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV <- "cv_rf_pc_results.csv"
+FILE_XGBOOST_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV <- "cv_xg_pc_results.csv"
 FILE_LR_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV <- "cv_lr_pc_results.csv"

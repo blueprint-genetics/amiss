@@ -45,10 +45,12 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     
     rf_results <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
     rf_results$fold <- i
+    xg_results <- read.csv(file.path(dir_path, "results", FILE_XGBOOST_PERFORMANCE_CSV))
+    xg_results$fold <- i
     lr_results <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV))
     lr_results$fold <- i
     
-    return(list(rf_results, lr_results))
+    return(list(rf_results, xg_results, lr_results))
 }
 
 #' Step 11: Cross-validation
@@ -88,22 +90,44 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, parameters
   fold_te_outcomes <- lapply(folds, function(fold) outcomes[fold])
   
   create_dir(output_path)
-  
-  results_pair <- foreach::foreach(i = 1:length(folds), .packages = c("amiss", "purrr", "doRNG", "caret", "futile.logger", "magrittr", "DMwR2", "ModelMetrics")) %dopar% amiss::cv_loop(config, fold_tr_datas, fold_te_datas, fold_tr_outcomes, fold_te_outcomes, output_path, i)
-  rf_results <- lapply(results_pair, function(x) x[[1]])
-  lr_results <- lapply(results_pair, function(x) x[[2]])
+  pkgs <- c(
+    "amiss",
+    "purrr",
+    "doRNG",
+    "caret",
+    "futile.logger",
+    "magrittr",
+    "DMwR2",
+    "ModelMetrics"
+  )
+  results_triplet <- foreach::foreach(i = 1:length(folds),
+                                      .packages = pkgs) %dopar% amiss::cv_loop(
+                                        config,
+                                        fold_tr_datas,
+                                        fold_te_datas,
+                                        fold_tr_outcomes,
+                                        fold_te_outcomes,
+                                        output_path,
+                                        i
+                                      )
+  rf_results <- lapply(results_triplet, function(x) x[[1]])
+  xg_results <- lapply(results_triplet, function(x) x[[2]])
+  lr_results <- lapply(results_triplet, function(x) x[[3]])
   rf_results <- do.call(rbind, rf_results)
+  xg_results <- do.call(rbind, xg_results)
   lr_results <- do.call(rbind, lr_results)
   
   rf_results <- rename_methods(rf_results)
   rf_results$method <- reorder(rf_results$method, rf_results$MCC, mean)
+  xg_results <- rename_methods(xg_results)
   lr_results <- rename_methods(lr_results)
   
   write.csv(rf_results, file.path(output_path, FILE_RF_CROSSVALIDATION_RESULTS_CSV))
+  write.csv(xg_results, file.path(output_path, FILE_XGBOOST_CROSSVALIDATION_RESULTS_CSV))
   write.csv(lr_results, file.path(output_path, FILE_LR_CROSSVALIDATION_RESULTS_CSV))
   
-  ggplot2::ggsave(filename = file.path(output_path, "si_cv_double_boxplots.pdf"), 
-         plot = doubleboxplot("MCC", rf_results, lr_results, FALSE),
-         device = "pdf", width = 170, height = 180, units = "mm")
+  # ggplot2::ggsave(filename = file.path(output_path, "si_cv_double_boxplots.pdf"),
+  #        plot = doubleboxplot("MCC", rf_results, lr_results, FALSE),
+  #        device = "pdf", width = 170, height = 180, units = "mm")
   
 }
