@@ -134,6 +134,7 @@ train_xgboost <- function(data, outcome, control, grid) {
     caret::train(x = data,
                  y = outcome,
                  method = "xgbTree",
+                 tree_method = "hist",
                  preProcess = c("center", "scale"),
                  trControl = control,
                  tuneGrid = grid)
