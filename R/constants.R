@@ -69,8 +69,8 @@ XGBOOST_HYPERPARAMETER_GRID <- expand.grid(eta = (0:2) / 2,
                                            #n_estimators = (1:5) * 100,
                                            gamma = c(0, 1, 10, 100),
                                            max_depth = (1:2)*5,
-                                           subsample = (1:2)/2,
-                                           min_child_weight = exp(1:2),
+                                           min_child_weight = 1,
+                                           subsample = 1,
                                            #reg_lambda = c(0,1),
                                            colsample_bytree = (1:2) / 2)
 

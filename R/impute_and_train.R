@@ -122,6 +122,8 @@ impute_and_train <- function(training_path,
                                        allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
   xg_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
+                                       method = "cv",
+                                       number = 10,
                                        allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
   lr_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
