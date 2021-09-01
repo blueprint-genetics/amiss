@@ -50,19 +50,18 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", 
                         "Pathogenic/Likely_pathogenic,_drug_response", "Pathogenic/Likely_pathogenic", 
                         "Pathogenic,_other", "Pathogenic/Likely_pathogenic,_risk_factor", 
-                        "Pathogenic/Likely_pathogenic,_other", "Pathogenic,_other,_risk_factor")
+                        "Pathogenic/Likely_pathogenic,_other", "Pathogenic,_other,_risk_factor", "association")
   negative_classes <- c("Benign", "Likely_benign", "Benign/Likely_benign", "Benign/Likely_benign,_other", 
                         "Likely_benign,_other", "Benign/Likely_benign,_risk_factor", 
                         "Benign/Likely_benign,_drug_response", "Benign,_risk_factor", 
                         "Benign/Likely_benign,_protective", "Benign/Likely_benign,_drug_response,_risk_factor",  
                         "Benign/Likely_benign,_Affects", "Benign,_other", "Likely_benign,_drug_response,_other", 
                         "Likely_benign,_risk_factor", "Benign,_drug_response", "Likely_benign,_other,_risk_factor", 
-                        "Benign/Likely_benign,_protective,_risk_factor", "Benign/Likely_benign,_association")
+                        "Benign/Likely_benign,_protective,_risk_factor", "Benign/Likely_benign,_association", "protective")
   futile.logger::flog.info("Positive classes: %s", paste0(positive_classes, collapse = ", "))
   futile.logger::flog.info("Negative classes: %s", paste0(negative_classes, collapse = ", "))
   
-  uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", 
-                         "other", "Affects", "risk_factor", "association_not_found", "association", "protective")
+  uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", "other", "risk_factor", "association_not_found", "Affects")
   if (config[[VUS_INCLUSION]] == VUS_AS_BENIGN) {
     negative_classes <- c(negative_classes, uncertain_classes)
   } else if (config[[VUS_INCLUSION]] == VUS_AS_PATHOGENIC) {
