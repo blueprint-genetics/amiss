@@ -212,17 +212,22 @@ for (i in seq_along(child_run_ids)){
   
   
   ## Get LR results
-  download_file_from_run(child_run, "outputs/cv_lr_results.csv")
+  download_file_from_run(child_run_iter, "outputs/cv_lr_results.csv")
   lr_results <- read.csv("cv_lr_results.csv") %>% mutate(source = "lr_results")
   file.remove("cv_lr_results.csv")
   
   ## Get RF results
-  download_file_from_run(child_run, "outputs/cv_rf_results.csv")
+  download_file_from_run(child_run_iter, "outputs/cv_rf_results.csv")
   rf_results <- read.csv("cv_rf_results.csv") %>% mutate(source = "rf_result")
   file.remove("cv_rf_results.csv")
   
+  ## Get XGBoost results
+  download_file_from_run(child_run_iter, "outputs/cv_xg_results.csv")
+  xg_results <- read.csv("cv_xg_results.csv") %>% mutate(source = "xg_result")
+  file.remove("cv_xg_results.csv")
+  
   ## Append to dataframe
-  iter_results <- rbind(lr_results, rf_results)
+  iter_results <- rbind(lr_results, rf_results, xg_results)
   iter_results <- cbind(iter_args_df, iter_results)
   
   results_df <- rbind(results_df, iter_results)
@@ -238,5 +243,4 @@ write.csv(results_df, "outputs/final_cv_results.csv", row.names = FALSE)
 upload_folder_to_run(name = "outputs",
                      path = "outputs",
                      run = run)
-
 ```
