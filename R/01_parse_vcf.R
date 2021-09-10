@@ -4,8 +4,9 @@
 #' @param vcf_filename
 #' @param cadd_snv_filename
 #' @param cadd_indel_filename
-#' @param parameters_path
 #' @param output_root_dir
+#' @param parameters
+#' @param parameters_path
 #'
 #' @return
 #' @export
@@ -13,8 +14,9 @@ S01_parse_vcf <- function(
   vcf_filename,
   cadd_snv_filename,
   cadd_indel_filename,
-  parameters_path,
-  output_root_dir
+  output_root_dir,
+  parameters=NULL,
+  parameters_path=NULL
 ) {
   futile.logger::flog.threshold(futile.logger::DEBUG)
 
@@ -32,7 +34,13 @@ S01_parse_vcf <- function(
   if (!file.exists(cadd_indel_filename))
     stop(paste("Input CADD indel annotation file", cadd_indel_filename, "does not exist. Stopping."))
 
-  config <- get_config(parameters_path)
+  if(is.null(parameters)) {
+    config <- get_config(parameters_path)
+  } else {
+    config <- parameters
+  }
+  parameter_dependent_path <- file.path(output_path, generate_file_prefix(config))
+  dir.create(parameter_dependent_path)
   
   vcf <- vcfR::read.vcfR(vcf_filename)
   
@@ -71,7 +79,7 @@ S01_parse_vcf <- function(
   vcf_df <- vcf_df[vcf_df$CLNSIG != "drug_response", ]
   stopifnot(all(vcf_df$Feature == vcf_df$Ensembl_transcriptid, na.rm = TRUE))
 
-  write.csv(vcf_df, file.path(output_data_path, FILE_FULL_CLINGEN_CSV))
+  #write.csv(vcf_df, file.path(parameter_dependent_path, FILE_FULL_CLINGEN_CSV))
 
   cadd_snv_data <- read.delim(cadd_snv_filename, skip = 1, as.is = TRUE)
   cadd_indel_data <- read.delim(cadd_indel_filename, skip = 1, as.is = TRUE)
@@ -86,9 +94,9 @@ S01_parse_vcf <- function(
                        by.x = c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID"),
                        by.y = c("CHROM", "POS", "REF", "ALT", "Feature"))
 
-  write.csv(file = file.path(output_data_path, FILE_MERGED_DATA_CSV), x = merged_data, row.names = FALSE)
+  write.csv(file = file.path(parameter_dependent_path, FILE_MERGED_DATA_CSV), x = merged_data, row.names = FALSE)
 
-  write(capture.output(sessionInfo()), file.path(output_path, "01_parse_vcf_sessioninfo.txt"))
+  write(capture.output(sessionInfo()), file.path(parameter_dependent_path, "01_parse_vcf_sessioninfo.txt"))
 
-  return(output_data_path)
+  return(parameter_dependent_path)
 }

@@ -56,10 +56,26 @@ create_dir <- function(path) {
 }
 
 get_env_cores <- function() {
-    cores <- Sys.getenv("AMISS_CORES")
-    cores <- as.integer(cores)
-    if (is.na(cores))
-        cores <- 1
-    return(cores)
+  cores <- Sys.getenv("AMISS_CORES")
+  cores <- as.integer(cores)
+  if (is.na(cores))
+      cores <- 1
+  return(cores)
 }
 
+generate_file_prefix <- function(combination, subset = PREPROCESSING_PARAMETER_SUBSET, parameter_separator=".", value_separator="-") {
+  relevant_parameters <- combination[names(combination) %in% subset]
+  prefix <- paste0(names(relevant_parameters), "-", relevant_parameters, collapse = parameter_separator)
+  return(prefix)
+}
+decode_file_prefix <- function(path, parameter_separator=".", value_separator="-") {
+  # Strip training "/"s
+  p <- str_remove(path, "/$")
+  p %<>% str_split(pattern = fixed("/")) %>% extract2(1) %>% tail(1)
+  p %<>% str_split(pattern = fixed(parameter_separator), simplify = FALSE) %>% extract2(1)
+  p %<>% str_split(pattern = fixed(value_separator))
+  p %<>% sapply(FUN = function(x) list(x[2]) %>% set_names(x[1]))
+  p <- do.call(list, p)
+  
+  return(p)
+}
