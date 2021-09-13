@@ -1,0 +1,58 @@
+---
+title: "Use Hyperdrive to parse all data beforehand"
+output: html_notebook
+---
+
+
+```{r}
+library(azuremlsdk)
+
+ws <- load_workspace_from_config()
+# ws <- get_workspace(name, subscription_id = "", resource_groups = "")
+experiment_name <- "amiss_experiment"
+exp <- experiment(ws, experiment_name)
+```
+
+```{r}
+cr <- container_registry("bgamiss.azurecr.io", "bgamiss", readline("bgamiss cr password:\n"))
+env <- r_environment("amiss-env", custom_docker_image = "amiss/amiss_azure:latest", image_registry_details = cr)
+
+full_clinvar_vcf <- dataset_consumption_config("full_clinvar_data",
+                                               get_dataset_by_name(ws, "full_data"), 
+                                               mode = "mount", 
+                                               path_on_compute = "data"
+                                               )
+## Create the estimator
+est <- estimator(source_directory = '.',
+                 entry_script = 'parsing.R',
+                 script_params = list("--data_folder" = "data",
+                                      "--vcf_filename" = vcf_filename,
+                                      "--cadd_snv_filename" = cadd_snv_filename,
+                                      "--cadd_indel_filename" = cadd_indel_filename),
+                 compute_target = compute_target,
+                 environment = env,
+                 inputs = list(full_clinvar_vcf)
+                 )
+```
+
+```{r}
+library(rjson)
+param_sampling <- rjson::fromJSON(readLines("../parameter_grid.json"))
+param_sampling <- param_sampling[amiss::PREPROCESSING_PARAMETER_SUBSET]
+param_sampling <- lapply(param_sampling, choice)
+# param_sampling <- random_parameter_sampling(list("transcript" = choice(c("canonical", "keep_all")),
+#                                                "quality" = choice(c("clingen", "twostar", "onestar")),
+#                                                "restriction" = choice(c("missense", "all"))))
+param_sampling <- grid_parameter_sampling(param_sampling)
+
+## Define the primary metric goal
+goal = primary_metric_goal("MAXIMIZE")
+
+## Create the HyperDrive configuration
+hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampling,
+                                          primary_metric_name = 'dummy',
+                                          primary_metric_goal = goal,
+                                          max_total_runs = 12,
+                                          max_concurrent_runs = 12,
+                                          estimator = est)
+```
