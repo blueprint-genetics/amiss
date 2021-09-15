@@ -1,5 +1,5 @@
-#library(azuremlsdk)
-#library(optparse)
+library(azuremlsdk)
+library(optparse)
 library(here)
 library(amiss)
 
@@ -42,6 +42,8 @@ if (!file.exists(cadd_snv_filename))
 if (!file.exists(cadd_indel_filename))
   stop(paste("Input CADD indel annotation file", cadd_indel_filename, "does not exist. Stopping."))
 
+## Step 1 - Parse VCF
+print("### RUNNING STEP 1 - Parse VCF\n")
 S01_parse_vcf(
   vcf_filename,
   cadd_snv_filename,

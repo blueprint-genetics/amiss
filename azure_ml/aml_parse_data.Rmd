@@ -5,7 +5,9 @@ output: html_notebook
 
 
 ```{r}
+library(magrittr)
 library(azuremlsdk)
+library(rjson)
 
 ws <- load_workspace_from_config()
 # ws <- get_workspace(name, subscription_id = "", resource_groups = "")
@@ -16,6 +18,14 @@ exp <- experiment(ws, experiment_name)
 ```{r}
 cr <- container_registry("bgamiss.azurecr.io", "bgamiss", readline("bgamiss cr password:\n"))
 env <- r_environment("amiss-env", custom_docker_image = "amiss/amiss_azure:latest", image_registry_details = cr)
+
+cluster_name <- "amiss-cluster"
+compute_target <- get_compute(ws, cluster_name = cluster_name)
+
+#vcf_filename = "clinvar_20190624.vep.vcf_head_10000.gz"
+vcf_filename = "clinvar_20190624.vep.vcf"
+cadd_snv_filename = "CADD_clingen.tsv"
+cadd_indel_filename = "CADD_clingen_indel.tsv"
 
 full_clinvar_vcf <- dataset_consumption_config("full_clinvar_data",
                                                get_dataset_by_name(ws, "full_data"), 
@@ -36,13 +46,12 @@ est <- estimator(source_directory = '.',
 ```
 
 ```{r}
-library(rjson)
 param_sampling <- rjson::fromJSON(readLines("../parameter_grid.json"))
 param_sampling <- param_sampling[amiss::PREPROCESSING_PARAMETER_SUBSET]
-param_sampling <- lapply(param_sampling, choice)
-# param_sampling <- random_parameter_sampling(list("transcript" = choice(c("canonical", "keep_all")),
-#                                                "quality" = choice(c("clingen", "twostar", "onestar")),
-#                                                "restriction" = choice(c("missense", "all"))))
+param_sampling <- lapply(param_sampling, function(x) choice(x))
+#param_sampling <- list("transcript" = choice(c("canonical", "keep_all")))#,
+                       #"quality" = choice(c("clingen")),# "twostar", "onestar")),
+                       #"restriction" = choice(c("missense")))#, "all")))
 param_sampling <- grid_parameter_sampling(param_sampling)
 
 ## Define the primary metric goal
@@ -55,4 +64,34 @@ hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampli
                                           max_total_runs = 12,
                                           max_concurrent_runs = 12,
                                           estimator = est)
+
+run = submit_experiment(exp, hyperdrive_run_config)
+
+child_run_ids <- get_child_runs_sorted_by_primary_metric(run) %>% sapply(. %>% extract2("run_id"))
+
+## For each child run, capture the results
+for (child_run_id in child_run_ids){
+
+  child_run_iter <- get_run(exp, run_id = child_run_id)
+  download_files_from_run(child_run_iter, "outputs/", output_directory = "../")
+
+}
+
+# TODO: I don't know how that csv gets involved, get rid of it and this check
+output_files <- Filter(Negate(function(x) grepl("csv$", x)), list.files("../outputs/", full.names = TRUE))
+output_files %<>% lapply(. %>% file.path("merged_data.csv"))
+
+datastore <- get_default_datastore(ws)
+
+# Form dataset object from all parsed data
+upload_files_to_datastore(
+  datastore,
+  output_files,
+  target_path = "parsed_data",
+  #overwrite = FALSE,
+  show_progress = TRUE
+)
+
+parsed_dataset <- create_file_dataset_from_files(data_path(datastore, "parsed_data"), validate = TRUE)
+registered_parsed_dataset <- register_dataset(ws, parsed_dataset, "parsed_data")
 ```

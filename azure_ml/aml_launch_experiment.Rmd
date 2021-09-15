@@ -1,0 +1,54 @@
+---
+title: "Launch hyperdrive experiment using priorly parsed data"
+output: html_notebook
+---
+
+```{r}
+library(azuremlsdk)
+
+ws <- load_workspace_from_config()
+# ws <- get_workspace(name, subscription_id = "", resource_groups = "")
+experiment_name <- "amiss_experiment"
+exp <- experiment(ws, experiment_name)
+
+cr <- container_registry("bgamiss.azurecr.io", "bgamiss", readline("bgamiss cr password:\n"))
+env <- r_environment("amiss-env", custom_docker_image = "amiss/amiss_azure:latest", image_registry_details = cr)
+
+cluster_name <- "amiss-cluster"
+compute_target <- get_compute(ws, cluster_name = cluster_name)
+
+parsed_data <- dataset_consumption_config(
+  "parsed_data",
+  get_dataset_by_name(ws, "parsed_data"),
+  mode = "mount",
+  path_on_compute = "data"
+)
+
+## Create the estimator
+est <- estimator(source_directory = '.',
+                 entry_script = 'experiment.R',
+                 script_params = list("--n_folds" = 10), 
+                 compute_target = compute_target,
+                 environment = env,
+                 inputs = list(parsed_data)
+                 )
+
+param_sampling <- rjson::fromJSON(readLines("../parameter_grid.json"))
+param_sampling <- param_sampling[amiss::PREPROCESSING_PARAMETER_SUBSET]
+param_sampling <- lapply(param_sampling, function(x) choice(x))
+#param_sampling <- list("transcript" = choice(c("canonical", "keep_all")),
+                       #"vus_inclusion" = choice(c("pathogenic", "benign")))#,
+                       #"quality" = choice(c("clingen")),# "twostar", "onestar")),
+                       #"restriction" = choice(c("missense")))#, "all")))
+param_sampling <- random_parameter_sampling(param_sampling)
+
+goal = primary_metric_goal("MAXIMIZE")
+hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampling,
+                                          primary_metric_name = 'mcc',
+                                          primary_metric_goal = goal,
+                                          max_total_runs = 40,
+                                          max_concurrent_runs = 20,
+                                          estimator = est)
+
+run = submit_experiment(exp, hyperdrive_run_config)
+```
