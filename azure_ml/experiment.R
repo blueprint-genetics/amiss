@@ -5,52 +5,44 @@ library(amiss)
 
 ## Parameters --------------------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+option_list <-
+  list(
+    make_option("--n_folds", action = "store"),
+    make_option("--categorical", action = "store"),
+    make_option("--imputation", action = "store"),
+    make_option("--quality", action = "store"),
+    make_option("--restriction", action = "store"),
+    make_option("--transcript", action = "store"),
+    make_option("--vus_inclusion", action = "store")
+  )
+args <- parse_args(OptionParser(option_list))
+
 cat(args)
 
-#data_folder <- as.character(args[2])
+n_folds <- as.integer(args$n_folds)
 
-n_folds <- as.integer(args[2])
-
-categorical <- as.character(args[4])
+categorical <- as.character(args$categorical)
 log_metric_to_run("categorical", categorical)
 
-imputation <- as.character(args[6])
+imputation <- as.character(args$imputation)
 log_metric_to_run("imputation", imputation)
 
-quality <- as.character(args[8])
+quality <- as.character(args$quality)
 log_metric_to_run("quality", quality)
 
-restriction <- as.character(args[10])
+restriction <- as.character(args$restriction)
 log_metric_to_run("restriction", restriction)
 
-transcript <- as.character(args[12])
+transcript <- as.character(args$transcript)
 log_metric_to_run("transcript", transcript)
 
-vus_inclusion <- as.character(args[14])
+vus_inclusion <- as.character(args$vus_inclusion)
 log_metric_to_run("vus_inclusion", vus_inclusion)
 
 set.seed(10)
 
 dir.create(here("outputs"))
 dir.create(here("outputs", "data"))
-
-# vcf_filename <- here(data_folder, "clinvar_20190624.vep.vcf_head_10000")
-# cadd_snv_filename <- here(data_folder, "CADD_clingen.tsv")
-# cadd_indel_filename <- here(data_folder, "CADD_clingen_indel.tsv")
-
-## Unzip VCF file if it's in .gz format
-#vcf_filename <- here(data_folder, as.character(args[6]))
-
-# if (endsWith(vcf_filename, ".gz")){
-#   system(paste0("gunzip ", vcf_filename))
-#   vcf_filename <- sub(".gz", "", vcf_filename)
-# }
-# cadd_snv_filename <- here(data_folder, as.character(args[8]))
-# cadd_indel_filename <- here(data_folder, as.character(args[10]))
-
-#list.files(path = data_folder)
-
 
 ## Write Parameter JSON
 parameter_json = paste0('{',
@@ -103,9 +95,6 @@ S11_cross_validation(
   parameters_path = session_params_path,
   n_folds = n_folds
 )
-
-# list.files(path = here("outputs"))
-# list.files(path = here("outputs", "output"))
 
 ## Get MCC metrics
 mcc_lr <- mean(read.csv(here("outputs", "cv_lr_results.csv"), header = TRUE)$MCC)
