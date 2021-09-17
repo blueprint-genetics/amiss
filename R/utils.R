@@ -74,7 +74,8 @@ get_env_cores <- function() {
 #' @return
 #' @export
 generate_file_prefix <- function(combination, subset = PREPROCESSING_PARAMETER_SUBSET, parameter_separator=".", value_separator="-") {
-  relevant_parameters <- combination[names(combination) %in% subset] %>% sort
+  relevant_parameters <- combination[names(combination) %in% subset]
+  relevant_parameters <- relevant_parameters[names(relevant_parameters) %>% order]
   prefix <- paste0(names(relevant_parameters), "-", relevant_parameters, collapse = parameter_separator)
   return(prefix)
 }

@@ -15,9 +15,7 @@ option_list <-
     make_option("--transcript", action = "store"),
     make_option("--vus_inclusion", action = "store")
   )
-args <- parse_args(OptionParser(option_list))
-
-cat(args)
+args <- parse_args(OptionParser(option_list = option_list))
 
 n_folds <- as.integer(args$n_folds)
 

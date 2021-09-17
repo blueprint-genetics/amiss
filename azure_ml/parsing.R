@@ -15,9 +15,7 @@ option_list <-
     make_option("--restriction", action = "store"),
     make_option("--transcript", action = "store")
   )
-args <- parse_args(OptionParser(option_list))
-
-cat(args)
+args <- parse_args(OptionParser(option_list = option_list))
 
 data_folder <- as.character(args$data_folder)
 
