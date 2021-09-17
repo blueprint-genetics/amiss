@@ -46,8 +46,9 @@ est <- estimator(source_directory = '.',
 ```
 
 ```{r}
+source("../R/parameters.R")
 param_sampling <- rjson::fromJSON(readLines("../parameter_grid.json"))
-param_sampling <- param_sampling[amiss::PREPROCESSING_PARAMETER_SUBSET]
+param_sampling <- param_sampling[PREPROCESSING_PARAMETER_SUBSET]
 param_sampling <- lapply(param_sampling, function(x) choice(x))
 #param_sampling <- list("transcript" = choice(c("canonical", "keep_all")))#,
                        #"quality" = choice(c("clingen")),# "twostar", "onestar")),

@@ -64,7 +64,7 @@ print("### RUNNING STEP 2 - Preprocess Data\n")
 gc()
 
 S02_preprocess_data(
-  parsed_data_path = here(amiss::generate_file_prefix(
+  parsed_data_path = here("data", amiss::generate_file_prefix(
     list(
       transcript = transcript,
       quality = quality,

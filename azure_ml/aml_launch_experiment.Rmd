@@ -33,14 +33,17 @@ est <- estimator(source_directory = '.',
                  inputs = list(parsed_data)
                  )
 
+source("../R/parameters.R")
 param_sampling <- rjson::fromJSON(readLines("../parameter_grid.json"))
-param_sampling <- param_sampling[amiss::PREPROCESSING_PARAMETER_SUBSET]
 param_sampling <- lapply(param_sampling, function(x) choice(x))
-#param_sampling <- list("transcript" = choice(c("canonical", "keep_all")),
-                       #"vus_inclusion" = choice(c("pathogenic", "benign")))#,
-                       #"quality" = choice(c("clingen")),# "twostar", "onestar")),
-                       #"restriction" = choice(c("missense")))#, "all")))
 param_sampling <- random_parameter_sampling(param_sampling)
+# param_sampling <- random_parameter_sampling(list("transcript" = choice(c("canonical", "keep_all")),
+#                                                "quality" = choice(c("clingen", "twostar", "onestar")),
+#                                                "restriction" = choice(c("missense", "all")),
+#                                                "vus_inclusion" = choice(c("pathogenic", "benign", "exclude")),
+#                                                "categorical" = choice(c("dummy", "dummy")),
+#                                                "imputation" = choice(c("zero_imp", "max_imp", "min_imp", "knnImputation", "rf"))))
+# param_sampling <- random_parameter_sampling(list(transcript = "canonical",quality = "clingen",restriction = "missense", vus_inclusion="pathogenic", categorical= "dummy", imputation="zero_imp"))
 
 goal = primary_metric_goal("MAXIMIZE")
 hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampling,
