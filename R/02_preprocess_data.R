@@ -106,35 +106,21 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   # An extra category corresponding a missing value is represented as another dummy variable; this is one strategy
   # for handling missing values in categorical variables. This approach is equivalent to the missingness indicator method. We choose
   # to fix this choice for simplicity, since many imputation methods make no sense on dummy variables (e.g. regression imputation).
-  futile.logger::flog.info("Encoding categorical variables via dummy variables")
+  
+  # Get rid of categorical variable values in test set that are not present in training set (by setting them to missing).
+  test_set[,categorical_features] <- mapply(FUN = function(x, y) {
+      x[!(x %in% y)] <- NA
+      return(x)
+    },
+    test_set[, categorical_features, drop = FALSE],
+    training_set[, categorical_features, drop = FALSE]
+  )
+  
   if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
+    
+    futile.logger::flog.info("Encoding categorical variables via dummy variables")
     training_dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
     test_dummy_categoricals <- dummify_categoricals(test_set[, categorical_features, drop = FALSE])
-    
-    # If some dummy variables are present on the test set but not on the training set, the classifier cannot learn to use them and thus
-    # should just be removed. If some dummy variables are present on the training set but not on the test set, the classifier may still
-    # benefit from the additional training information, and a constant zero variable should be created on the test set to indicate lack
-    # of belonging to that class.
-    
-    # Since the latter scenario does not apply in our case, the implementation beyond checking for it is skipped.
-    futile.logger::flog.info("Checking that dummy variables match between training and test sets")
-    training_dummy_names <- training_dummy_categoricals %>% colnames
-    test_dummy_names <- test_dummy_categoricals %>% colnames
-    
-    if (!setequal(training_dummy_names, test_dummy_names)) {
-      
-      not_in_test_set <- setdiff(training_dummy_names, test_dummy_names)
-      not_in_training_set <- setdiff(test_dummy_names, training_dummy_names)
-      
-      if (length(not_in_test_set) > 0) {
-        futile.logger::flog.info(not_in_test_set %>% paste0(collapse = ", ") %>% paste0(" not in the test set"))
-      }
-      
-      if (length(not_in_training_set) > 0) {
-        futile.logger::flog.info(not_in_training_set %>% paste0(collapse = ", ") %>% paste0(" not in the training set; removing"))
-        test_dummy_categoricals[, not_in_training_set] <- NULL
-      }
-    }
     
     # Next, the new dummy variables are bound to the `data.frame`. We keep also the original categorical variables, since they are easier
     # to use for certain statistics computations.
@@ -149,7 +135,20 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
       test_dummy_categoricals
     )
   } else if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
-    # Do nothing
+    futile.logger::flog.info("Adding \"MISSING\" as factor level in place of actual missing values")
+    # Even though when written as CSV missing values get written as strings "NA", this is still useful if we replace
+    # the "NA" string with something else, as then we won't mix up numerical NA and categorical NA when reading the file.
+    any_missing <- training_set[, categorical_features] %>% sapply(. %>% is.na %>% any)
+    any_missing <- any_missing | test_set[, categorical_features] %>% sapply(. %>% is.na %>% any)
+    
+    training_set[, categorical_features[any_missing]]  %<>% lapply(function(x) {
+      x[is.na(x)] <- "MISSING"
+      return(x)
+    })
+    test_set[, categorical_features[any_missing]]  %<>% lapply(function(x) {
+      x[is.na(x)] <- "MISSING"
+      return(x)
+    })
   } else stop(
     paste0("Unknown value \"", config[[CATEGORICAL_ENCODING]], "\" for parameter \"", CATEGORICAL_ENCODING, "\"")
   )
@@ -202,8 +201,13 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   # The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier. 
   # Only dummy variable versions of categorical features are kept here.
   futile.logger::flog.info("Performing feature selection")
-  training_set <- select_features(training_set, numeric_features, categorical_features)
-  test_set <- select_features(test_set, numeric_features, categorical_features)
+  if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
+    training_set <- select_features(training_set, numeric_features, categorical_features)
+    test_set <- select_features(test_set, numeric_features, categorical_features)
+  } else if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
+    training_set <- training_set[,c(numeric_features, categorical_features)]
+    test_set <- test_set[,c(numeric_features, categorical_features)]
+  }
   
   ## Downsampling majority class
   if (config[[DOWNSAMPLING]] == DOWNSAMPLING_ON) {

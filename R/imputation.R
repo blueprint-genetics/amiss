@@ -24,15 +24,18 @@ single_value_univariate_imputation <- function(f) {
     attr(column, IMPUTATION_REUSE_PARAMETERS) <- impute_value
     return(column)
   }
-  imp_func <- function(dataframe) {
+  imp_func <- function(df) {
 
     timing <- system.time({
-      cols_w_nas <- sapply(dataframe, . %>% is.na %>% any)
-      if (!all(sapply(dataframe[,cols_w_nas, drop = FALSE], is.numeric))) stop("All columns with missingness must be numeric")
-      imp_data <- lapply(dataframe, replace_na)
+      cols_w_nas <- sapply(df, . %>% is.na %>% any)
+      if (!all(sapply(df[, cols_w_nas, drop = FALSE], is.numeric)))
+        stop("All columns with missingness must be numeric")
+
+      numeric_cols <- sapply(df, is.numeric)
+      imp_data <- lapply(df[, numeric_cols, drop = FALSE], replace_na)
       estimates <- lapply(imp_data, function(col) attr(col, IMPUTATION_REUSE_PARAMETERS))
-      names(estimates) <- colnames(dataframe)
-      df <- data.frame(imp_data)
+      names(estimates) <- names(imp_data)
+      df[,numeric_cols] <- data.frame(imp_data)
     })
     attr(df, TIMING_ATTR) <- timing
     attr(df, IMPUTATION_REUSE_PARAMETERS) <- estimates
@@ -42,7 +45,7 @@ single_value_univariate_imputation <- function(f) {
 }
 
 produce_outlier <- function(x) {
-  if(!is.numeric(x)) stop("`x` must be a numeric vector")
+  if (!is.numeric(x)) stop("`x` must be a numeric vector")
 
   abs(max(x, na.rm = TRUE) - min(x, na.rm = TRUE)) * 10
 }
@@ -54,13 +57,14 @@ median_imp <- single_value_univariate_imputation(median)
 zero_imp <- single_value_univariate_imputation(function(x) 0.0)
 outlier_imp <- single_value_univariate_imputation(produce_outlier)
 
-reimpute <- function(dataframe, value) {
-  if (!setequal(names(value), colnames(dataframe))) stop("Names of `value` and column names of `dataframe` do not match")
-  imputed <- lapply(enumerate(dataframe), function(col) {
+reimpute <- function(df, value) {
+  if (!all(names(value) %in% colnames(df))) stop("Names of `value` and column names of `df` do not match")
+  imputed <- lapply(enumerate(df[, names(value), drop = FALSE]), function(col) {
     col$value[is.na(col$value)] <- value[[col$name]]
     return(col$value)
   })
-  imputed <- data.frame(imputed)
+  df[, names(value)] <- data.frame(imputed)
+  return(df)
 }
 
 #' Run and time `mice `
@@ -152,10 +156,14 @@ run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
 
   })
 
-  dat <- data.frame(imputation@completeObs)
+  if(!is.null(imputation)) {
+    df <- data.frame(imputation@completeObs)
+  } else {
+    df <- NULL
+  }
 
   result <- list(
-    completed_datasets = list(`1` = dat),
+    completed_datasets = list(`1` = df),
     imputation_object = list(`1` = imputation)
   )
   attr(result, TIMING_ATTR) <- timing
@@ -353,7 +361,7 @@ impute_w_hps <- function(data, hp_tree, times, iters, seed){
 
     } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
 
-      return(list(completed_datasets = list(`1` = reimpute(dataframe = data, value = estimates))))
+      return(list(completed_datasets = list(`1` = reimpute(df = data, value = estimates))))
 
     } else {
 
