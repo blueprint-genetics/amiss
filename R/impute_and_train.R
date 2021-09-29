@@ -1,12 +1,12 @@
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
-
 impute_and_train <- function(training_path,
                              outcome_path,
                              output_path,
                              mice_hyperparameter_grids,
                              other_hyperparameter_grids,
                              single_value_imputation_hyperparameter_grids,
+                             parameter_list,
                              cores, seed = 42, lean) {
   
   create_dir(output_path)
@@ -31,9 +31,9 @@ impute_and_train <- function(training_path,
   }
 
   flog.pid.info("Reading data")
-  training_data <- read.csv(training_path, row.names = 1, as.is = TRUE)
+  training_data <- read.csv(training_path, row.names = 1)
   tryCatch({
-    outcome <- read.csv(outcome_path, as.is = TRUE)
+    outcome <- read.csv(outcome_path)
   }, error = function(e) {
     flog.pid.debug("Could not open file %s", outcome_path)
     flog.pid.debug(e)
@@ -59,7 +59,7 @@ impute_and_train <- function(training_path,
   ### Highly correlated features
 
   flog.pid.info("Removing highly correlated features:")
-  correlations <- cor(training_data, use = "pairwise.complete.obs")
+  correlations <- cor(training_data[, numeric_features], use = "pairwise.complete.obs")
   correlations[is.na(correlations)] <- 0.0
 
   highly_correlated_features <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
@@ -137,20 +137,27 @@ impute_and_train <- function(training_path,
                            control = rf_training_settings,
                            grid = RF_HYPERPARAMETER_GRID,
                            seed = seed)
-  xg_models <- loop_models(training_function = train_xgboost,
-                           classifier_name = "XGBoost",
-                           imputations = imputations,
-                           outcome = outcome,
-                           control = xg_training_settings,
-                           grid = XGBOOST_HYPERPARAMETER_GRID,
-                           seed = seed)
-  lr_models <- loop_models(training_function = train_lr,
-                           classifier_name = "LR",
-                           imputations = imputations,
-                           outcome = outcome,
-                           control = lr_training_settings,
-                           grid = data.frame(),
-                           seed = seed)
+  if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
+    xg_models <- loop_models(training_function = train_xgboost,
+                             classifier_name = "XGBoost",
+                             imputations = imputations,
+                             outcome = outcome,
+                             control = xg_training_settings,
+                             grid = XGBOOST_HYPERPARAMETER_GRID,
+                             seed = seed)
+    lr_models <- loop_models(training_function = train_lr,
+                             classifier_name = "LR",
+                             imputations = imputations,
+                             outcome = outcome,
+                             control = lr_training_settings,
+                             grid = data.frame(),
+                             seed = seed)
+  } else {
+    # XGBoost does not work with factors, and LR cannot deal with new factor
+    # levels in test data (which occurs easily in CV), so we have to skip them.
+    xg_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
+    lr_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
+  }
 
   ## Model selection
   flog.pid.info("Starting model selection")

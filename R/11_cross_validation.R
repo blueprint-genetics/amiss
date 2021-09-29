@@ -40,14 +40,33 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     
     impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
                      mice_hyperparameter_grids = mice_hyperparameter_grids_in, other_hyperparameter_grids = other_hyperparameter_grids_in, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids_in,
+                     parameter_list = parameters,
                      cores = 1, seed = 42, lean = TRUE)
     predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = 1, seed = 42, lean = TRUE)
     
-    rf_results <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
+    rf_results <- tryCatch({
+      rf_results <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
+    }, error = function(e) {
+      rf_results <- data.frame(t(rep(NA, 15)))
+      colnames(rf_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision")
+      return(rf_results)
+    })
     rf_results$fold <- i
-    xg_results <- read.csv(file.path(dir_path, "results", FILE_XGBOOST_PERFORMANCE_CSV))
+    xg_results <- tryCatch({
+      xg_results <- read.csv(file.path(dir_path, "results", FILE_XGBOOST_PERFORMANCE_CSV))
+    }, error = function(e) {
+      xg_results <- data.frame(t(rep(NA, 15)))
+      colnames(xg_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision")
+      return(xg_results)
+    })
     xg_results$fold <- i
-    lr_results <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV))
+    lr_results <- tryCatch({
+      lr_results <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV))
+    }, error = function(e) {
+      lr_results <- data.frame(t(rep(NA, 15)))
+      colnames(lr_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision")
+      return(lr_results)
+    })
     lr_results$fold <- i
     
     return(list(rf_results, xg_results, lr_results))

@@ -61,7 +61,11 @@ turn_table <- function(perf_tree) {
   df <- lapply(names(values), function(name) {
     stringr::str_split(string = name, pattern = stringr::fixed(":"), simplify = TRUE)
   })
+
   df <- data.frame(do.call(rbind, df), value = values)
+  if (ncol(df) == 0) {
+    df <- data.frame(t(1:4))[FALSE,]
+  }
 
   colnames(df) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "value")
 
@@ -69,7 +73,21 @@ turn_table <- function(perf_tree) {
 }
 
 merge_tables <- function(tables) {
-  perf_table <- Reduce(function(x, y) merge(x, y, by = c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN)), tables)
+
+  perf_table <- tables[[1]]
+  for (i in 2:length(tables)) {
+    # The `suffixes`-argument is used only to silence warnings
+    # by giving columns unique names until they are replaced
+    # immediately afterwards.
+    perf_table <- merge(x = perf_table,
+                        y = tables[[i]],
+                        by = c(
+                          METHOD_COLUMN,
+                          MODEL_INDEX_COLUMN,
+                          TEST_COMPLETION_INDEX_COLUMN
+                        ),
+                        suffixes = c(paste0(c(".x", ".y"), i)))
+  }
   colnames(perf_table) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, names(tables))
-  perf_table
+  return(perf_table)
 }
