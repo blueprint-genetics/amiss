@@ -63,7 +63,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     xg_completions <- impute_w_hps(test_data, xg_hyperparams, times, iters, seed)
     
     flog.pid.info("Starting prediction by XGBoost models")
-    perform_test_process_for_model_tree(xg_models, xg_completions, outcome, file.path(results_dir_path, FILE_XGBOOST_PERFORMANCE_CSV), lean = lean, lean_output_path = FILE_XGBOOST_PERFORMANCE_PER_CONSEQUENCE_CSV)
+    perform_test_process_for_model_tree(xg_models, xg_completions, test_data, outcome, file.path(results_dir_path, FILE_XGBOOST_PERFORMANCE_CSV), lean = lean, lean_output_path = FILE_XGBOOST_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
   if (lr_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
@@ -76,7 +76,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     lr_completions <- impute_w_hps(test_data, lr_hyperparams, times, iters, seed)
     
     flog.pid.info("Starting prediction by LR models")
-    perform_test_process_for_model_tree(lr_models, lr_completions, outcome, file.path(results_dir_path, FILE_LR_PERFORMANCE_CSV), lean = lean, FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
+    perform_test_process_for_model_tree(lr_models, lr_completions, test_data, outcome, file.path(results_dir_path, FILE_LR_PERFORMANCE_CSV), lean = lean, FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
 
