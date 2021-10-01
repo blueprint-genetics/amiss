@@ -45,17 +45,22 @@ impute_and_train <- function(training_path,
 
   # Some imputation methods cannot deal with features that have certain unwanted properties, and thus they must be removed prior to imputation.
 
-  ### Near-zero variance
-
-  flog.pid.info("Removing features with near-zero variance")
-  flog.pid.info("Uniqueness cutoff: %d %%", UNIQUENESS_CUTOFF_PERCENTAGE)
-  nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = UNIQUENESS_CUTOFF_PERCENTAGE)
-  flog.pid.info(capture.output(print(nzv_features[nzv_features$nzv, ])))
-
-  if (any(nzv_features$nzv)) {
-    training_data <- training_data[, !nzv_features$nzv]
+  if (parameter_list[[NZV_CHECK]] == NZV_CHECK_ON) {
+    ### Near-zero variance
+    
+    flog.pid.info("Removing features with near-zero variance")
+    flog.pid.info("Uniqueness cutoff: %d %%", UNIQUENESS_CUTOFF_PERCENTAGE)
+    nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = UNIQUENESS_CUTOFF_PERCENTAGE)
+    flog.pid.info(capture.output(print(nzv_features[nzv_features$nzv, ])))
+    
+    if (any(nzv_features$nzv)) {
+      training_data <- training_data[, !nzv_features$nzv]
+    }
+  } else if (parameter_list[[NZV_CHECK]] == NZV_CHECK_ON) {
+    # Do nothing
+  } else {
+    paste0("Unknown value \"", parameter_list[[NZV_CHECK]], "\" for parameter \"", NZV_CHECK, "\"")
   }
-
   ### Highly correlated features
 
   flog.pid.info("Removing highly correlated features:")
@@ -165,11 +170,13 @@ impute_and_train <- function(training_path,
                              grid = if(search == "grid") data.frame() else NULL,
                              tunelength = NULL,
                              seed = seed)
-  } else {
+  } else if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
     # XGBoost does not work with factors, and LR cannot deal with new factor
     # levels in test data (which occurs easily in CV), so we have to skip them.
     xg_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
     lr_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
+  }  else {
+    paste0("Unknown value \"", parameter_list[[CATEGORICAL_ENCODING]], "\" for parameter \"", CATEGORICAL_ENCODING, "\"")
   }
 
   ## Model selection
