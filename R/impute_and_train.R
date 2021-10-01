@@ -115,19 +115,29 @@ impute_and_train <- function(training_path,
   flog.pid.info("Hyperparameter grid for XGBoost:")
   flog.pid.info(capture.output(print(XGBOOST_HYPERPARAMETER_GRID)))
 
+  if (parameter_list[[HYPERPARAMETER_SEARCH_TYPE]] == HYPERPARAMETER_SEARCH_TYPE_GRID) {
+    search <- "grid"
+  } else if (parameter_list[[HYPERPARAMETER_SEARCH_TYPE]] == HYPERPARAMETER_SEARCH_TYPE_RANDOM) {
+    search <- "random"
+  } else stop(
+    paste0("Unknown value \"", parameter_list[[HYPERPARAMETER_SEARCH_TYPE]], "\" for parameter \"", HYPERPARAMETER_SEARCH_TYPE, "\"")
+  )
   rf_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
                                        method = "oob",  # Use out-of-bag error estimate for model selection
                                        returnResamp = "final",
-                                       allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
+                                       allowParallel = FALSE,
+                                       search = search)
   xg_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
                                        method = "cv",
                                        number = 10,
-                                       allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
+                                       allowParallel = FALSE,
+                                       search = search)
   lr_training_settings <- caret::trainControl(classProbs = TRUE,
                                        verboseIter = FALSE,
-                                       allowParallel = FALSE) # Don't use parallelization inside training loop; it will be done on a higher level
+                                       allowParallel = FALSE,
+                                       search = search)
 
   # Train on every completed dataset
   rf_models <- loop_models(training_function = train_rf,
@@ -135,7 +145,8 @@ impute_and_train <- function(training_path,
                            imputations = imputations,
                            outcome = outcome,
                            control = rf_training_settings,
-                           grid = RF_HYPERPARAMETER_GRID,
+                           grid = if(search == "grid") RF_HYPERPARAMETER_GRID else NULL,
+                           tunelength = nrow(RF_HYPERPARAMETER_GRID),
                            seed = seed)
   if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
     xg_models <- loop_models(training_function = train_xgboost,
@@ -143,14 +154,16 @@ impute_and_train <- function(training_path,
                              imputations = imputations,
                              outcome = outcome,
                              control = xg_training_settings,
-                             grid = XGBOOST_HYPERPARAMETER_GRID,
+                             grid = if(search == "grid") XGBOOST_HYPERPARAMETER_GRID else NULL,
+                             tunelength = nrow(XGBOOST_HYPERPARAMETER_GRID),
                              seed = seed)
     lr_models <- loop_models(training_function = train_lr,
                              classifier_name = "LR",
                              imputations = imputations,
                              outcome = outcome,
                              control = lr_training_settings,
-                             grid = data.frame(),
+                             grid = if(search == "grid") data.frame() else NULL,
+                             tunelength = NULL,
                              seed = seed)
   } else {
     # XGBoost does not work with factors, and LR cannot deal with new factor

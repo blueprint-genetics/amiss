@@ -102,7 +102,7 @@ select_best <- function(models, imputations, hyperparameters) {
   return(list(models = models, imputers = imputers, hyperparams = hyperparams))
 }
 
-train_rf <- function(data, outcome, control, grid) {
+train_rf <- function(data, outcome, control, grid, tunelength) {
 
   if(is.null(data)) {
     flog.pid.info("Dataset was NULL; returning NULL")
@@ -115,6 +115,7 @@ train_rf <- function(data, outcome, control, grid) {
                  method = "rf",
                  preProcess = c("center", "scale"),
                  trControl = control,
+                 tuneLength = tunelength,
                  tuneGrid = grid)
   }, error = function(e) {
     flog.pid.debug(e)
@@ -123,7 +124,7 @@ train_rf <- function(data, outcome, control, grid) {
 
   return(rf_model)
 }
-train_xgboost <- function(data, outcome, control, grid) {
+train_xgboost <- function(data, outcome, control, grid, tunelength) {
 
   if (is.null(data)) {
     flog.pid.info("Dataset was NULL; returning NULL")
@@ -138,6 +139,7 @@ train_xgboost <- function(data, outcome, control, grid) {
                  tree_method = "hist",
                  preProcess = c("center", "scale"),
                  trControl = control,
+                 tuneLength = tunelength,
                  tuneGrid = grid)
   }, error = function(e) {
     flog.pid.debug(e)
@@ -147,7 +149,7 @@ train_xgboost <- function(data, outcome, control, grid) {
   return(model)
 }
 
-train_lr <- function(data, outcome, control, grid) {
+train_lr <- function(data, outcome, control, grid, tunelength=NULL) {
 
   if(is.null(data)) {
     flog.pid.info("Dataset was NULL; returning NULL")
@@ -168,18 +170,18 @@ train_lr <- function(data, outcome, control, grid) {
   return(lr_model)
 }
 
-loop_models <- function(training_function, classifier_name, imputations, control, grid, outcome, seed) {
+loop_models <- function(training_function, classifier_name, imputations, control, grid, tunelength, outcome, seed) {
   if (!is.function(training_function)) stop("`training_function` must be a function")
   if (!is.character(classifier_name)) stop("`classifier_name` must be a character vector")
   #if (!class(control) == "trainControl") stop("`control` must be a `trainControl` object")
-  if (!is.data.frame(grid)) stop("`grid` must be a data.frame")
+  if (!is.data.frame(grid) && !is.null(grid)) stop("`grid` must be a data.frame or NULL")
   if (!is.factor(outcome)) stop("`outcome` must be a factor")
   if (!is.numeric(seed) || length(seed) != 1) stop("`seed` must be a numeric vector of length 1")
 
   foreach::foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
     flog.pid.info("Starting execution of %s on datasets produced by %s", classifier_name, method$name)
     foreach::foreach(mi_iter = method$value) %do% {
-      model_per_dataset <- foreach::foreach(data = mi_iter$completed_datasets) %do% training_function(data = data, outcome = outcome, control = control, grid = grid)
+      model_per_dataset <- foreach::foreach(data = mi_iter$completed_datasets) %do% training_function(data = data, outcome = outcome, control = control, tunelength = tunelength, grid = grid)
       return(model_per_dataset %>% magrittr::set_names(names(mi_iter$completed_datasets)))
     } %>% magrittr::set_names(names(method$value))
   } %>% magrittr::set_names(names(imputations))
