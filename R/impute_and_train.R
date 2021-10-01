@@ -61,17 +61,23 @@ impute_and_train <- function(training_path,
   } else {
     paste0("Unknown value \"", parameter_list[[NZV_CHECK]], "\" for parameter \"", NZV_CHECK, "\"")
   }
-  ### Highly correlated features
-
-  flog.pid.info("Removing highly correlated features:")
-  correlations <- cor(training_data[, numeric_features], use = "pairwise.complete.obs")
-  correlations[is.na(correlations)] <- 0.0
-
-  highly_correlated_features <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
-  flog.pid.info(highly_correlated_features)
-
-  if (highly_correlated_features %>% length > 0) {
-    training_data <- training_data[, !colnames(training_data) %in% highly_correlated_features]
+  if (parameter_list[[CORRELATION_CHECK]] == CORRELATION_CHECK_ON) {
+    ### Highly correlated features
+    
+    flog.pid.info("Removing highly correlated features:")
+    correlations <- cor(training_data[, numeric_features], use = "pairwise.complete.obs")
+    correlations[is.na(correlations)] <- 0.0
+    
+    highly_correlated_features <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
+    flog.pid.info(highly_correlated_features)
+    
+    if (highly_correlated_features %>% length > 0) {
+      training_data <- training_data[, !colnames(training_data) %in% highly_correlated_features]
+    }
+  } else if (parameter_list[[CORRELATION_CHECK]] == CORRELATION_CHECK_OFF) {
+    # Do nothing
+  } else {
+    paste0("Unknown value \"", parameter_list[[CORRELATION_CHECK]], "\" for parameter \"", CORRELATION_CHECK, "\"")
   }
 
   ## Imputation

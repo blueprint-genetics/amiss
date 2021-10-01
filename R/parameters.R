@@ -36,3 +36,7 @@ HYPERPARAMETER_SEARCH_TYPE_RANDOM <- "random"
 NZV_CHECK <- "nonzero_variance_check"
 NZV_CHECK_ON <- "on"
 NZV_CHECK_OFF <- "off"
+
+CORRELATION_CHECK <- "correlation_check"
+CORRELATION_CHECK_ON <- "on"
+CORRELATION_CHECK_OFF <- "off"
