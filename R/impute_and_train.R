@@ -117,6 +117,9 @@ impute_and_train <- function(training_path,
   imputations <- c(mice_imputations, other_imputations, single_value_imputations)
   flog.pid.info("Checking and dropping failed imputation methods")
   valid_methods <- check_method_results(imputations)
+  if(all(valid_methods == FALSE)) {
+    stop("No imputation method succeeded, cannot continue")
+  }
   imputations <- imputations[valid_methods]
 
   ## Training classifier
