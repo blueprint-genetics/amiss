@@ -56,11 +56,11 @@ impute_and_train <- function(training_path,
     if (any(nzv_features$nzv)) {
       training_data <- training_data[, !nzv_features$nzv]
     }
-  } else if (parameter_list[[NZV_CHECK]] == NZV_CHECK_ON) {
+  } else if (parameter_list[[NZV_CHECK]] == NZV_CHECK_OFF) {
     # Do nothing
-  } else {
+  } else stop (
     paste0("Unknown value \"", parameter_list[[NZV_CHECK]], "\" for parameter \"", NZV_CHECK, "\"")
-  }
+  )
   if (parameter_list[[CORRELATION_CHECK]] == CORRELATION_CHECK_ON) {
     ### Highly correlated features
     
@@ -76,9 +76,9 @@ impute_and_train <- function(training_path,
     }
   } else if (parameter_list[[CORRELATION_CHECK]] == CORRELATION_CHECK_OFF) {
     # Do nothing
-  } else {
+  } else stop(
     paste0("Unknown value \"", parameter_list[[CORRELATION_CHECK]], "\" for parameter \"", CORRELATION_CHECK, "\"")
-  }
+  )
 
   ## Imputation
 
@@ -181,9 +181,9 @@ impute_and_train <- function(training_path,
     # levels in test data (which occurs easily in CV), so we have to skip them.
     xg_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
     lr_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
-  }  else {
+  }  else stop(
     paste0("Unknown value \"", parameter_list[[CATEGORICAL_ENCODING]], "\" for parameter \"", CATEGORICAL_ENCODING, "\"")
-  }
+  )
 
   ## Model selection
   flog.pid.info("Starting model selection")
