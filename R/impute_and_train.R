@@ -38,6 +38,36 @@ impute_and_train <- function(training_path,
     flog.pid.debug("Could not open file %s", outcome_path)
     flog.pid.debug(e)
   })
+  
+  training_data_sampling_pct <- parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]]
+  if (parameter_list[[TRAINING_DATA_SAMPLING]] == TRAINING_DATA_SAMPLING_ON) {
+    if (is.null(training_data_sampling_pct)) {
+      stop(
+        paste0("\"", parameter_list[[TRAINING_DATA_SAMPLING]], "\" is set to \"",
+               TRAINING_DATA_SAMPLING_ON, ", but `", TRAINING_DATA_SAMPLING_PERCENTAGE,
+               "\" is not set")
+      )
+    }
+    if (!(training_data_sampling_pct %in% TRAINING_DATA_SAMPLING_PERCENTAGE_ALLOWED_VALUES)) {
+      stop(
+        paste0("Training data sampling percentage not in predefined allowed values")
+      )
+    }
+    
+    training_data_sampling_ix <- sample(
+      x = 1:(NROW(training_data)),
+      size = NROW(training_data) * training_data_sampling_pct,
+      replace = FALSE
+    )
+    training_data <- training_data[training_data_sampling_ix, , drop = FALSE]
+    outcome <- outcome[training_data_sampling_ix,,drop = FALSE]
+    
+  } else  if (parameter_list[[TRAINING_DATA_SAMPLING]] == TRAINING_DATA_SAMPLING_OFF) {
+    # Do nothing
+  } else stop (
+    paste0("Unknown value \"", parameter_list[[TRAINING_DATA_SAMPLING]], "\" for parameter \"", TRAINING_DATA_SAMPLING, "\"")
+  )
+  
   outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
   flog.pid.info("Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
 
