@@ -39,12 +39,57 @@ impute_and_train <- function(training_path,
     flog.pid.debug(e)
   })
   
+  outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
+  flog.pid.info("Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
+  
+  # Feature sampling
+  feature_sampling_pct <- parameter_list[[FEATURE_SAMPLING_PERCENTAGE]]
+  if (parameter_list[[FEATURE_SAMPLING]] == FEATURE_SAMPLING_ON) {
+    if (is.null(feature_sampling_pct)) {
+      stop(
+        paste0("\"", FEATURE_SAMPLING, "\" is set to \"",
+               FEATURE_SAMPLING_ON, "\", but \"", FEATURE_SAMPLING_PERCENTAGE,
+               "\" is not set")
+      )
+    }
+    if (!(feature_sampling_pct %in% FEATURE_SAMPLING_PERCENTAGE_ALLOWED_VALUES)) {
+      stop(
+        paste0("Training data sampling percentage not in predefined allowed values")
+      )
+    }
+    
+    all_features <- c(numeric_features, categorical_features)
+    sampled_features <- sample(
+      x = all_features,
+      size = length(all_features) * feature_sampling_pct,
+      replace = FALSE
+    )
+    sampled_cats_ix <- sampled_features %in% categorical_features
+    sampled_nums_ix <- !(sampled_features %in% categorical_features)
+    if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY && any(sampled_cats_ix)) { 
+      sampled_cats <- sampled_features[sampled_cats_ix]
+      dummies <- lapply(sampled_cats, . %>% find_dummies(colnames(training_data)))
+      dummies <- do.call(c, dummies)
+      sampled_cols <- c(sampled_features[sampled_nums_ix], dummies)
+    } else {
+      sampled_cols <- sampled_features
+    }
+    flog.pid.info("Feature sampling drops the following features: %s", paste0(setdiff(c(numeric_features, categorical_features), sampled_features), collapse = ", "))
+    training_data <- training_data[, sampled_cols, drop = FALSE]
+    
+  } else  if (parameter_list[[FEATURE_SAMPLING]] == FEATURE_SAMPLING_OFF) {
+    # Do nothing
+  } else stop(
+    paste0("Unknown value \"", parameter_list[[FEATURE_SAMPLING]], "\" for parameter \"", FEATURE_SAMPLING, "\"")
+  )
+  
+  # Training data sampling
   training_data_sampling_pct <- parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]]
   if (parameter_list[[TRAINING_DATA_SAMPLING]] == TRAINING_DATA_SAMPLING_ON) {
     if (is.null(training_data_sampling_pct)) {
       stop(
-        paste0("\"", parameter_list[[TRAINING_DATA_SAMPLING]], "\" is set to \"",
-               TRAINING_DATA_SAMPLING_ON, ", but `", TRAINING_DATA_SAMPLING_PERCENTAGE,
+        paste0("\"", TRAINING_DATA_SAMPLING, "\" is set to \"",
+               TRAINING_DATA_SAMPLING_ON, "\", but \"", TRAINING_DATA_SAMPLING_PERCENTAGE,
                "\" is not set")
       )
     }
@@ -59,17 +104,15 @@ impute_and_train <- function(training_path,
       size = NROW(training_data) * training_data_sampling_pct,
       replace = FALSE
     )
+    flog.pid.info("Training data sampling drops %d rows", NROW(training_data) - length(training_data_sampling_ix))
     training_data <- training_data[training_data_sampling_ix, , drop = FALSE]
-    outcome <- outcome[training_data_sampling_ix,,drop = FALSE]
+    outcome <- outcome[training_data_sampling_ix]
     
   } else  if (parameter_list[[TRAINING_DATA_SAMPLING]] == TRAINING_DATA_SAMPLING_OFF) {
     # Do nothing
-  } else stop (
+  } else stop(
     paste0("Unknown value \"", parameter_list[[TRAINING_DATA_SAMPLING]], "\" for parameter \"", TRAINING_DATA_SAMPLING, "\"")
   )
-  
-  outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
-  flog.pid.info("Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
 
   ## Removal of problematic features
 
@@ -95,7 +138,7 @@ impute_and_train <- function(training_path,
     ### Highly correlated features
     
     flog.pid.info("Removing highly correlated features:")
-    correlations <- cor(training_data[, numeric_features], use = "pairwise.complete.obs")
+    correlations <- cor(training_data[, intersect(colnames(training_data), numeric_features)], use = "pairwise.complete.obs")
     correlations[is.na(correlations)] <- 0.0
     
     highly_correlated_features <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
