@@ -14,11 +14,14 @@ option_list <-
     make_option("--restriction", action = "store"),
     make_option("--transcript", action = "store"),
     make_option("--vus_inclusion", action = "store"),
+    make_option("--downsampling", action = "store"),
     make_option("--nonzero_variance_check", action = "store"),
     make_option("--correlation_check", action = "store"),
     make_option("--hyperparameter_search_type", action = "store"),
     make_option("--training_data_sampling", action = "store"),
-    make_option("--feature_sampling", action = "store")
+    make_option("--training_data_sampling_percentage", action = "store"),
+    make_option("--feature_sampling", action = "store"),
+    make_option("--feature_sampling_percentage", action = "store")
   )
 args <- parse_args(OptionParser(option_list = option_list))
 
@@ -42,6 +45,9 @@ log_metric_to_run("transcript", transcript)
 vus_inclusion <- as.character(args$vus_inclusion)
 log_metric_to_run("vus_inclusion", vus_inclusion)
 
+downsampling <- as.character(args$downsampling)
+log_metric_to_run("downsampling", downsampling)
+
 nonzero_variance_check <- as.character(args$nonzero_variance_check)
 log_metric_to_run("nonzero_variance_check", nonzero_variance_check)
 
@@ -60,6 +66,11 @@ log_metric_to_run("training_data_sampling", training_data_sampling)
 feature_sampling <- as.character(args$feature_sampling)
 log_metric_to_run("feature_sampling", feature_sampling)
 
+training_data_sampling_percentage <- as.numeric(args$training_data_sampling_percentage)
+log_metric_to_run("training_data_sampling_percentage", training_data_sampling_percentage)
+
+feature_sampling_percentage <- as.numeric(args$feature_sampling_percentage)
+log_metric_to_run("feature_sampling_percentage", feature_sampling_percentage)
 set.seed(10)
 
 dir.create(here("outputs"))
@@ -72,12 +83,15 @@ parameter_json = paste0('{',
                         '"restriction": "', restriction,'", ',
                         '"vus_inclusion": "', vus_inclusion,'", ',
                         '"categorical": "', categorical,'", ',
-                        '"imputation": "', imputation,'" ',
+                        '"imputation": "', imputation,'", ',
                         '"nonzero_variance_check": "', nonzero_variance_check, '", ',
                         '"correlation_check": "', correlation_check, '", ',
                         '"hyperparameter_search_type": "', hyperparameter_search_type, '", ',
                         '"training_data_sampling": "', training_data_sampling, '", ',
                         '"feature_sampling": "', feature_sampling, '", ',
+                        '"training_data_sampling_percentage": ', training_data_sampling_percentage, ', ',
+                        '"feature_sampling_percentage": ', feature_sampling_percentage, ', ',
+                        '"downsampling": "', downsampling, '"',
                         '}')
 print(parameter_json)
 
