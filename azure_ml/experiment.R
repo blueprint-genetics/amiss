@@ -13,7 +13,12 @@ option_list <-
     make_option("--quality", action = "store"),
     make_option("--restriction", action = "store"),
     make_option("--transcript", action = "store"),
-    make_option("--vus_inclusion", action = "store")
+    make_option("--vus_inclusion", action = "store"),
+    make_option("--nonzero_variance_check", action = "store"),
+    make_option("--correlation_check", action = "store"),
+    make_option("--hyperparameter_search_type", action = "store"),
+    make_option("--training_data_sampling", action = "store"),
+    make_option("--feature_sampling", action = "store")
   )
 args <- parse_args(OptionParser(option_list = option_list))
 
@@ -37,6 +42,24 @@ log_metric_to_run("transcript", transcript)
 vus_inclusion <- as.character(args$vus_inclusion)
 log_metric_to_run("vus_inclusion", vus_inclusion)
 
+nonzero_variance_check <- as.character(args$nonzero_variance_check)
+log_metric_to_run("nonzero_variance_check", nonzero_variance_check)
+
+correlation_check <- as.character(args$correlation_check)
+log_metric_to_run("correlation_check", correlation_check)
+
+correlation_check <- as.character(args$correlation_check)
+log_metric_to_run("correlation_check", correlation_check)
+
+hyperparameter_search_type <- as.character(args$hyperparameter_search_type)
+log_metric_to_run("hyperparameter_search_type", hyperparameter_search_type)
+
+training_data_sampling <- as.character(args$training_data_sampling)
+log_metric_to_run("training_data_sampling", training_data_sampling)
+
+feature_sampling <- as.character(args$feature_sampling)
+log_metric_to_run("feature_sampling", feature_sampling)
+
 set.seed(10)
 
 dir.create(here("outputs"))
@@ -50,6 +73,11 @@ parameter_json = paste0('{',
                         '"vus_inclusion": "', vus_inclusion,'", ',
                         '"categorical": "', categorical,'", ',
                         '"imputation": "', imputation,'" ',
+                        '"nonzero_variance_check": "', nonzero_variance_check, '", ',
+                        '"correlation_check": "', correlation_check, '", ',
+                        '"hyperparameter_search_type": "', hyperparameter_search_type, '", ',
+                        '"training_data_sampling": "', training_data_sampling, '", ',
+                        '"feature_sampling": "', feature_sampling, '", ',
                         '}')
 print(parameter_json)
 
