@@ -1,36 +1,45 @@
 
 predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed = 42) {
 
+  results_dir_path <- normalizePath(results_dir_path, mustWork = FALSE)
   create_dir(results_dir_path)
 
-  futile.logger::flog.appender(futile.logger::appender.tee(file.path(results_dir_path, "predict_on_test_set.log")))
-  futile.logger::flog.threshold(futile.logger::DEBUG)
-
   flog.pid.info("predict_on_test_set.R")
-  flog.pid.info("Arguments: %s", paste0(list(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed), collapse = ", "))
+  flog.pid.info("PROGRESS Arguments: %s", paste0(list(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed), collapse = ", "))
 
-  flog.pid.info("Using %d cores", cores)
+  flog.pid.info("PROGRESS Using %d cores", cores)
 
-  if(!is.null(seed)) {
-    flog.pid.info("Using seed: %d", seed)
+  if (!is.null(seed)) {
+    flog.pid.info("DESIGN_CHOICE Using seed: %d", seed)
     set.seed(seed)
   }
 
-  flog.pid.info("Reading data")
+  test_path <- normalizePath(test_path)
+  flog.pid.info("INPUT Reading test data from delimited file at %s", test_path)
   test_data <- read.csv(test_path, row.names = 1)
+  
+  outcome_path <- normalizePath(outcome_path)
+  flog.pid.info("INPUT Reading test outcomes from delimited file at %s", outcome_path)
   outcome <- read.csv(outcome_path, row.names = 1)[,1, drop = TRUE]
   outcome <- factor(outcome, levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
 
   # Keep exactly those features that were kept in training data
-  flog.pid.info("Reading features used in training")
-  final_features <- readRDS(file.path(tr_output_path, FILE_FINAL_FEATURES_RDS))
+  tr_output_path <- normalizePath(tr_output_path)
+  final_features_path <- file.path(tr_output_path, FILE_FINAL_FEATURES_RDS)
+  flog.pid.info("INPUT Reading features used in training from RDS file at %s", final_features_path)
+  final_features <- readRDS(final_features_path)
   test_data <- test_data[, final_features]
 
   ## Predict on test set completions using best classifier models
-  flog.pid.info("Reading classifier models")
-  rf_models <- readRDS(file.path(tr_output_path, FILE_RF_CLASSIFIERS_RDS))
-  xg_models <- readRDS(file.path(tr_output_path, FILE_XGBOOST_CLASSIFIERS_RDS))
-  lr_models <- readRDS(file.path(tr_output_path, FILE_LR_CLASSIFIERS_RDS), refhook = function(x) .GlobalEnv)
+  rf_models_path <- file.path(tr_output_path, FILE_RF_CLASSIFIERS_RDS)
+  flog.pid.info("INPUT Reading RF classifier models from RDS file at %s", rf_models_path)
+  rf_models <- readRDS(rf_models_path)
+  xg_models_path <- file.path(tr_output_path, FILE_XGBOOST_CLASSIFIERS_RDS)
+  flog.pid.info("INPUT Reading XGBoost classifier models from RDS file at %s", xg_models_path)
+  xg_models <- readRDS(xg_models_path)
+  lr_models_path <- file.path(tr_output_path, FILE_LR_CLASSIFIERS_RDS)
+  flog.pid.info("INPUT Reading LR classifier models from RDS file at %s", lr_models_path)
+  lr_models <- readRDS(lr_models_path, refhook = function(x) .GlobalEnv)
   
   if (!lean) {
     times <- IMPUTE_TIMES
@@ -38,49 +47,52 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     times <- SIMULATION_IMPUTE_TIMES
   }
   iters <- MICE_ITERATIONS
-  flog.pid.info("For MICE methods, imputing %d times, with max. %d iterations", times, iters)
+  flog.pid.info("DESIGN_CHOICE For MICE methods, imputing %d times, with max. %d iterations", times, iters)
 
   if (rf_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
-    flog.pid.info("Reading best hyperparameter configurations for imputation methods")
-    rf_hyperparams <- readRDS(file.path(tr_output_path, FILE_RF_HP_CONFIGS_RDS))
+    rf_hyperparams_path <- file.path(tr_output_path, FILE_RF_HP_CONFIGS_RDS)
+    flog.pid.info("INPUT Reading best hyperparameter configurations for best imputation methods wrt. RF from RDS file at %s", rf_hyperparams_path)
+    rf_hyperparams <- readRDS(rf_hyperparams_path)
     
-    flog.pid.info("Imputation of test set with best hyperparameter configurations for RF")
+    flog.pid.info("PROGRESS Imputation of test set with best imputation hyperparameter configurations wrt. RF")
     rf_completions <- impute_w_hps(test_data, rf_hyperparams, times, iters, seed)
     
-    flog.pid.info("Starting prediction by RF models")
+    flog.pid.info("PROGRESS Starting prediction by RF models")
     perform_test_process_for_model_tree(rf_models, rf_completions, test_data, outcome, file.path(results_dir_path, FILE_RF_PERFORMANCE_CSV), lean = lean, lean_output_path = FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
   if (xg_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
-    flog.pid.info("Reading best hyperparameter configurations for imputation methods")
-    xg_hyperparams <- readRDS(file.path(tr_output_path, FILE_XGBOOST_HP_CONFIGS_RDS))
+    xg_hyperparams_path <- file.path(tr_output_path, FILE_XGBOOST_HP_CONFIGS_RDS)
+    flog.pid.info("INPUT Reading best hyperparameter configurations for best imputation methods wrt. XGBoost from RDS file at %s", xg_hyperparams_path)
+    xg_hyperparams <- readRDS(xg_hyperparams_path)
     
-    flog.pid.info("Imputation of test set with best hyperparameter configurations for XGBoost")
+    flog.pid.info("PROGRESS Imputation of test set with best imputation hyperparameter configurations wrt. XGBoost")
     xg_completions <- impute_w_hps(test_data, xg_hyperparams, times, iters, seed)
     
-    flog.pid.info("Starting prediction by XGBoost models")
+    flog.pid.info("PROGRESS Starting prediction by XGBoost models")
     perform_test_process_for_model_tree(xg_models, xg_completions, test_data, outcome, file.path(results_dir_path, FILE_XGBOOST_PERFORMANCE_CSV), lean = lean, lean_output_path = FILE_XGBOOST_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
   if (lr_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
-    flog.pid.info("Reading best hyperparameter configurations for imputation methods")
-    lr_hyperparams <- readRDS(file.path(tr_output_path, FILE_LR_HP_CONFIGS_RDS))
+    lr_hyperparams_path <- file.path(tr_output_path, FILE_LR_HP_CONFIGS_RDS)
+    flog.pid.info("INPUT Reading best hyperparameter configurations for best imputation methods %s", lr_hyperparams_path)
+    lr_hyperparams <- readRDS(lr_hyperparams_path)
     
-    flog.pid.info("Imputation of test set with best hyperparameter configurations for LR")
+    flog.pid.info("PROGRESS Imputation of test set with best imputation hyperparameter configurations wrt. LR")
     lr_completions <- impute_w_hps(test_data, lr_hyperparams, times, iters, seed)
     
-    flog.pid.info("Starting prediction by LR models")
+    flog.pid.info("PROGRESS Starting prediction by LR models")
     perform_test_process_for_model_tree(lr_models, lr_completions, test_data, outcome, file.path(results_dir_path, FILE_LR_PERFORMANCE_CSV), lean = lean, FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
 
-  flog.pid.info("Done")
+  flog.pid.info("PROGRESS Done")
 
 }
 
@@ -111,19 +123,21 @@ perform_test_process_for_model_tree <- function(models, completions, test_data, 
     }
     # Per consequence
     consequences <- find_dummies(CONSEQUENCE_COLUMN, colnames(test_data))
-    flog.pid.info("Computing performance statistics per consequences:")
-    flog.pid.info(consequences)
+    flog.pid.info("PROGRESS Computing performance statistics per consequences:")
+    flog.pid.info(paste0("PROGRESS ", consequences))
     perf_table_per_consequence <- lapply(consequences, . %>% compute_perfs_per_conseq(completions, models))
     perf_table_per_consequence <- c(perf_table_per_consequence, list(compute_perfs_per_conseq(consequences, completions, models)))
     perf_table_per_consequence <- do.call(rbind, perf_table_per_consequence)
-    write.csv(x = perf_table_per_consequence, file = file.path(results_dir_path, lean_output_path), row.names = FALSE)
+    perf_stats_per_consequence_path <- file.path(results_dir_path, lean_output_path)
+    flog.pid.info("OUTPUT Writing performance statistics per consequences into delimited file at %s", perf_stats_per_consequence_path)
+    write.csv(x = perf_table_per_consequence, file = perf_stats_per_consequence_path, row.names = FALSE)
   }
   
-  flog.pid.info("Computing performance statistics")
+  flog.pid.info("PROGRESS Computing performance statistics")
   perf <- performance_stats(predictions, outcome = outcome)
   tables <- lapply(perf, turn_table)
   perf_table <- merge_tables(tables)
-  flog.pid.info("Writing performance tables")
+  flog.pid.info("OUTPUT Writing performance tables to delimited file at %s", output_path)
   write.csv(x = perf_table, file = output_path, row.names = FALSE)
 
 }

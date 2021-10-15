@@ -33,14 +33,18 @@ S01_parse_vcf <- function(
   parameters=NULL,
   parameters_path=NULL
 ) {
-  futile.logger::flog.threshold(futile.logger::DEBUG)
-
-  set.seed(10)
-
-  output_path <- file.path(path.expand(output_root_dir))
-  output_data_path <- file.path(output_path, "data")
+  
+  output_path <- normalizePath(output_root_dir, mustWork = FALSE)
   dir.create(output_path)
-  dir.create(output_data_path)
+  
+  futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_root_dir, "01_parse_vcf.log")))
+  futile.logger::flog.threshold(futile.logger::DEBUG)
+  futile.logger::flog.info("START 01_parse_vcf.R")
+  futile.logger::flog.info("OUTPUT Output root path set to %s", output_path)
+
+  seed <- 10
+  set.seed(seed)
+  futile.logger::flog.info("DESIGN_CHOICE Setting seed to %d", seed)
 
   if (!file.exists(vcf_filename))
     stop(paste("Input VCF file", vcf_filename, "does not exist. Stopping."))
@@ -49,19 +53,25 @@ S01_parse_vcf <- function(
   if (!file.exists(cadd_indel_filename))
     stop(paste("Input CADD indel annotation file", cadd_indel_filename, "does not exist. Stopping."))
 
-  if(is.null(parameters)) {
+  if (is.null(parameters)) {
+    parameters_path <- normalizePath(parameters_path)
+    futile.logger::flog.info("INPUT Reading parameters from JSON file at %s", parameters_path)
     config <- get_config(parameters_path)
   } else {
     config <- parameters
   }
   parameter_dependent_path <- file.path(output_path, generate_file_prefix(config))
   dir.create(parameter_dependent_path)
+  futile.logger::flog.info("OUTPUT Parameter dependent path set to %s", parameter_dependent_path)
   
+  vcf_filename <- normalizePath(vcf_filename)
+  futile.logger::flog.info("INPUT Reading annotated ClinVar variant data from VCF file at %s", vcf_filename)
   vcf <- vcfR::read.vcfR(vcf_filename)
   
   vep_filters <- c()
   info_filters <- c()
   
+  futile.logger::flog.info("PARAMETER %s = %s", TRANSCRIPT, config[[TRANSCRIPT]])
   # Transcript selection parameters
   if (config[[TRANSCRIPT]] == TRANSCRIPT_CANONICAL) {
      vep_filters <- c(vep_filters, canonical)
@@ -72,6 +82,7 @@ S01_parse_vcf <- function(
   )
   
   # Data quality parameters
+  futile.logger::flog.info("PARAMETER %s = %s", CLASSIFICATION_QUALITY, config[[CLASSIFICATION_QUALITY]])
   if (config[[CLASSIFICATION_QUALITY]] == CLASSIFICATION_QUALITY_CLINGEN) {
     info_filters <- c(info_filters, clingen)
   } else if (config[[CLASSIFICATION_QUALITY]] == CLASSIFICATION_QUALITY_TWOSTAR) {
@@ -82,6 +93,7 @@ S01_parse_vcf <- function(
     paste0("Unknown value \"", config[[CLASSIFICATION_QUALITY]], "\" for parameter \"", CLASSIFICATION_QUALITY, "\"")
   )
   
+  futile.logger::flog.info("PARAMETER %s = %s", RESTRICTION_MISSENSE, config[[RESTRICTION_MISSENSE]])
   if (config[[RESTRICTION_MISSENSE]] == MISSENSE_ONLY) {
     vep_filters <- c(vep_filters, missense)
   } else if (config[[RESTRICTION_MISSENSE]] == ALL) {
@@ -90,28 +102,39 @@ S01_parse_vcf <- function(
     paste0("Unknown value \"", config[[RESTRICTION_MISSENSE]], "\" for parameter \"", RESTRICTION_MISSENSE, "\"")
   )
   
+  futile.logger::flog.info("PROGRESS Processing VCF to a data.frame")
   vcf_df <- vcf_object_to_dataframe(vcf, num_batches = 100, info_filters = info_filters, vep_filters = vep_filters)
+  futile.logger::flog.info("DESIGN_CHOICE Dropping variants with classification \"drug_response\"")
   vcf_df <- vcf_df[vcf_df$CLNSIG != "drug_response", ]
   stopifnot(all(vcf_df$Feature == vcf_df$Ensembl_transcriptid, na.rm = TRUE))
 
-  #write.csv(vcf_df, file.path(parameter_dependent_path, FILE_FULL_CLINGEN_CSV))
-
+  cadd_snv_filename <- normalizePath(cadd_snv_filename)
+  futile.logger::flog.info("INPUT Reading CADD SNV data from delimited file at %s", cadd_snv_filename)
   cadd_snv_data <- read.delim(cadd_snv_filename, skip = 1, as.is = TRUE)
+  cadd_indel_filename <- normalizePath(cadd_indel_filename)
+  futile.logger::flog.info("INPUT Reading CADD indel data from delimited file at %s", cadd_indel_filename)
   cadd_indel_data <- read.delim(cadd_indel_filename, skip = 1, as.is = TRUE)
 
+  futile.logger::flog.info("INPUT Checking that CADD files have matching columns")
   stopifnot(colnames(cadd_snv_data) == colnames(cadd_indel_data))
 
   cadd_data <- rbind(cadd_snv_data, cadd_indel_data)
 
+  futile.logger::flog.info("PROGRESS Merging CADD data to ClinVar variant data", cadd_indel_filename)
   merged_data <- merge(x = cadd_data,
                        y = vcf_df,
                        all = FALSE,
                        by.x = c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID"),
                        by.y = c("CHROM", "POS", "REF", "ALT", "Feature"))
 
-  write.csv(file = file.path(parameter_dependent_path, FILE_MERGED_DATA_CSV), x = merged_data, row.names = FALSE)
+  merged_data_output_path <- file.path(parameter_dependent_path, FILE_MERGED_DATA_CSV)
+  futile.logger::flog.info("OUTPUT Writing merged data to delimited file at %s", merged_data_output_path)
+  write.csv(file = merged_data_output_path, x = merged_data, row.names = FALSE)
 
-  write(capture.output(sessionInfo()), file.path(parameter_dependent_path, "01_parse_vcf_sessioninfo.txt"))
+  sessioninfo_path <- file.path(parameter_dependent_path, "01_parse_vcf_sessioninfo.txt")
+  futile.logger::flog.info("OUTPUT Writing session information to text file at %s", sessioninfo_path)
+  write(capture.output(sessionInfo()), sessioninfo_path)
 
+  futile.logger::flog.info("DONE 01_parse_vcf.R")
   return(parameter_dependent_path)
 }
