@@ -185,27 +185,6 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   futile.logger::flog.info(paste0("PROGRESS ", capture.output(table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame %>% print)))
   futile.logger::flog.info(paste0("PROGRESS ", capture.output(table_with_margin(training_set$Consequence.x, training_outcome, useNA = "always") %>% as.data.frame %>% print)))
   
-  # There is significant class imbalance seen when conditioning on the outcome. One might consider e.g. removing all stop-gain variants
-  # in the test set to avoid biasing the result. Since the training / test split was random, the distributions should be similar in the
-  # test set, and thus any stop-gain variants will likely also all be pathogenic in the test set. The model will then might learn to guess
-  # correctly looking only at the consequence, something that could also be programmed deterministically and thus is not interesting in a
-  # machine-learning perspective.
-  
-  # Thus we remove variants from categories with very few examples (< 5 %) in either positive or negative category.
-  futile.logger::flog.info("DESIGN_CHOICE Removing variants with consequences that have high class imbalance")
-  unbalanced_conseqs <- detect_imbalanced_consequence_classes(training_set$Consequence.x, training_outcome, 0.05)
-  tr_variants_w_unbalanced_class <- training_set$Consequence.x %in% rownames(unbalanced_conseqs)
-  futile.logger::flog.info("DESIGN_CHOICE Training variants with high consequence dependent class imbalance: %d", sum(tr_variants_w_unbalanced_class))
-  training_set <- training_set[!tr_variants_w_unbalanced_class, ]
-  training_outcome <- training_outcome[!tr_variants_w_unbalanced_class]
-  
-  te_variants_w_unbalanced_class <- test_set$Consequence.x %in% rownames(unbalanced_conseqs)
-  futile.logger::flog.info("DESIGN_CHOICE Test variants with high consequence dependent class imbalance: %d", sum(te_variants_w_unbalanced_class))
-  test_set <- test_set[!te_variants_w_unbalanced_class, ]
-  test_outcome <- test_outcome[!te_variants_w_unbalanced_class]
-  futile.logger::flog.info("DESIGN_CHOICE Remaining variants in training set: %d", nrow(training_set))
-  futile.logger::flog.info("DESIGN_CHOICE Remaining variants in test set: %d", nrow(test_set))
-  
   ### Using a priori information to impute by constants
   
   # Some variables have missing values that can be imputed with sensible default values using *a priori* information.
