@@ -16,6 +16,31 @@ impute_and_train <- function(training_path,
   create_dir(output_path)
   flog.pid.info("OUTPUT Output root folder set to %s", output_path)
   
+  if (parameter_list[[FEATURE_SAMPLING]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(FEATURE_SAMPLING, "\" not provided"))
+  }
+  if (parameter_list[[FEATURE_SAMPLING_PERCENTAGE]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(FEATURE_SAMPLING_PERCENTAGE, "\" not provided"))
+  }
+  if (parameter_list[[TRAINING_DATA_SAMPLING]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(TRAINING_DATA_SAMPLING, "\" not provided"))
+  }
+  if (parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(TRAINING_DATA_SAMPLING_PERCENTAGE, "\" not provided"))
+  }
+  if (parameter_list[[NZV_CHECK]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(NZV_CHECK, "\" not provided"))
+  }
+  if (parameter_list[[CORRELATION_CHECK]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(CORRELATION_CHECK, "\" not provided"))
+  }
+  if (parameter_list[[HYPERPARAMETER_SEARCH_TYPE]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(HYPERPARAMETER_SEARCH_TYPE, "\" not provided"))
+  }
+  if (parameter_list[[CATEGORICAL_ENCODING]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(CATEGORICAL_ENCODING, "\" not provided"))
+  }
+  
   if (lean) {
     flog.pid.info("DESIGN_CHOICE Sampling imputation hyperparameter grids to %d rows to save computation time", SIMULATION_HP_SAMPLE_SIZE)
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
@@ -49,13 +74,6 @@ impute_and_train <- function(training_path,
   flog.pid.info("PARAMETER %s = %s", FEATURE_SAMPLING_PERCENTAGE, parameter_list[[FEATURE_SAMPLING_PERCENTAGE]])
   feature_sampling_pct <- parameter_list[[FEATURE_SAMPLING_PERCENTAGE]]
   if (parameter_list[[FEATURE_SAMPLING]] == FEATURE_SAMPLING_ON) {
-    if (is.null(feature_sampling_pct)) {
-      stop(
-        paste0("\"", FEATURE_SAMPLING, "\" is set to \"",
-               FEATURE_SAMPLING_ON, "\", but \"", FEATURE_SAMPLING_PERCENTAGE,
-               "\" is not set")
-      )
-    }
     if (!(feature_sampling_pct %in% FEATURE_SAMPLING_PERCENTAGE_ALLOWED_VALUES)) {
       stop(
         paste0("Training data sampling percentage not in predefined allowed values")
@@ -94,13 +112,6 @@ impute_and_train <- function(training_path,
   flog.pid.info("PARAMETER %s = %s", TRAINING_DATA_SAMPLING_PERCENTAGE, parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]])
   training_data_sampling_pct <- parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]]
   if (parameter_list[[TRAINING_DATA_SAMPLING]] == TRAINING_DATA_SAMPLING_ON) {
-    if (is.null(training_data_sampling_pct)) {
-      stop(
-        paste0("\"", TRAINING_DATA_SAMPLING, "\" is set to \"",
-               TRAINING_DATA_SAMPLING_ON, "\", but \"", TRAINING_DATA_SAMPLING_PERCENTAGE,
-               "\" is not set")
-      )
-    }
     if (!(training_data_sampling_pct %in% TRAINING_DATA_SAMPLING_PERCENTAGE_ALLOWED_VALUES)) {
       stop(
         paste0("Training data sampling percentage not in predefined allowed values")

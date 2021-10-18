@@ -58,6 +58,17 @@ S01_parse_vcf <- function(
   } else {
     config <- parameters
   }
+  
+  if (config[[TRANSCRIPT]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(TRANSCRIPT, "\" not provided"))
+  }
+  if (config[[CLASSIFICATION_QUALITY]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(CLASSIFICATION_QUALITY, "\" not provided"))
+  }
+  if (config[[RESTRICTION_MISSENSE]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(RESTRICTION_MISSENSE, "\" not provided"))
+  }
+  
   parameter_dependent_path <- file.path(output_path, generate_file_prefix(config))
   dir.create(parameter_dependent_path)
   futile.logger::flog.info("OUTPUT Parameter dependent path set to %s", parameter_dependent_path)

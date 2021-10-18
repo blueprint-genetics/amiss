@@ -25,13 +25,23 @@
 #' @export
 S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, seed = 10) {
   
-  output_path <- normalizePath(output_path)
+  output_path <- normalizePath(output_path, mustWork = TRUE)
   futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_path, "02_preprocess_data.log")))
   futile.logger::flog.info("START 02_preprocess_data.R")
   
   parameters_path <- normalizePath(parameters_path)
   futile.logger::flog.info("INPUT Reading parameters from JSON file at %s", parameters_path)
   config <- get_config(parameters_path)
+  
+  if (config[[VUS_INCLUSION]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(VUS_INCLUSION, "\" not provided"))
+  }
+  if (config[[CATEGORICAL_ENCODING]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(CATEGORICAL_ENCODING, "\" not provided"))
+  }
+  if (config[[DOWNSAMPLING]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(DOWNSAMPLING, "\" not provided"))
+  }
   
   futile.logger::flog.info("DESIGN_CHOICE Using seed: %d", seed)
   set.seed(seed)
@@ -196,8 +206,6 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   test_outcome <- test_outcome[!te_variants_w_unbalanced_class]
   futile.logger::flog.info("DESIGN_CHOICE Remaining variants in training set: %d", nrow(training_set))
   futile.logger::flog.info("DESIGN_CHOICE Remaining variants in test set: %d", nrow(test_set))
-  
-  #write.csv(training_set, file.path(output_path, FILE_TRAINING_DATA_FOR_STATS_CSV), row.names = TRUE)
   
   ### Using a priori information to impute by constants
   
