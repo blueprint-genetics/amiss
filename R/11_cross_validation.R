@@ -127,6 +127,10 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, parameters
   
   config <- get_config(parameters_path)
   
+  if (config[[IMPUTATION_METHOD]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(IMPUTATION_METHOD, "\" not provided"))
+  }
+  
   # Reorder rows
   flog.pid.info("PROGRESS Preparing for cross-validation: reordering rows")
   rows <- NROW(training_data)
@@ -187,10 +191,6 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, parameters
   lr_output_path <- file.path(output_path, FILE_LR_CROSSVALIDATION_RESULTS_CSV)
   flog.pid.info("OUTPUT Writing results from cross-validation for LR into delimited file at %s", lr_output_path)
   write.csv(lr_results, lr_output_path)
-  
-  # ggplot2::ggsave(filename = file.path(output_path, "si_cv_double_boxplots.pdf"),
-  #        plot = doubleboxplot("MCC", rf_results, lr_results, FALSE),
-  #        device = "pdf", width = 170, height = 180, units = "mm")
   
   flog.pid.info("DONE 11_cross_validation.R")
 }
