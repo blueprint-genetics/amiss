@@ -25,10 +25,15 @@
 #' @export
 S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, seed = 10) {
   
+  ### Setup ###
   output_path <- normalizePath(output_path, mustWork = TRUE)
   futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_path, "02_preprocess_data.log")))
   futile.logger::flog.info("START 02_preprocess_data.R")
   
+  futile.logger::flog.info("DESIGN_CHOICE Using seed: %d", seed)
+  set.seed(seed)
+  
+  ### Process parameters ###
   parameters_path <- normalizePath(parameters_path)
   futile.logger::flog.info("INPUT Reading parameters from JSON file at %s", parameters_path)
   config <- get_config(parameters_path)
@@ -43,25 +48,25 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
     stop("Required parameter \"" %>% paste0(DOWNSAMPLING, "\" not provided"))
   }
   
-  futile.logger::flog.info("DESIGN_CHOICE Using seed: %d", seed)
-  set.seed(seed)
-  
+  ### Read data ###
   merged_data_path <- parsed_data_path %>% normalizePath %>% file.path(FILE_MERGED_DATA_CSV)
   futile.logger::flog.info("INPUT Reading annotated ClinVar variant data from VCF file at %s", merged_data_path)
   merged_data <- read.csv(merged_data_path, as.is = TRUE)
   futile.logger::flog.info("INPUT Rows: %d", nrow(merged_data))
   
-  ## Name data rows by strings identifying variants
+  # Name data rows by strings identifying variants
   rownames(merged_data) <- form_variant_ids(merged_data)
   
-  ## Drop duplicates
+  ### Preprocessing ###
+  
+  # Drop duplicates
   futile.logger::flog.info("DESIGN_CHOICE Dropping duplicates")
   merged_data_duplicates <- duplicated(merged_data[, c(numeric_features, categorical_features)])
   futile.logger::flog.info("DESIGN_CHOICE Number of duplicated rows: %d", sum(merged_data_duplicates))
   
   merged_data <- merged_data[!merged_data_duplicates, ]
   
-  # The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive).
+  # Define positive and negative classes
   futile.logger::flog.info("DESIGN_CHOICE Encoding outcome")
   positive_classes <- c("Likely_pathogenic", "Pathogenic", "Pathogenic,_drug_response", 
                         "Pathogenic/Likely_pathogenic,_drug_response", "Pathogenic/Likely_pathogenic", 
@@ -79,6 +84,7 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   
   uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", "other", "risk_factor", "association_not_found", "Affects")
   
+  # Choose class for VUS
   vus <- merged_data$CLNSIG %in% uncertain_classes
   futile.logger::flog.info("PROGRESS Number of VUS variants: %d", sum(vus))
   futile.logger::flog.info("PARAMETER %s = %s", VUS_INCLUSION, config[[VUS_INCLUSION]])
@@ -93,10 +99,11 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
     paste0("Unknown value \"", config[[VUS_INCLUSION]], "\" for parameter \"", VUS_INCLUSION, "\"")
   )
   
+  # The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive).
   futile.logger::flog.info("DESIGN_CHOICE Coding positive outcomes as 1 and negative outcomes as 0")
   outcome <- code_labels(merged_data$CLNSIG, positive_classes, negative_classes)
   
-  ## Data split
+  # Training/test split
   futile.logger::flog.info("PROGRESS Splitting data to training and test sets")
   split_percentage <- 0.7
   futile.logger::flog.info("DESIGN_CHOICE Split percentage: %f", split_percentage)
@@ -116,20 +123,7 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   names(test_outcome) <- row.names(test_set)
   futile.logger::flog.info(paste0("PROGRESS ", table(test_outcome) %>% capture.output))
   
-  training_set_path <- file.path(output_path, FILE_TRAINING_DATA_CSV)
-  futile.logger::flog.info("PROGRESS Writing out intermediate version of training data to delimited file at %s", training_set_path)
-  write.csv(file = training_set_path, x = training_set, row.names = FALSE)
-  
-  test_set_path <- file.path(output_path, FILE_TEST_DATA_CSV)
-  futile.logger::flog.info("PROGRESS Writing out intermediate version of training data to delimited file at %s", test_set_path)
-  write.csv(file = test_set_path, x = test_set, row.names = FALSE)
-  
-  ### Dummy variables
-  
-  # Categorical variables are processed into sets of dummy variables. Note that here each category is represented by a dummy variable.
-  # An extra category corresponding a missing value is represented as another dummy variable; this is one strategy
-  # for handling missing values in categorical variables. This approach is equivalent to the missingness indicator method. We choose
-  # to fix this choice for simplicity, since many imputation methods make no sense on dummy variables (e.g. regression imputation).
+  # Categorical variable encoding
   
   futile.logger::flog.info("DESIGN_CHOICE Getting rid of categorical variable values in test set that are not present in training set by setting them to missing")
   test_set[,categorical_features] <- mapply(FUN = function(x, y) {
@@ -178,14 +172,12 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
     paste0("Unknown value \"", config[[CATEGORICAL_ENCODING]], "\" for parameter \"", CATEGORICAL_ENCODING, "\"")
   )
   
-  ## Class distribution per consequence
-  
-  # Next, check whether all consequences have both positive and negative examples.
+  # Log class distribution per consequence
   futile.logger::flog.info("PROGRESS Checking consequence-dependent class imbalance")
   futile.logger::flog.info(paste0("PROGRESS ", capture.output(table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame %>% print)))
   futile.logger::flog.info(paste0("PROGRESS ", capture.output(table_with_margin(training_set$Consequence.x, training_outcome, useNA = "always") %>% as.data.frame %>% print)))
   
-  ### Using a priori information to impute by constants
+  # Using a priori information to impute by constants
   
   # Some variables have missing values that can be imputed with sensible default values using *a priori* information.
   # For example, `motifEHIPos` is a variable that indicates whether the variant is highly informative to an overlapping motif.
@@ -194,14 +186,15 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   # `NA` should be encoded in a different variable, which indicates whether the variant overlaps any motif. This actually exists
   # as the variable `motifECount`, which contains the count of overlapping motifs, and `NA` when one does not exist. Again, it
   # makes sense to impute this variable with `0`.
-  
   futile.logger::flog.info("DESIGN_CHOICE Performing a priori imputation")
   training_set <- a_priori_impute(training_set, default_imputations)
   test_set <- a_priori_impute(test_set, default_imputations)
   
-  ## Feature selection 
-  # The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g. MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of whether they might be usable by the classifier. 
-  # Only dummy variable versions of categorical features are kept here.
+  # Feature selection
+  
+  # The features are selected to be values from tools in dbNSFP that are not themselves already metapredictors. E.g.
+  # MetaSVM and Eigen are thus filtered out. From CADD annotations, features are chosen by using some intuition of
+  # whether they might be usable by the classifier.
   futile.logger::flog.info("DESIGN_CHOICE Performing feature selection")
   if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
     training_set <- select_features(training_set, numeric_features, categorical_features)
@@ -236,7 +229,7 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
     paste0("Unknown value \"", config[[DOWNSAMPLING]], "\" for parameter \"", DOWNSAMPLING, "\"")
   )
   
-  # Finally, write out the processed data CSV file.
+  ### Write output ###
   training_set_path <- file.path(output_path, FILE_PREPROCESSED_TRAINING_DATA_CSV)
   futile.logger::flog.info("OUTPUT Writing fully preprocessed training set data to %s", training_set_path)
   write.csv(training_set, training_set_path, row.names = TRUE)

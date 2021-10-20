@@ -1,6 +1,7 @@
 
 predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results_dir_path, lean, cores, seed = 42) {
 
+  ### Setup ###
   results_dir_path <- normalizePath(results_dir_path, mustWork = FALSE)
   create_dir(results_dir_path)
 
@@ -14,6 +15,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     set.seed(seed)
   }
 
+  ### Reading input ###
   test_path <- normalizePath(test_path)
   flog.pid.info("INPUT Reading test data from delimited file at %s", test_path)
   test_data <- read.csv(test_path, row.names = 1)
@@ -23,6 +25,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
   outcome <- read.csv(outcome_path, row.names = 1)[,1, drop = TRUE]
   outcome <- factor(outcome, levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
 
+  ### Processing input ###
   # Keep exactly those features that were kept in training data
   tr_output_path <- normalizePath(tr_output_path)
   final_features_path <- file.path(tr_output_path, FILE_FINAL_FEATURES_RDS)
@@ -30,7 +33,6 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
   final_features <- readRDS(final_features_path)
   test_data <- test_data[, final_features]
 
-  ## Predict on test set completions using best classifier models
   rf_models_path <- file.path(tr_output_path, FILE_RF_CLASSIFIERS_RDS)
   flog.pid.info("INPUT Reading RF classifier models from RDS file at %s", rf_models_path)
   rf_models <- readRDS(rf_models_path)
@@ -49,6 +51,8 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
   iters <- MICE_ITERATIONS
   flog.pid.info("DESIGN_CHOICE For MICE methods, imputing %d times, with max. %d iterations", times, iters)
 
+  ### Imputation and prediction ###
+  # Random Forest
   if (rf_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
@@ -63,6 +67,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     perform_test_process_for_model_tree(rf_models, rf_completions, test_data, outcome, file.path(results_dir_path, FILE_RF_PERFORMANCE_CSV), lean = lean, lean_output_path = FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
+  # XGBoost
   if (xg_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
@@ -77,6 +82,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     perform_test_process_for_model_tree(xg_models, xg_completions, test_data, outcome, file.path(results_dir_path, FILE_XGBOOST_PERFORMANCE_CSV), lean = lean, lean_output_path = FILE_XGBOOST_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
+  # Logistic regression
   if (lr_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
@@ -91,9 +97,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     perform_test_process_for_model_tree(lr_models, lr_completions, test_data, outcome, file.path(results_dir_path, FILE_LR_PERFORMANCE_CSV), lean = lean, FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
     
   }
-
   flog.pid.info("PROGRESS Done")
-
 }
 
 perform_test_process_for_model_tree <- function(models, completions, test_data, outcome, output_path, lean, lean_output_path) {
