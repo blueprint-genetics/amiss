@@ -9,6 +9,7 @@ impute_and_train <- function(training_path,
                              parameter_list,
                              cores, seed = 42, lean) {
 
+  ### Setup ###
   flog.pid.info("impute_and_train.R")
   flog.pid.info("PROGRESS Arguments: %s", paste0(list(training_path, outcome_path, output_path, cores, lean), collapse = ", "))
 
@@ -16,6 +17,13 @@ impute_and_train <- function(training_path,
   create_dir(output_path)
   flog.pid.info("OUTPUT Output root folder set to %s", output_path)
   
+  flog.pid.info("PROGRESS Using %d cores", cores)
+  if (!is.null(seed)) {
+    flog.pid.info("DESIGN_CHOICE Using seed: %d", seed)
+    set.seed(seed)
+  }
+
+  ### Check whether required parameters are provided ###
   if (parameter_list[[FEATURE_SAMPLING]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(FEATURE_SAMPLING, "\" not provided"))
   }
@@ -41,19 +49,14 @@ impute_and_train <- function(training_path,
     stop("Required parameter \"" %>% paste0(CATEGORICAL_ENCODING, "\" not provided"))
   }
   
+  ### Sample imputation hp grids ###
   if (lean) {
     flog.pid.info("DESIGN_CHOICE Sampling imputation hyperparameter grids to %d rows to save computation time", SIMULATION_HP_SAMPLE_SIZE)
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
     other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
   }
-
-  flog.pid.info("PROGRESS Using %d cores", cores)
-
-  if (!is.null(seed)) {
-    flog.pid.info("DESIGN_CHOICE Using seed: %d", seed)
-    set.seed(seed)
-  }
   
+  ### Read and process input data ###
   training_path <- normalizePath(training_path)
   flog.pid.info("INPUT Reading training data from delimited file at %s", training_path)
   training_data <- read.csv(training_path, row.names = 1)
@@ -69,6 +72,7 @@ impute_and_train <- function(training_path,
   outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
   flog.pid.info("PROGRESS Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
   
+  ### Parameter-dependent preprocessing ###
   # Feature sampling
   flog.pid.info("PARAMETER %s = %s", FEATURE_SAMPLING, parameter_list[[FEATURE_SAMPLING]])
   flog.pid.info("PARAMETER %s = %s", FEATURE_SAMPLING_PERCENTAGE, parameter_list[[FEATURE_SAMPLING_PERCENTAGE]])
@@ -134,13 +138,9 @@ impute_and_train <- function(training_path,
     paste0("Unknown value \"", parameter_list[[TRAINING_DATA_SAMPLING]], "\" for parameter \"", TRAINING_DATA_SAMPLING, "\"")
   )
 
-  ## Removal of problematic features
-
-  # Some imputation methods cannot deal with features that have certain unwanted properties, and thus they must be removed prior to imputation.
-
+  # Removal of features with near-zero variance
   flog.pid.info("PARAMETER %s = %s", NZV_CHECK, parameter_list[[NZV_CHECK]])
   if (parameter_list[[NZV_CHECK]] == NZV_CHECK_ON) {
-    ### Near-zero variance
     
     flog.pid.info("PARAMETER Removing features with near-zero variance")
     flog.pid.info("PARAMETER Uniqueness cutoff: %d %%", UNIQUENESS_CUTOFF_PERCENTAGE)
@@ -156,9 +156,9 @@ impute_and_train <- function(training_path,
     paste0("Unknown value \"", parameter_list[[NZV_CHECK]], "\" for parameter \"", NZV_CHECK, "\"")
   )
   
+  # Removal of highly correlated features
   flog.pid.info("PARAMETER %s = %s", CORRELATION_CHECK, parameter_list[[CORRELATION_CHECK]])
   if (parameter_list[[CORRELATION_CHECK]] == CORRELATION_CHECK_ON) {
-    ### Highly correlated features
     
     flog.pid.info("PARAMETER Removing highly correlated features:")
     correlations <- cor(training_data[, intersect(colnames(training_data), numeric_features)], use = "pairwise.complete.obs")
@@ -176,14 +176,18 @@ impute_and_train <- function(training_path,
     paste0("Unknown value \"", parameter_list[[CORRELATION_CHECK]], "\" for parameter \"", CORRELATION_CHECK, "\"")
   )
 
-  ## Imputation
-
+  ### Imputation ###
   flog.pid.info("PROGRESS Imputation hyperparameter configuration counts:")
-  # Check the number of hyperparameter configurations for each imputation method:
-  flog.pid.info(paste0("PROGRESS", names(mice_hyperparameter_grids), ": ",  lapply(mice_hyperparameter_grids, nrow)))
-  flog.pid.info(paste0("PROGRESS", names(other_hyperparameter_grids), ": ",  lapply(other_hyperparameter_grids, nrow)))
+  
+  # Log the number of hyperparameter configurations for each imputation method:
+  if (length(mice_hyperparameter_grids) > 0) {
+    flog.pid.info(paste0("PROGRESS", names(mice_hyperparameter_grids), ": ",  lapply(mice_hyperparameter_grids, nrow)))
+  }
+  if (length(other_hyperparameter_grids) > 0) {
+    flog.pid.info(paste0("PROGRESS", names(other_hyperparameter_grids), ": ",  lapply(other_hyperparameter_grids, nrow)))
+  }
 
-  ### MICE
+  # MICE imputations
   flog.pid.info("PROGRESS Starting MICE imputation")
   if (!lean) {
     times <- IMPUTE_TIMES
@@ -193,11 +197,11 @@ impute_and_train <- function(training_path,
   flog.pid.info("DESIGN_CHOICE Imputing %d times, with max. %d iterations", times, MICE_ITERATIONS)
   mice_imputations <- impute_over_grid(training_data, mice_hyperparameter_grids, seed, times = times, iterations = MICE_ITERATIONS)
 
-  ### Non-MICE imputations
+  # Non-MICE imputations
   flog.pid.info("PROGRESS Starting non-MICE imputation")
   other_imputations <- impute_over_grid(training_data, other_hyperparameter_grids, seed, times = times)
 
-  ### Single value imputations
+  # Single value imputations
   flog.pid.info("PROGRESS Starting single value imputation")
   single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
     imputations <- list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
@@ -209,7 +213,7 @@ impute_and_train <- function(training_path,
     return(imputations)
   }) %>% magrittr::set_names(names(single_value_imputation_hyperparameter_grids))
 
-  ### List and drop imputation methods that failed completely
+  # List and drop imputation methods that failed completely
   imputations <- c(mice_imputations, other_imputations, single_value_imputations)
   flog.pid.info("PROGRESS Checking and dropping failed imputation methods")
   valid_methods <- check_method_results(imputations)
@@ -218,7 +222,7 @@ impute_and_train <- function(training_path,
   }
   imputations <- imputations[valid_methods]
 
-  ## Training classifier
+  ### Training classifier ###
   flog.pid.info("PROGRESS Starting classifier training")
   flog.pid.info("DESIGN_CHOICE Hyperparameter grid for RF:")
   flog.pid.info(paste0("DESIGN_CHOICE ", capture.output(print(RF_HYPERPARAMETER_GRID))))
@@ -279,6 +283,8 @@ impute_and_train <- function(training_path,
                            grid = if(search == "grid") RF_HYPERPARAMETER_GRID else NULL,
                            tunelength = nrow(RF_HYPERPARAMETER_GRID),
                            seed = seed)
+  
+  # Skip LR and XGBoost if not using dummy features
   flog.pid.info("PARAMETER %s = %s", CATEGORICAL_ENCODING, parameter_list[[CATEGORICAL_ENCODING]])
   if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
     flog.pid.info("PARAMETER Categorical features are encoded as dummy variables, so XGBoost and LR training is possible")
@@ -310,13 +316,14 @@ impute_and_train <- function(training_path,
     paste0("Unknown value \"", parameter_list[[CATEGORICAL_ENCODING]], "\" for parameter \"", CATEGORICAL_ENCODING, "\"")
   )
 
-  ## Model selection
+  ### Model selection ###
   flog.pid.info("PROGRESS Starting model selection")
   all_hyperparameter_grids <- c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids)
   rf_bests <- select_best(rf_models, imputations, all_hyperparameter_grids)
   xg_bests <- select_best(xg_models, imputations, all_hyperparameter_grids)
   lr_bests <- select_best(lr_models, imputations, all_hyperparameter_grids)
 
+  ### Writing output ###
   flog.pid.info("PROGRESS Saving data")
   # Save run time information for imputers
   rf_runtimes_path <- file.path(output_path, FILE_RF_RUNTIMES_CSV)
@@ -329,7 +336,7 @@ impute_and_train <- function(training_path,
   futile.logger::flog.info("OUTPUT Writing LR-linked imputation runtime measurements to delimited file at %s", lr_runtimes_path)
   write.csv(x = form_run_time_df(lr_bests$imputers, times_imputed = times), file = lr_runtimes_path)
 
-  ## Saving model
+  # Saving model
   rf_models_path <- file.path(output_path, FILE_RF_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF models to RDS file at %s", rf_models_path)
   saveRDS(rf_bests$models, file = rf_models_path)
