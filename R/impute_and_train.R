@@ -3,21 +3,18 @@
 impute_and_train <- function(training_path,
                              outcome_path,
                              output_path,
-                             mice_hyperparameter_grids,
-                             other_hyperparameter_grids,
                              single_value_imputation_hyperparameter_grids,
                              parameter_list,
-                             cores, seed = 42, lean) {
+                             seed = 42) {
 
   ### Setup ###
   flog.pid.info("impute_and_train.R")
-  flog.pid.info("PROGRESS Arguments: %s", paste0(list(training_path, outcome_path, output_path, cores, lean), collapse = ", "))
+  flog.pid.info("PROGRESS Arguments: %s", paste0(list(training_path, outcome_path, output_path), collapse = ", "))
 
   output_path <- normalizePath(output_path, mustWork = FALSE)
   create_dir(output_path)
   flog.pid.info("OUTPUT Output root folder set to %s", output_path)
   
-  flog.pid.info("PROGRESS Using %d cores", cores)
   if (!is.null(seed)) {
     flog.pid.info("DESIGN_CHOICE Using seed: %d", seed)
     set.seed(seed)
@@ -47,13 +44,6 @@ impute_and_train <- function(training_path,
   }
   if (parameter_list[[CATEGORICAL_ENCODING]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(CATEGORICAL_ENCODING, "\" not provided"))
-  }
-  
-  ### Sample imputation hp grids ###
-  if (lean) {
-    flog.pid.info("DESIGN_CHOICE Sampling imputation hyperparameter grids to %d rows to save computation time", SIMULATION_HP_SAMPLE_SIZE)
-    mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
-    other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
   }
   
   ### Read and process input data ###
@@ -177,33 +167,9 @@ impute_and_train <- function(training_path,
   )
 
   ### Imputation ###
-  flog.pid.info("PROGRESS Imputation hyperparameter configuration counts:")
-  
-  # Log the number of hyperparameter configurations for each imputation method:
-  if (length(mice_hyperparameter_grids) > 0) {
-    flog.pid.info(paste0("PROGRESS", names(mice_hyperparameter_grids), ": ",  lapply(mice_hyperparameter_grids, nrow)))
-  }
-  if (length(other_hyperparameter_grids) > 0) {
-    flog.pid.info(paste0("PROGRESS", names(other_hyperparameter_grids), ": ",  lapply(other_hyperparameter_grids, nrow)))
-  }
-
-  # MICE imputations
-  flog.pid.info("PROGRESS Starting MICE imputation")
-  if (!lean) {
-    times <- IMPUTE_TIMES
-  } else {
-    times <- SIMULATION_IMPUTE_TIMES
-  }
-  flog.pid.info("DESIGN_CHOICE Imputing %d times, with max. %d iterations", times, MICE_ITERATIONS)
-  mice_imputations <- impute_over_grid(training_data, mice_hyperparameter_grids, seed, times = times, iterations = MICE_ITERATIONS)
-
-  # Non-MICE imputations
-  flog.pid.info("PROGRESS Starting non-MICE imputation")
-  other_imputations <- impute_over_grid(training_data, other_hyperparameter_grids, seed, times = times)
-
   # Single value imputations
   flog.pid.info("PROGRESS Starting single value imputation")
-  single_value_imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
+  imputations <- lapply(enumerate(single_value_imputation_hyperparameter_grids), function(method) {
     imputations <- list(`imp_hp_1` = list(completed_datasets = list(get(method$name)(training_data))))
     imputations <- lapply(imputations, function(hp_set) {
       timings <- hp_set %>% magrittr::extract2("completed_datasets") %>% magrittr::extract2(1) %>% attr(TIMING_ATTR)
@@ -214,7 +180,6 @@ impute_and_train <- function(training_path,
   }) %>% magrittr::set_names(names(single_value_imputation_hyperparameter_grids))
 
   # List and drop imputation methods that failed completely
-  imputations <- c(mice_imputations, other_imputations, single_value_imputations)
   flog.pid.info("PROGRESS Checking and dropping failed imputation methods")
   valid_methods <- check_method_results(imputations)
   if (all(valid_methods == FALSE)) {
@@ -325,24 +290,12 @@ impute_and_train <- function(training_path,
 
   ### Writing output ###
   flog.pid.info("PROGRESS Saving data")
-  # Save run time information for imputers
-  rf_runtimes_path <- file.path(output_path, FILE_RF_RUNTIMES_CSV)
-  futile.logger::flog.info("OUTPUT Writing RF-linked imputation runtime measurements to delimited file at %s", rf_runtimes_path)
-  write.csv(x = form_run_time_df(rf_bests$imputers, times_imputed = times), file = rf_runtimes_path)
-  xg_runtimes_path <- file.path(output_path, FILE_XGBOOST_RUNTIMES_CSV)
-  futile.logger::flog.info("OUTPUT Writing XGBoost-linked imputation runtime measurements to delimited file at %s", xg_runtimes_path)
-  write.csv(x = form_run_time_df(xg_bests$imputers, times_imputed = times), file = xg_runtimes_path)
-  lr_runtimes_path <- file.path(output_path, FILE_LR_RUNTIMES_CSV)
-  futile.logger::flog.info("OUTPUT Writing LR-linked imputation runtime measurements to delimited file at %s", lr_runtimes_path)
-  write.csv(x = form_run_time_df(lr_bests$imputers, times_imputed = times), file = lr_runtimes_path)
 
   # Saving model
   rf_models_path <- file.path(output_path, FILE_RF_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF models to RDS file at %s", rf_models_path)
   saveRDS(rf_bests$models, file = rf_models_path)
   rf_imputers_path <- file.path(output_path, FILE_RF_IMPUTERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen RF imputer models to RDS file at %s", rf_imputers_path)
-  if (!lean) saveRDS(rf_bests$imputers, file = rf_imputers_path)
   rf_hps_path <- file.path(output_path, FILE_RF_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF hyperparameters to RDS file at %s", rf_hps_path)
   saveRDS(rf_bests$hyperparams, file = rf_hps_path)
@@ -351,8 +304,6 @@ impute_and_train <- function(training_path,
   futile.logger::flog.info("OUTPUT Writing chosen XGBoost models to RDS file at %s", xg_models_path)
   saveRDS(xg_bests$models, file = xg_models_path)
   xg_imputers_path <- file.path(output_path, FILE_XGBOOST_IMPUTERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen XGBoost imputer models to RDS file at %s", xg_imputers_path)
-  if (!lean) saveRDS(xg_bests$imputers, file = xg_imputers_path)
   xg_hps_path <- file.path(output_path, FILE_XGBOOST_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen XGBoost hyperparameters to RDS file at %s", xg_hps_path)
   saveRDS(xg_bests$hyperparams, file = xg_hps_path)
@@ -366,8 +317,6 @@ impute_and_train <- function(training_path,
   futile.logger::flog.info("OUTPUT Writing chosen LR models to RDS file at %s", lr_models_path)
   saveRDS(lr_bests$models, file = lr_models_path, refhook = function(x) "")
   lr_imputers_path <- file.path(output_path, FILE_LR_IMPUTERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen LR imputer models to RDS file at %s", lr_imputers_path)
-  if (!lean) saveRDS(lr_bests$imputers, file = lr_imputers_path)
   lr_hps_path <- file.path(output_path, FILE_LR_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen LR hyperparameters to RDS file at %s", lr_hps_path)
   saveRDS(lr_bests$hyperparams, file = lr_hps_path)

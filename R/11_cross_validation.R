@@ -39,14 +39,8 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     # `impute_and_train` method being designed to run several imputations; it could be simplified.
     flog.pid.info("PARAMETER %s = %s", IMPUTATION_METHOD, parameters[[IMPUTATION_METHOD]])
     flog.pid.info("PARAMETER Obtaining hyperparameter grid for %s", parameters[[IMPUTATION_METHOD]])
-    mice_hyperparameter_grids_in <- NULL
-    other_hyperparameter_grids_in <- NULL
     single_value_imputation_hyperparameter_grids_in <- NULL
-    if (parameters[[IMPUTATION_METHOD]] %in% names(mice_hyperparameter_grids)) {
-       mice_hyperparameter_grids_in <- mice_hyperparameter_grids[ parameters[[IMPUTATION_METHOD]] ] 
-    } else if (parameters[[IMPUTATION_METHOD]] %in% names(other_hyperparameter_grids)) {
-       other_hyperparameter_grids_in <- other_hyperparameter_grids[ parameters[[IMPUTATION_METHOD]] ] 
-    } else if (parameters[[IMPUTATION_METHOD]] %in% names(single_value_imputation_hyperparameter_grids)) {
+    if (parameters[[IMPUTATION_METHOD]] %in% names(single_value_imputation_hyperparameter_grids)) {
        single_value_imputation_hyperparameter_grids_in <- single_value_imputation_hyperparameter_grids[ parameters[[IMPUTATION_METHOD]] ] 
     } else stop(
       paste0("Unknown value \"", parameters[[IMPUTATION_METHOD]], "\" for parameter \"", IMPUTATION_METHOD, "\"")
@@ -55,11 +49,11 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     # Do the real work, i.e. imputation, training and testing
     flog.pid.info("PROGRESS Starting imputation and training process")
     impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
-                     mice_hyperparameter_grids = mice_hyperparameter_grids_in, other_hyperparameter_grids = other_hyperparameter_grids_in, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids_in,
+                     single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids_in,
                      parameter_list = parameters,
-                     cores = 1, seed = 42, lean = TRUE)
+                     seed = 42)
     flog.pid.info("PROGRESS Starting test process")
-    predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = 1, seed = 42, lean = TRUE)
+    predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), seed = 42)
     
     # Obtain and combine results
     rf_results_path <- file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV)
