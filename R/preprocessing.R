@@ -20,8 +20,6 @@ split_train_test <- function(dataframe, proportion) {
   # be assigned to the training set
   index <- runif(nrow(dataframe), min = 0, max = 1) < proportion
 
-  row.names(dataframe) <- NULL
-
   datasplit <- list(
     training_set = dataframe[index, ],
     test_set = dataframe[!index, ],
@@ -94,7 +92,7 @@ form_variant_ids <- function(data) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
 
-  id_cols <- c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID")
+  id_cols <- c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID", CONSEQUENCE_COLUMN)
 
   return(
     apply(

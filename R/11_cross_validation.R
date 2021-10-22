@@ -143,7 +143,7 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, parameters
   outcomes <- outcomes[reordering]
   
   flog.pid.info("PROGRESS Preparing for cross-validation: generating cross-validation folds")
-  folds <- replicate(n_folds, sample(1:rows, 0.7*rows, replace = TRUE), simplify = FALSE)
+  folds <- replicate(n_folds, sample(1:rows, 0.7*rows, replace = FALSE), simplify = FALSE)
   
   fold_tr_datas <- lapply(folds, function(fold) training_data[-fold, ])
   fold_tr_outcomes <- lapply(folds, function(fold) outcomes[-fold])

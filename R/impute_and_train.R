@@ -283,10 +283,9 @@ impute_and_train <- function(training_path,
 
   ### Model selection ###
   flog.pid.info("PROGRESS Starting model selection")
-  all_hyperparameter_grids <- c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids)
-  rf_bests <- select_best(rf_models, imputations, all_hyperparameter_grids)
-  xg_bests <- select_best(xg_models, imputations, all_hyperparameter_grids)
-  lr_bests <- select_best(lr_models, imputations, all_hyperparameter_grids)
+  rf_bests <- select_best(rf_models, imputations, single_value_imputation_hyperparameter_grids)
+  xg_bests <- select_best(xg_models, imputations, single_value_imputation_hyperparameter_grids)
+  lr_bests <- select_best(lr_models, imputations, single_value_imputation_hyperparameter_grids)
 
   ### Writing output ###
   flog.pid.info("PROGRESS Saving data")
