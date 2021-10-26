@@ -24,6 +24,9 @@ impute_and_train <- function(training_path,
   }
 
   ### Check whether required parameters are provided ###
+  if (parameter_list[[DOWNSAMPLING]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(DOWNSAMPLING, "\" not provided"))
+  }
   if (parameter_list[[FEATURE_SAMPLING]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(FEATURE_SAMPLING, "\" not provided"))
   }
@@ -71,6 +74,31 @@ impute_and_train <- function(training_path,
   
   outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
   flog.pid.info("PROGRESS Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
+  
+  ## Downsampling majority class
+  futile.logger::flog.info("PARAMETER %s = %s", DOWNSAMPLING, parameter_list[[DOWNSAMPLING]])
+  if (parameter_list[[DOWNSAMPLING]] == DOWNSAMPLING_ON) {
+    futile.logger::flog.info("PARAMETER Performing downsampling of majority class")
+    majority_class <- table(outcome)
+    majority_class <- majority_class[which.max(majority_class)]
+    minority_class <- table(outcome)
+    minority_class <- minority_class[which.min(minority_class)]
+    
+    futile.logger::flog.info(paste0("PARAMETER Majority class is \"", names(majority_class), "\""))
+    
+    # Drop n majority class instances, where n is the number
+    # by which majority class size exceeds minority class size
+    drop_idx <- sample(which(outcome == names(majority_class)), majority_class - minority_class, replace = FALSE)
+    futile.logger::flog.info(paste0("PARAMETER Dropping ", length(drop_idx), " instances of the majority class"))
+    outcome <- outcome[-drop_idx]
+    training_data <- training_data[-drop_idx,, drop = FALSE]
+    futile.logger::flog.info(paste0("PARAMETER ", table(outcome) %>% capture.output))
+    
+  } else if (parameter_list[[DOWNSAMPLING]] == DOWNSAMPLING_OFF) {
+    # Do nothing
+  } else stop(
+    paste0("Unknown value \"", parameter_list[[DOWNSAMPLING]], "\" for parameter \"", DOWNSAMPLING, "\"")
+  )
   
   ### Parameter-dependent preprocessing ###
   # Feature sampling
