@@ -44,9 +44,6 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   if (config[[CATEGORICAL_ENCODING]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(CATEGORICAL_ENCODING, "\" not provided"))
   }
-  if (config[[DOWNSAMPLING]] %>% is.null) {
-    stop("Required parameter \"" %>% paste0(DOWNSAMPLING, "\" not provided"))
-  }
   
   ### Read data ###
   merged_data_path <- parsed_data_path %>% normalizePath %>% file.path(FILE_MERGED_DATA_CSV)
@@ -204,31 +201,6 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
     training_set <- training_set[,c(numeric_features, categorical_features)]
     test_set <- test_set[,c(numeric_features, categorical_features)]
   }
-  
-  ## Downsampling majority class
-  futile.logger::flog.info("PARAMETER %s = %s", DOWNSAMPLING, config[[DOWNSAMPLING]])
-  if (config[[DOWNSAMPLING]] == DOWNSAMPLING_ON) {
-    futile.logger::flog.info("PARAMETER Performing downsampling of majority class")
-    majority_class <- table(training_outcome)
-    majority_class <- majority_class[which.max(majority_class)]
-    minority_class <- table(training_outcome)
-    minority_class <- minority_class[which.min(minority_class)]
-    
-    futile.logger::flog.info(paste0("PARAMETER Majority class is \"", names(majority_class), "\""))
-    
-    # Drop n majority class instances, where n is the number 
-    # by which majority class size exceeds minority class size
-    drop_idx <- sample(which(training_outcome == names(majority_class)), majority_class - minority_class, replace = FALSE)
-    futile.logger::flog.info(paste0("PARAMETER Dropping ", length(drop_idx), " instances of the majority class"))
-    training_outcome <- training_outcome[-drop_idx]
-    training_set <- training_set[-drop_idx,, drop = FALSE]
-    futile.logger::flog.info(paste0("PARAMETER ", table(training_outcome) %>% capture.output))
-     
-  } else if (config[[DOWNSAMPLING]] == DOWNSAMPLING_OFF) {
-    # Do nothing
-  } else stop(
-    paste0("Unknown value \"", config[[DOWNSAMPLING]], "\" for parameter \"", DOWNSAMPLING, "\"")
-  )
   
   ### Write output ###
   training_set_path <- file.path(output_path, FILE_PREPROCESSED_TRAINING_DATA_CSV)

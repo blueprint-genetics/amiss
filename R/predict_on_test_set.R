@@ -132,7 +132,7 @@ perform_test_process_for_model_tree <- function(models, completions, test_data, 
     return(perf_table)
   }
   flog.pid.info("PROGRESS Computing performance statistics per consequences:")
-  flog.pid.info(paste0("PROGRESS ", consequences))
+  flog.pid.info(paste0("PROGRESS ", unique(consequences)))
   perf_table_per_consequence <- lapply(unique(consequences), . %>% compute_perfs_per_conseq(consequences, completions, models))
   perf_table_per_consequence <- do.call(rbind, perf_table_per_consequence)
   flog.pid.info("OUTPUT Writing performance statistics per consequences into delimited file at %s", per_conseq_output_path)
