@@ -14,6 +14,21 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
       pred_per_completion <- foreach::foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
         if (!is.null(completed_dataset)) {
           tryCatch({
+            tr_cats <- model$trainingData %>% sapply(levels) %>% Filter(f = Negate(is.null))
+            te_cats <- completed_dataset %>% sapply(levels) %>% Filter(f = Negate(is.null))
+            tr_cats <- tr_cats[names(tr_cats) != ".outcome"]
+            if (length(tr_cats) > 1) {
+              for (cat in names(tr_cats)) {
+                tr_levels <- tr_cats[[cat]]
+                te_levels <- te_cats[[cat]]
+                if (length(tr_levels) > length(te_levels)) {
+                  levels(completed_dataset[, cat]) <- c(te_levels, setdiff(tr_levels, te_levels))
+                } else if (length(tr_levels) < length(te_levels)) {
+                  completed_dataset[completed_dataset[,cat] %in% setdiff(te_levels, tr_levels), cat] <- "MISSING"
+                  completed_dataset[, cat] <- factor(completed_dataset[, cat])
+                }
+              }
+            }
             flog.pid.info("Predicting using best model for %s", method)
             predict(model, completed_dataset, type = "prob")[,positive_label, drop = TRUE]
           }, error = function(e) {
