@@ -120,6 +120,7 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, parameters
   create_dir(output_path)
   
   futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_path, "11_cross_validation.log")))
+  futile.logger::flog.threshold(futile.logger::DEBUG)
   flog.pid.info("START 11_cross_validation.R")
   flog.pid.info("OUTPUT Output root path set to %s", output_path)
   

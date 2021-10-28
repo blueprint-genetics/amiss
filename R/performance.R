@@ -58,11 +58,15 @@ turn_table <- function(perf_tree) {
   values <- perf_tree %>% unlist(use.names = FALSE)
   names(values) <- tree_names
 
-  df <- lapply(names(values), function(name) {
-    stringr::str_split(string = name, pattern = stringr::fixed(":"), simplify = TRUE)
-  })
+  if (!is.null(names(values))) {
+    df <- lapply(names(values), function(name) {
+      stringr::str_split(string = name, pattern = stringr::fixed(":"), simplify = TRUE)
+    })
+    df <- data.frame(do.call(rbind, df), value = values)
+  } else{
+    df <- data.frame()
+  }
 
-  df <- data.frame(do.call(rbind, df), value = values)
   if (ncol(df) == 0) {
     df <- data.frame(t(1:4))[FALSE,]
   }
@@ -87,6 +91,9 @@ merge_tables <- function(tables) {
                           TEST_COMPLETION_INDEX_COLUMN
                         ),
                         suffixes = c(paste0(c(".x", ".y"), i)))
+  }
+  if (NROW(perf_table) == 0) {
+    perf_table <- rbind(perf_table, rep(NA, NCOL(perf_table)) %>% t)
   }
   colnames(perf_table) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, names(tables))
   return(perf_table)

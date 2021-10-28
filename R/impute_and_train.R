@@ -27,14 +27,8 @@ impute_and_train <- function(training_path,
   if (parameter_list[[DOWNSAMPLING]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(DOWNSAMPLING, "\" not provided"))
   }
-  if (parameter_list[[FEATURE_SAMPLING]] %>% is.null) {
-    stop("Required parameter \"" %>% paste0(FEATURE_SAMPLING, "\" not provided"))
-  }
   if (parameter_list[[FEATURE_SAMPLING_PERCENTAGE]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(FEATURE_SAMPLING_PERCENTAGE, "\" not provided"))
-  }
-  if (parameter_list[[TRAINING_DATA_SAMPLING]] %>% is.null) {
-    stop("Required parameter \"" %>% paste0(TRAINING_DATA_SAMPLING, "\" not provided"))
   }
   if (parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(TRAINING_DATA_SAMPLING_PERCENTAGE, "\" not provided"))
@@ -75,6 +69,7 @@ impute_and_train <- function(training_path,
   outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
   flog.pid.info("PROGRESS Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
   
+  ### Parameter-dependent preprocessing ###
   ## Downsampling majority class
   futile.logger::flog.info("PARAMETER %s = %s", DOWNSAMPLING, parameter_list[[DOWNSAMPLING]])
   if (parameter_list[[DOWNSAMPLING]] == DOWNSAMPLING_ON) {
@@ -100,15 +95,13 @@ impute_and_train <- function(training_path,
     paste0("Unknown value \"", parameter_list[[DOWNSAMPLING]], "\" for parameter \"", DOWNSAMPLING, "\"")
   )
   
-  ### Parameter-dependent preprocessing ###
   # Feature sampling
-  flog.pid.info("PARAMETER %s = %s", FEATURE_SAMPLING, parameter_list[[FEATURE_SAMPLING]])
   flog.pid.info("PARAMETER %s = %s", FEATURE_SAMPLING_PERCENTAGE, parameter_list[[FEATURE_SAMPLING_PERCENTAGE]])
   feature_sampling_pct <- parameter_list[[FEATURE_SAMPLING_PERCENTAGE]]
-  if (parameter_list[[FEATURE_SAMPLING]] == FEATURE_SAMPLING_ON) {
+  if (feature_sampling_pct != 1.0) {
     if (!(feature_sampling_pct %in% FEATURE_SAMPLING_PERCENTAGE_ALLOWED_VALUES)) {
       stop(
-        paste0("Training data sampling percentage not in predefined allowed values")
+        paste0("Feature sampling percentage not in predefined allowed values")
       )
     }
     
@@ -133,17 +126,14 @@ impute_and_train <- function(training_path,
     flog.pid.info("PARAMETER Feature sampling drops the following features: %s", paste0(setdiff(c(numeric_features, categorical_features), sampled_features), collapse = ", "))
     training_data <- training_data[, sampled_cols, drop = FALSE]
     
-  } else  if (parameter_list[[FEATURE_SAMPLING]] == FEATURE_SAMPLING_OFF) {
+  } else if (feature_sampling_pct == 1.0) {
     # Do nothing
-  } else stop(
-    paste0("Unknown value \"", parameter_list[[FEATURE_SAMPLING]], "\" for parameter \"", FEATURE_SAMPLING, "\"")
-  )
+  }
   
   # Training data sampling
-  flog.pid.info("PARAMETER %s = %s", TRAINING_DATA_SAMPLING, parameter_list[[TRAINING_DATA_SAMPLING]])
   flog.pid.info("PARAMETER %s = %s", TRAINING_DATA_SAMPLING_PERCENTAGE, parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]])
   training_data_sampling_pct <- parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]]
-  if (parameter_list[[TRAINING_DATA_SAMPLING]] == TRAINING_DATA_SAMPLING_ON) {
+  if (training_data_sampling_pct != 1.0) {
     if (!(training_data_sampling_pct %in% TRAINING_DATA_SAMPLING_PERCENTAGE_ALLOWED_VALUES)) {
       stop(
         paste0("Training data sampling percentage not in predefined allowed values")
@@ -160,11 +150,9 @@ impute_and_train <- function(training_path,
     training_data <- training_data[training_data_sampling_ix, , drop = FALSE]
     outcome <- outcome[training_data_sampling_ix]
     
-  } else  if (parameter_list[[TRAINING_DATA_SAMPLING]] == TRAINING_DATA_SAMPLING_OFF) {
+  } else if (training_data_sampling_pct == 1.0) {
     # Do nothing
-  } else stop(
-    paste0("Unknown value \"", parameter_list[[TRAINING_DATA_SAMPLING]], "\" for parameter \"", TRAINING_DATA_SAMPLING, "\"")
-  )
+  }
 
   # Removal of features with near-zero variance
   flog.pid.info("PARAMETER %s = %s", NZV_CHECK, parameter_list[[NZV_CHECK]])
