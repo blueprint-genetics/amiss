@@ -1,15 +1,12 @@
+#' Extract MCC estimate from a `caret::train` object
+#'
+#' @param model A `caret::train` object
+#'
+#' @return Training set performance described via MCC
+#'
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
 #' @importFrom doRNG %dorng%
-
-sample_max <- function(x, size) {
-  if (!is.data.frame(x)) stop("`x` must be a data.frame")
-  if (!is.integer(size) || length(size) != 1) stop("`size` must be an integer vector of length 1")
-
-  if (NROW(x) <= size) return(x)
-  else return(x[sample(1:NROW(x), size = size, replace = FALSE), , drop = FALSE])
-}
-
 extract_mcc_performance <- function(model) {
 
   if (is.null(model)) return(NULL)
@@ -20,7 +17,11 @@ extract_mcc_performance <- function(model) {
   return(ModelMetrics::mcc(as.integer(model$trainingData$.outcome == positive_label), as.integer(preds == positive_label), 0.5))
 }
 
-# Find index of model with best mean OOB error
+#' Replace NULL values with -Inf in list
+#'
+#' @param x A list of numeric values
+#'
+#' @return `x` but with NULL elements replaced with `-Inf`
 inf_NULLs <- function(x) {
   if (!is.list(x)) stop("`x` must be a list")
   if (!all(sapply(x, function(i) {is.null(i) | is.numeric(i)}))) stop("`x` must have all numeric or NULL components")
@@ -31,6 +32,13 @@ inf_NULLs <- function(x) {
   return(x)
 }
 
+#' Get training set performance estimates as MCC from model tree
+#'
+#' Models for which performance can't be estimated get an estimate of `-Inf`.
+#'
+#' @param models A tree of `caret::model` objects
+#'
+#' @return A tree of performance estimates whose structure matches that of the input
 get_model_performance_estimates <- function(models) {
   perf <- purrr::map_depth(models, .f = function(model) extract_mcc_performance(model), .depth = 3)
   perf <- purrr::map_depth(perf, . %>% inf_NULLs, .depth = 2)
@@ -38,6 +46,11 @@ get_model_performance_estimates <- function(models) {
   return(perf)
 }
 
+#' Get index of subtree with best mean error
+#'
+#' @param perf_tree Tree of performance estimates
+#'
+#' @return Index of model subtree with best mean error
 get_best_model_index <- function(perf_tree) {
 
   # The estimates are in lists with one value per completed dataset.
@@ -48,32 +61,44 @@ get_best_model_index <- function(perf_tree) {
   return(best_model_ix)
 }
 
-
+#' Select subtree from tree
+#'
+#' @param tree Tree to select from
+#' @param ix List mapping a name to a numeric index
+#'
+#' @return Selected subtree
 select_from_tree <- function(tree, ix) {
 
-  # Extract the best models, best imputers and their best hyperparameters for each method
   selected <- purrr::map(enumerate(ix), . %>% with(tree[[name]][[value]]))
 
   return(selected)
 }
 
-select_hyperparams <- function(hyperparams, imputers, ix) {
+#' Select a subtree from a tree of hyperparameters
+#'
+#' @param hyperparams A tree of hyperparameters
+#' @param ix List mapping a name to a numeric index
+#'
+#' @return List containing data.frames containing selected hyperparameters
+select_hyperparams <- function(hyperparams, ix) {
   if (!all(names(ix) %in% names(hyperparams))) stop("Index names do not match hyperparameter names")
 
   best_hyperparams <- purrr::map(enumerate(ix), . %>% with(hyperparams[[name]][value, , drop = FALSE]))
 
   return(best_hyperparams)
 }
+
+#' Bind imputation parameters to an imputation model tree
+#'
+#' @param hyperparams Hyperparameter tree in which to bind parameters
+#' @param imputers Imputation model tree from which to obtain training set parameter estimates for relevant imputation models
+#'
+#' @return `hyperparams` with parameters bound
 bind_imp_parameters_for_reuse <- function(hyperparams, imputers) {
   
   # For the methods that properly accept them, we should store parameters from the training set
   # to use in imputing the test set.
   for (h in names(hyperparams)) {
-    # kNN allows use of another dataset to find the neighbors. Thus, let's store the completed dataset.
-    if (h == "knnImputation") {
-      if (is.null(imputers[[h]][["completed_datasets"]][[1]])) stop(paste("Recycling parameters for method ", h, " were NULL"))
-      attr(hyperparams[[h]], "imputation_reuse_parameters") <- imputers[[h]][["completed_datasets"]][[1]]
-    }
     # E.g. median imputations should impute the test set with the median of the training set instead of
     # the median of the test set. Thus such values must be stored.
     if (h %in% SINGLE_IMP_METHODS) {
@@ -84,6 +109,17 @@ bind_imp_parameters_for_reuse <- function(hyperparams, imputers) {
   return(hyperparams)
 }
 
+#' Select best models from a model tree as well as corresponding imputation hyperparameters and imputation models
+#'
+#' Additionally, training set estimates of parameters for single value imputation methods are bound to the
+#' hyperparameter tree.
+#'
+#' @param models Classifier model tree
+#' @param imputations Imputation model tree
+#' @param hyperparameters Imputation hyperparameter tree
+#'
+#' @return List with selected subtrees of the classifier model tree, imputation model tree and the hyperparameter tree
+#' as elements.
 select_best <- function(models, imputations, hyperparameters) {
 
   if (!all(names(models) %in% names(hyperparameters))) stop("Model names do not match hyperparameter names")
@@ -96,15 +132,27 @@ select_best <- function(models, imputations, hyperparameters) {
 
   models <- select_from_tree(models, best_model_ix)
   imputers <- select_from_tree(imputations, best_model_ix)
-  hyperparams <- select_hyperparams(hyperparameters, imputers, best_model_ix)
+  hyperparams <- select_hyperparams(hyperparameters, best_model_ix)
   hyperparams <- bind_imp_parameters_for_reuse(hyperparams, imputers)
 
   return(list(models = models, imputers = imputers, hyperparams = hyperparams))
 }
 
+#' Wrapper to train an RF classifier model
+#'
+#' These functions exist to give a uniform interface to classifier training with some model type specific options passed
+#' to `caret::train`.
+#'
+#' @param data Training data as a data.frame to pass to `caret::train`
+#' @param outcome Training outcomes as a factor to pass to `caret::train`
+#' @param control A `caret::trainControl` object to pass to `caret::train`
+#' @param grid A hyperparameter grid as a data.frame to pass to `caret::train`
+#' @param tunelength Tuning length scalar to pass to `caret::train`
+#'
+#' @return A `caret::train` object with a fitted RF model
 train_rf <- function(data, outcome, control, grid, tunelength) {
 
-  if(is.null(data)) {
+  if (is.null(data)) {
     flog.pid.info("Dataset was NULL; returning NULL")
     return(NULL)
   }
@@ -124,6 +172,22 @@ train_rf <- function(data, outcome, control, grid, tunelength) {
 
   return(rf_model)
 }
+
+#' Wrapper to train an XGBoost classifier model
+#'
+#' These functions exist to give a uniform interface to classifier training with some model type specific options passed
+#' to `caret::train`.
+#'
+#' For XGBoost, the number of threads the training process is permitted to use has been limited to 2. XGBoost is set to
+#' use the "hist" tree method to reduce computational cost.
+#'
+#' @param data Training data as a data.frame to pass to `caret::train`
+#' @param outcome Training outcomes as a factor to pass to `caret::train`
+#' @param control A `caret::trainControl` object to pass to `caret::train`
+#' @param grid A hyperparameter grid as a data.frame to pass to `caret::train`
+#' @param tunelength Tuning length scalar to pass to `caret::train`
+#'
+#' @return A `caret::train` object with a fitted XGBoost model
 train_xgboost <- function(data, outcome, control, grid, tunelength) {
 
   if (is.null(data)) {
@@ -149,9 +213,23 @@ train_xgboost <- function(data, outcome, control, grid, tunelength) {
   return(model)
 }
 
+#' Wrapper to train an logistic regression classifier model
+#'
+#' These functions exist to give a uniform interface to classifier training with some model type specific options passed
+#' to `caret::train`.
+#'
+#' For logistic regression, the hyperparameter grid and tune length are ignored.
+#'
+#' @param data Training data as a data.frame to pass to `caret::train`
+#' @param outcome Training outcomes as a factor to pass to `caret::train`
+#' @param control A `caret::trainControl` object to pass to `caret::train`
+#' @param grid Ignored
+#' @param tunelength Ignored
+#'
+#' @return A `caret::train` object with a fitted logistic regression model
 train_lr <- function(data, outcome, control, grid, tunelength=NULL) {
 
-  if(is.null(data)) {
+  if (is.null(data)) {
     flog.pid.info("Dataset was NULL; returning NULL")
     return(NULL)
   }
@@ -170,6 +248,18 @@ train_lr <- function(data, outcome, control, grid, tunelength=NULL) {
   return(lr_model)
 }
 
+#' Loop classifier training over a tree of imputed training sets
+#'
+#' @param training_function One of the above defined classifier training wrappers
+#' @param classifier_name Name for the classifier that will be used in the resulting model tree
+#' @param imputations Tree of imputed training sets
+#' @param control A `caret::trainControl` object
+#' @param grid Hyperparameter grid to pass to `training_function`
+#' @param tunelength Tuning length to pass to `training_function`
+#' @param outcome Outcome vector
+#' @param seed Seed value to set at start of loop
+#'
+#' @return Classifier model tree
 loop_models <- function(training_function, classifier_name, imputations, control, grid, tunelength, outcome, seed) {
   if (!is.function(training_function)) stop("`training_function` must be a function")
   if (!is.character(classifier_name)) stop("`classifier_name` must be a character vector")

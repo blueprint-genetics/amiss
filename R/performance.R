@@ -1,5 +1,11 @@
+#' Compute performance statistics from predictions tree and ground truth vector
+#'
+#' @param predictions Tree of numeric vector containing predicted class probability for positive class
+#' @param outcome Ground-truth vector
+#'
+#' @return A list that contains a tree for each performance metric, each tree's structure matching that of `predictions`.
+#'
 #' @importFrom magrittr %>%
-
 performance_stats <- function(predictions, outcome) {
   
   if (!is.factor(outcome)) stop("`outcome` must be a factor")
@@ -51,7 +57,16 @@ performance_stats <- function(predictions, outcome) {
 
 }
 
-turn_table <- function(perf_tree) {
+#' Transform a performance statistics tree to a flat table
+#'
+#' @param perf_tree List of trees, each representing a performance statistic
+#'
+#' @return A data.frame whose columns are
+#' 1) imputation method name
+#' 2) classifier index (relevant with multiple imputation; depends on completion of training set)
+#' 3) test set index (relevant with multiple imputation)
+#' 4) value of the leaf
+transform_perf_tree_to_table <- function(perf_tree) {
 
   tree_names <- get_tree_names(perf_tree, x_class = "numeric")
 
@@ -76,6 +91,11 @@ turn_table <- function(perf_tree) {
   return(df)
 }
 
+#' Merge tables formed with `transform_perf_tree_to_table`
+#'
+#' @param tables List of tables formed with `transform_perf_tree_to_table`
+#'
+#' @return A wide-format data.frame containing data from all tables in input
 merge_tables <- function(tables) {
 
   perf_table <- tables[[1]]

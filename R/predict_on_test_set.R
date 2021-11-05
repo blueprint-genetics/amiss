@@ -1,4 +1,17 @@
-
+#' Predict and evaluate predictions on test set
+#'
+#' This function imputes the test set using the hyperparameters determined in the impute and train -step,
+#' and uses the classifier models to produce predictions from the imputed test set. The predictions are evaluated
+#' and results are written (into separate files per classification method).
+#'
+#' Predictions are also evaluated separately for every consequence class, and results are written to a separate file
+#' (for each classification method).
+#'
+#' @param test_path Path to the test data CSV
+#' @param outcome_path Path to the test outcomes CSV
+#' @param tr_output_path Path to the folder to which the impute and train -step was set to store output
+#' @param results_dir_path Path to the folder to which result files should be written
+#' @param seed Seed value
 predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results_dir_path, seed = 42) {
 
   ### Setup ###
@@ -127,7 +140,7 @@ perform_test_process_for_model_tree <- function(models, completions, test_data, 
     completed_data_per_consequence <- recursive_apply(completions, fun = function(df) df[consequence_vector == consequence,,drop = FALSE], x_class = "data.frame")
     predictions <- prediction(models, completed_data_per_consequence)
     perf <- performance_stats(predictions, outcome = outcome_w_conseq)
-    perf_table <- lapply(perf, turn_table) %>% merge_tables
+    perf_table <- lapply(perf, transform_perf_tree_to_table) %>% merge_tables
     perf_table$consequence <- consequence
     return(perf_table)
   }
@@ -140,7 +153,7 @@ perform_test_process_for_model_tree <- function(models, completions, test_data, 
   
   flog.pid.info("PROGRESS Computing performance statistics")
   perf <- performance_stats(predictions, outcome = outcome)
-  tables <- lapply(perf, turn_table)
+  tables <- lapply(perf, transform_perf_tree_to_table)
   perf_table <- merge_tables(tables)
   flog.pid.info("OUTPUT Writing performance tables to delimited file at %s", output_path)
   write.csv(x = perf_table, file = output_path, row.names = FALSE)

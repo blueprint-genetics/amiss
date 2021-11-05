@@ -1,6 +1,10 @@
-#' This function constitutes the body inside a cross-validation loop.
-#' I.e. it performs training and testing with a given parameter combination,
+#' Cross-validation body
+#'
+#' This function performs training and testing with a given parameter combination,
 #' training data and testing data sets and their respective label vectors.
+#' The results files are read, a fold number is appended to each row, and
+#' the results are returned in a list. The list is ordered to contain random forest results first,
+#' XGBoost results second and logistic regression results third.
 #'
 #' @param fold_tr_datas List of training datasets for each cross-validation fold
 #' @param fold_te_datas List of test datasets for each cross-validation fold
@@ -9,7 +13,8 @@
 #' @param output_path Path to directory to write results in
 #' @param i Fold index
 #'
-#' @return A pair (2-element list) of results for random forest and logistic regression, respectively.
+#' @return A triple (3-element list) of data.frames containing results for random forest, xgboost and
+#' logistic regression, respectively. When a classifier fails to produce results, a row of missing values is returned.
 #' @export
 cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, fold_te_outcomes, output_path, i) {
   
@@ -92,13 +97,32 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
 }
 
 #' Step 11: Cross-validation
-#' 
+#'
 #' This step performs parallel cross-validation with a specified parameter combination.
-#' 
-#' Parameters used by this step (referenced with constant names,
+#' The preprocessed training data from step 2 is read and split into `n_folds` folds
+#' (with 70/30 splits). Training and testing is done for each fold in parallel (if a
+#' parallelization backend for foreach has been set). Results from every fold are gathered
+#' to files separated by the classifier model type.
+#'
+#' Parameters directly used by this step (referenced with constant names,
 #' see R/parameters.R for explicit string values):
 #' - IMPUTATION_METHOD, which specifies the imputation method to be used
-#' 
+#'
+#' Parameters indirectly used by this step (used inside functions called from this step):
+#' - DOWNSAMPLING, which specifies whether the label majority class should be downsampled to
+#' the size of the minority class,
+#' - FEATURE_SAMPLING_PERCENTAGE, which specifies the percentage of features that should be kept
+#' when doing feature sampling,
+#' - TRAINING_DATA_SAMPLING_PERCENTAGE, which specifies the percentage of rows that should be kept
+#' when doing training data sampling,
+#' - NZV_CHECK, which specifies whether features with near-zero variance should be removed,
+#' - CORRELATION_CHECK, which specifies whether features that are highly correlated with another
+#' feature should be removed,
+#' - HYPERPARAMETER_SEARCH_TYPE, which specifies whether grid or random search should be used for
+#' optimizing classifier hyperparameters
+#' - CATEGORICAL_ENCODING, which specifies whether categorical features should
+#' be encoded as dummy variables
+#'
 #' @param preprocessed_data_path Path to directory containing the results from step 02
 #' @param output_path Path to directory in which outputs will be written
 #' @param parameters_path Path to file specifying parameter combination

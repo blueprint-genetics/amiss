@@ -1,3 +1,12 @@
+#' Predict using every classifier model in a model tree on every dataset in an imputed dataset tree
+#'
+#' @param models Classifier model tree
+#' @param completions Imputed dataset tree
+#' @param positive_label String representing the positive label to choose correct column from predict output
+#' @param seed Seed value to set for loop
+#'
+#' @return Tree of vectors of predicted probabilities
+#'
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
 #' @importFrom doRNG %dorng%

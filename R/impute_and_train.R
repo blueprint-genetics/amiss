@@ -1,3 +1,34 @@
+#' Impute training set and train classifier models on imputed training set
+#'
+#' This function performs imputation of and training on the training set, as well as preprocessing steps that may differ
+#' between different folds or that do sampling. Many of these are on or off depending on parameters.
+#'
+#' Parameters used by this step (presented via constant names; see R/parameters.R for explicit string values):
+#' - DOWNSAMPLING, which specifies whether the label majority class should be downsampled to the size of the minority
+#' class,
+#' - FEATURE_SAMPLING_PERCENTAGE, which specifies the percentage of features that should be kept when doing feature
+#' sampling,
+#' - TRAINING_DATA_SAMPLING_PERCENTAGE, which specifies the percentage of rows that should be kept when doing training
+#' data sampling,
+#' - NZV_CHECK, which specifies whether features with near-zero variance should be removed,
+#' - CORRELATION_CHECK, which specifies whether features that are highly correlated with another feature should be
+#' removed,
+#' - HYPERPARAMETER_SEARCH_TYPE, which specifies whether grid or random search should be used for optimizing classifier
+#' hyperparameters
+#' - CATEGORICAL_ENCODING, which specifies whether categorical features should be encoded as dummy variables
+#'
+#' The process writes into the output folder two files per classification model type, one containing the model and one
+#' containing the winning hyperparameter configuration for the imputation model (which for single value imputation
+#' methods is actually just the constant value which is used for imputation).
+#'
+#' @param training_path Path to the training data CSV-file
+#' @param outcome_path Path to the training outcomes CSV-file
+#' @param output_path Path to the output folder
+#' @param single_value_imputation_hyperparameter_grids Specification of the set of imputation
+#' methods that should be used
+#' @param parameter_list List containing all the abovementioned parameters and their values
+#' @param seed Seed value
+#'
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
 impute_and_train <- function(training_path,
@@ -261,7 +292,7 @@ impute_and_train <- function(training_path,
                            imputations = imputations,
                            outcome = outcome,
                            control = rf_training_settings,
-                           grid = if(search == "grid") RF_HYPERPARAMETER_GRID else NULL,
+                           grid = if (search == "grid") RF_HYPERPARAMETER_GRID else NULL,
                            tunelength = nrow(RF_HYPERPARAMETER_GRID),
                            seed = seed)
   
@@ -275,7 +306,7 @@ impute_and_train <- function(training_path,
                              imputations = imputations,
                              outcome = outcome,
                              control = xg_training_settings,
-                             grid = if(search == "grid") XGBOOST_HYPERPARAMETER_GRID else NULL,
+                             grid = if (search == "grid") XGBOOST_HYPERPARAMETER_GRID else NULL,
                              tunelength = nrow(XGBOOST_HYPERPARAMETER_GRID),
                              seed = seed)
     flog.pid.info("PROGRESS Starting LR training")
@@ -284,7 +315,7 @@ impute_and_train <- function(training_path,
                              imputations = imputations,
                              outcome = outcome,
                              control = lr_training_settings,
-                             grid = if(search == "grid") data.frame() else NULL,
+                             grid = if (search == "grid") data.frame() else NULL,
                              tunelength = NULL,
                              seed = seed)
   } else if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
@@ -310,7 +341,6 @@ impute_and_train <- function(training_path,
   rf_models_path <- file.path(output_path, FILE_RF_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF models to RDS file at %s", rf_models_path)
   saveRDS(rf_bests$models, file = rf_models_path)
-  rf_imputers_path <- file.path(output_path, FILE_RF_IMPUTERS_RDS)
   rf_hps_path <- file.path(output_path, FILE_RF_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF hyperparameters to RDS file at %s", rf_hps_path)
   saveRDS(rf_bests$hyperparams, file = rf_hps_path)
@@ -318,7 +348,6 @@ impute_and_train <- function(training_path,
   xg_models_path <- file.path(output_path, FILE_XGBOOST_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen XGBoost models to RDS file at %s", xg_models_path)
   saveRDS(xg_bests$models, file = xg_models_path)
-  xg_imputers_path <- file.path(output_path, FILE_XGBOOST_IMPUTERS_RDS)
   xg_hps_path <- file.path(output_path, FILE_XGBOOST_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen XGBoost hyperparameters to RDS file at %s", xg_hps_path)
   saveRDS(xg_bests$hyperparams, file = xg_hps_path)
@@ -331,7 +360,6 @@ impute_and_train <- function(training_path,
   lr_models_path <- file.path(output_path, FILE_LR_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen LR models to RDS file at %s", lr_models_path)
   saveRDS(lr_bests$models, file = lr_models_path, refhook = function(x) "")
-  lr_imputers_path <- file.path(output_path, FILE_LR_IMPUTERS_RDS)
   lr_hps_path <- file.path(output_path, FILE_LR_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen LR hyperparameters to RDS file at %s", lr_hps_path)
   saveRDS(lr_bests$hyperparams, file = lr_hps_path)
