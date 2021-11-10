@@ -66,8 +66,8 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     rf_results <- tryCatch({
       rf_results <- read.csv(rf_results_path)
     }, error = function(e) {
-      rf_results <- data.frame(t(rep(NA, 15)))
-      colnames(rf_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision")
+      rf_results <- data.frame(t(rep(NA, 17)))
+      colnames(rf_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
       return(rf_results)
     })
     rf_results$fold <- i
@@ -76,8 +76,8 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     xg_results <- tryCatch({
       xg_results <- read.csv(xg_results_path)
     }, error = function(e) {
-      xg_results <- data.frame(t(rep(NA, 15)))
-      colnames(xg_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision")
+      xg_results <- data.frame(t(rep(NA, 17)))
+      colnames(xg_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
       return(xg_results)
     })
     xg_results$fold <- i
@@ -86,8 +86,8 @@ cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, 
     lr_results <- tryCatch({
       lr_results <- read.csv(lr_results_path)
     }, error = function(e) {
-      lr_results <- data.frame(t(rep(NA, 15)))
-      colnames(lr_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision")
+      lr_results <- data.frame(t(rep(NA, 17)))
+      colnames(lr_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
       return(lr_results)
     })
     lr_results$fold <- i
@@ -209,7 +209,6 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, parameters
   lr_results <- do.call(rbind, lr_results)
   
   rf_results <- rename_methods(rf_results)
-  rf_results$method <- reorder(rf_results$method, rf_results$MCC, mean)
   xg_results <- rename_methods(xg_results)
   lr_results <- rename_methods(lr_results)
   

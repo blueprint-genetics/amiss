@@ -20,12 +20,17 @@ performance_stats <- function(predictions, outcome) {
 
   extract_stat <- function(stat) function(x) x %>% magrittr::use_series("byClass") %>% magrittr::extract(stat)
   extract_accuracy <- function(x) x %>% magrittr::use_series("overall") %>% magrittr::extract("Accuracy")
+  extract_tr_time <- function(x) x %>% attr("tr_time")
+  extract_te_time <- function(x) x %>% attr("te_time")
 
   positive_outcome_indicator <- as.integer(outcome == outcome_lvls[1])
 
   brier <- recursive_apply_numeric(predictions, . %>% ModelMetrics::brier(actual = positive_outcome_indicator, predicted = .))
   mcc <- recursive_apply_numeric(predictions, . %>% ModelMetrics::mcc(actual = positive_outcome_indicator, predicted = ., cutoff = 0.5))
   auc <- recursive_apply_numeric(predictions, . %>% ModelMetrics::auc(actual = positive_outcome_indicator, predicted = .))
+  
+  tr_time <- recursive_apply_numeric(predictions, extract_tr_time)
+  te_time <- recursive_apply_numeric(predictions, extract_te_time)
 
   recursive_apply_cm <- function(x, fun) recursive_apply(x = x, fun = fun, x_class = "confusionMatrix")
 
@@ -51,7 +56,9 @@ performance_stats <- function(predictions, outcome) {
                 Sensitivity = sensitivity,
                 Specificity = specificity,
                 F1 = f1,
-                Precision = precision)
+                Precision = precision,
+                tr_time = tr_time,
+                te_time = te_time)
 
   return(perfs)
 
