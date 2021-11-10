@@ -39,7 +39,12 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
               }
             }
             flog.pid.info("Predicting using best model for %s", method)
-            predict(model, completed_dataset, type = "prob")[,positive_label, drop = TRUE]
+            te_time <- system.time(
+            predictions <- predict(model, completed_dataset, type = "prob")[,positive_label, drop = TRUE]
+            )
+            attr(predictions, "tr_time") <- model$times$final["elapsed"]
+            attr(predictions, "te_time") <- te_time["elapsed"]
+            return(predictions)
           }, error = function(e) {
             flog.pid.debug(e)
             return(NA)
