@@ -137,6 +137,9 @@ S11_cross_validation <- function(preprocessed_data_path, output_path, parameters
   output_path <- normalizePath(output_path, mustWork = FALSE)
   create_dir(output_path)
   
+  futile.logger::flog.info("DESIGN_CHOICE Using seed: %d", seed)
+  set.seed(seed)
+  
   futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_path, "11_cross_validation.log")))
   futile.logger::flog.threshold(futile.logger::DEBUG)
   flog.pid.info("START 11_cross_validation.R")
