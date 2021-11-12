@@ -26,7 +26,7 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
             tr_cats <- model$trainingData %>% sapply(levels) %>% Filter(f = Negate(is.null))
             te_cats <- completed_dataset %>% sapply(levels) %>% Filter(f = Negate(is.null))
             tr_cats <- tr_cats[names(tr_cats) != ".outcome"]
-            if (length(tr_cats) > 1) {
+            if (any(sapply(tr_cats, length) > 1)) {
               for (cat in names(tr_cats)) {
                 tr_levels <- tr_cats[[cat]]
                 te_levels <- te_cats[[cat]]
@@ -40,7 +40,7 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
             }
             flog.pid.info("Predicting using best model for %s", method)
             te_time <- system.time(
-            predictions <- predict(model, completed_dataset, type = "prob")[,positive_label, drop = TRUE]
+              predictions <- predict(model, completed_dataset, type = "prob")[,positive_label, drop = TRUE]
             )
             attr(predictions, "tr_time") <- model$times$final["elapsed"]
             attr(predictions, "te_time") <- te_time["elapsed"]
