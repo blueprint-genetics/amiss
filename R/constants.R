@@ -17,12 +17,9 @@ SINGLE_IMP_METHODS <- c(
 FILE_FULL_CLINGEN_CSV <- "full_clingen.csv"
 FILE_MERGED_DATA_CSV <- "merged_data.csv"
 FILE_TRAINING_DATA_CSV <- "training_data.csv"
-FILE_TEST_DATA_CSV <- "test_data.csv"
 FILE_PREPROCESSED_TRAINING_DATA_CSV <- "preprocessed_training_data.csv"
-FILE_PREPROCESSED_TEST_DATA_CSV <- "preprocessed_test_data.csv"
 FILE_TRAINING_DATA_FOR_STATS_CSV <- "training_data_for_stats.csv"
 FILE_TRAINING_OUTCOMES_CSV <- "training_outcomes.csv"
-FILE_TEST_OUTCOMES_CSV <- "test_outcomes.csv"
 
 FILE_SIMULATED_FILE_LIST_CSV <- "simulated_file_list.csv"
 FILE_SUCCESSFULLY_SIMULATED_FILE_LIST_CSV <- "successfully_simulated_file_list.csv"

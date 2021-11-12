@@ -99,43 +99,23 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   futile.logger::flog.info("DESIGN_CHOICE Coding positive outcomes as 1 and negative outcomes as 0")
   outcome <- code_labels(merged_data$CLNSIG, positive_classes, negative_classes)
   
-  # Training/test split
-  futile.logger::flog.info("PROGRESS Splitting data to training and test sets")
-  split_percentage <- 0.7
-  futile.logger::flog.info("DESIGN_CHOICE Split percentage: %f", split_percentage)
-  data_split <- split_train_test(merged_data, split_percentage)
-  
-  training_set <- data_split$training_set
+  futile.logger::flog.info(paste("DESIGN_CHOICE Train/test set split is skipped, since the test sets would",
+                                 "not be comparable between different parameter combinations.",
+                                 "Instead, we simply rely on the performance estimates from CV."))
+  training_set <- merged_data
   futile.logger::flog.info("PROGRESS Number of training set variants: %d", nrow(training_set))
-  test_set <- data_split$test_set
-  futile.logger::flog.info("PROGRESS Number of test set variants: %d", nrow(test_set))
   
-  training_outcome <- outcome[data_split$index]
+  training_outcome <- outcome
   names(training_outcome) <- row.names(training_set)
   futile.logger::flog.info("PROGRESS Outcome distribution:")
   futile.logger::flog.info(paste0("PROGRESS ", table(training_outcome) %>% capture.output))
   
-  test_outcome <- outcome[-data_split$index]
-  names(test_outcome) <- row.names(test_set)
-  futile.logger::flog.info(paste0("PROGRESS ", table(test_outcome) %>% capture.output))
-  
   # Categorical variable encoding
-  
-  futile.logger::flog.info("DESIGN_CHOICE Getting rid of categorical variable values in test set that are not present in training set by setting them to missing")
-  test_set[,categorical_features] <- mapply(FUN = function(x, y) {
-      x[!(x %in% y)] <- NA
-      return(x)
-    },
-    test_set[, categorical_features, drop = FALSE],
-    training_set[, categorical_features, drop = FALSE]
-  )
-  
   futile.logger::flog.info("PARAMETER %s = %s", CATEGORICAL_ENCODING, config[[CATEGORICAL_ENCODING]])
   if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
     
     futile.logger::flog.info("PARAMETER Encoding categorical variables via dummy variables")
     training_dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
-    test_dummy_categoricals <- dummify_categoricals(test_set[, categorical_features, drop = FALSE])
     
     # Next, the new dummy variables are bound to the `data.frame`. We keep also the original categorical variables, since they are easier
     # to use for certain statistics computations.
@@ -144,23 +124,13 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
       training_set,
       training_dummy_categoricals
     )
-    
-    test_set <- cbind(
-      test_set,
-      test_dummy_categoricals
-    )
   } else if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
     futile.logger::flog.info("PARAMETER Adding \"MISSING\" as factor level in place of actual missing values")
     # Even though when written as CSV missing values get written as strings "NA", this is still useful if we replace
     # the "NA" string with something else, as then we won't mix up numerical NA and categorical NA when reading the file.
     any_missing <- training_set[, categorical_features] %>% sapply(. %>% is.na %>% any)
-    any_missing <- any_missing | test_set[, categorical_features] %>% sapply(. %>% is.na %>% any)
     
     training_set[, categorical_features[any_missing]]  %<>% lapply(function(x) {
-      x[is.na(x)] <- "MISSING"
-      return(x)
-    })
-    test_set[, categorical_features[any_missing]]  %<>% lapply(function(x) {
       x[is.na(x)] <- "MISSING"
       return(x)
     })
@@ -184,7 +154,6 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   # makes sense to impute this variable with `0`.
   futile.logger::flog.info("DESIGN_CHOICE Performing a priori imputation")
   training_set <- a_priori_impute(training_set, default_imputations)
-  test_set <- a_priori_impute(test_set, default_imputations)
   
   # Feature selection
   
@@ -194,10 +163,8 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   futile.logger::flog.info("DESIGN_CHOICE Performing feature selection")
   if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
     training_set <- select_features_after_dummy_coding(training_set, numeric_features, categorical_features)
-    test_set <- select_features_after_dummy_coding(test_set, numeric_features, categorical_features)
   } else if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
     training_set <- training_set[,c(numeric_features, categorical_features)]
-    test_set <- test_set[,c(numeric_features, categorical_features)]
   }
   
   ### Write output ###
@@ -207,12 +174,6 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   training_outcome_path <- file.path(output_path, FILE_TRAINING_OUTCOMES_CSV)
   futile.logger::flog.info("OUTPUT Writing fully preprocessed training set outcomes to %s", training_outcome_path)
   write.csv(training_outcome, training_outcome_path, row.names = TRUE)
-  test_set_path <- file.path(output_path, FILE_PREPROCESSED_TEST_DATA_CSV)
-  futile.logger::flog.info("OUTPUT Writing fully preprocessed test set data to %s", test_set_path)
-  write.csv(test_set, test_set_path, row.names = TRUE)
-  test_outcome_path <- file.path(output_path, FILE_TEST_OUTCOMES_CSV)
-  futile.logger::flog.info("OUTPUT Writing fully preprocessed test set outcomes to %s", test_outcome_path)
-  write.csv(test_outcome, test_outcome_path, row.names = TRUE)
   
   sessioninfo_path <- file.path(output_path, "02_preprocess_data_sessioninfo.txt")
   futile.logger::flog.info("OUTPUT Writing session information to text file at %s", sessioninfo_path)
