@@ -73,7 +73,7 @@ S01_parse_vcf <- function(
   }
   
   ### Define output path ###
-  parameter_dependent_path <- file.path(output_path, generate_file_prefix(config))
+  parameter_dependent_path <- file.path(output_path, generate_parameter_dependent_name(config))
   dir.create(parameter_dependent_path)
   futile.logger::flog.info("OUTPUT Parameter dependent path set to %s", parameter_dependent_path)
   
