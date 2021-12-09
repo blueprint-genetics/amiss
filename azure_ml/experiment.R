@@ -137,9 +137,9 @@ S11_cross_validation(
 )
 
 ## Get MCC metrics
-mcc_lr <- mean(read.csv(here("outputs", "cv_lr_results.csv"), header = TRUE)$MCC)
-mcc_rf <- mean(read.csv(here("outputs", "cv_rf_results.csv"), header = TRUE)$MCC)
-mcc_xg <- mean(read.csv(here("outputs", "cv_xg_results.csv"), header = TRUE)$MCC)
+mcc_lr <- mean(read.csv(here("outputs", "cv_lr_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
+mcc_rf <- mean(read.csv(here("outputs", "cv_rf_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
+mcc_xg <- mean(read.csv(here("outputs", "cv_xg_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
 
 mcc <- max(mcc_lr, mcc_rf, mcc_xg, na.rm = TRUE)
 log_metric_to_run("mcc", mcc)
