@@ -5,6 +5,7 @@ output: html_notebook
 
 ```{r}
 library(azuremlsdk)
+library(magrittr)
 
 ws <- load_workspace_from_config()
 # ws <- get_workspace(name, subscription_id = "", resource_groups = "")
@@ -54,4 +55,34 @@ hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampli
                                           estimator = est)
 
 run = submit_experiment(exp, hyperdrive_run_config)
+run_info <- wait_for_run_completion(run)
+```
+
+```{r}
+child_run_ids <- get_child_runs_sorted_by_primary_metric(run) %>% sapply(. %>% extract2("run_id"))
+
+## For each child run, capture the results
+for (child_run_id in child_run_ids){
+
+  child_run_iter <- get_run(exp, run_id = child_run_id)
+  download_files_from_run(child_run_iter, output_directory = "../")
+
+}
+
+# TODO: Get rid of this check once logs are written to correct place
+output_files <- Filter(Negate(function(x) grepl(".log$", x)), list.files("../outputs/", full.names = TRUE,recursive = TRUE))
+
+datastore <- get_default_datastore(ws)
+
+# Form dataset object from all parsed data
+upload_files_to_datastore(
+  datastore,
+  output_files,
+  target_path = "result_data",
+  #overwrite = FALSE,
+  show_progress = TRUE
+)
+
+parsed_dataset <- create_file_dataset_from_files(data_path(datastore, "result_data"), validate = TRUE)
+registered_parsed_dataset <- register_dataset(ws, parsed_dataset, "result_data")
 ```

@@ -67,7 +67,10 @@ hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampli
                                           estimator = est)
 
 run = submit_experiment(exp, hyperdrive_run_config)
+run_info <- wait_for_run_completion(run)
+```
 
+```{r}
 child_run_ids <- get_child_runs_sorted_by_primary_metric(run) %>% sapply(. %>% extract2("run_id"))
 
 ## For each child run, capture the results
@@ -79,7 +82,7 @@ for (child_run_id in child_run_ids){
 }
 
 # TODO: I don't know how that csv gets involved, get rid of it and this check
-output_files <- Filter(Negate(function(x) grepl("csv$", x)), list.files("../outputs/", full.names = TRUE))
+output_files <- Filter(Negate(function(x) (grepl(".log$", x) | grepl(".csv$", x))), list.files("../outputs/", full.names = TRUE))
 output_files %<>% lapply(. %>% file.path("merged_data.csv"))
 
 datastore <- get_default_datastore(ws)
@@ -96,3 +99,4 @@ upload_files_to_datastore(
 parsed_dataset <- create_file_dataset_from_files(data_path(datastore, "parsed_data"), validate = TRUE)
 registered_parsed_dataset <- register_dataset(ws, parsed_dataset, "parsed_data")
 ```
+

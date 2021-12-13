@@ -104,17 +104,20 @@ close(param_file)
 print("### RUNNING STEP 2 - Preprocess Data\n")
 
 gc()
-
-S02_preprocess_data(
-  parsed_data_path = here("data", amiss::generate_parameter_dependent_name(
+output_path_name <- amiss::generate_parameter_dependent_name(
     list(
       transcript = transcript,
       quality = quality,
       restriction = restriction
     )
-  )), 
+)
+parsed_data_path <- here("data", output_path_name) 
+preprocessed_data_path <- here("outputs", "intermediate_files", output_path_name)
+dir.create(preprocessed_data_path, recursive=TRUE)
+S02_preprocess_data(
+  parsed_data_path = parsed_data_path,
   parameters_path = session_params_path,
-  output_path = here("outputs")
+  output_path = preprocessed_data_path
 )
 
 ## Create parallel backend
@@ -129,17 +132,20 @@ print("### RUNNING STEP 11 - Cross-Validation\n")
 
 gc()
 
+cv_output_path <- here("outputs", output_path_name, "cv")
+dir.create(cv_output_path, recursive=TRUE)
 S11_cross_validation(
-  preprocessed_data_path = here("outputs"),
-  output_path = here("outputs"),
+  preprocessed_data_path = preprocessed_data_path,
+  output_path = cv_output_path,
   parameters_path = session_params_path,
   n_folds = n_folds
 )
 
 ## Get MCC metrics
-mcc_lr <- mean(read.csv(here("outputs", "cv_lr_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
-mcc_rf <- mean(read.csv(here("outputs", "cv_rf_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
-mcc_xg <- mean(read.csv(here("outputs", "cv_xg_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
+mcc_lr <- mean(read.csv(file.path(cv_output_path, "cv_lr_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
+mcc_rf <- mean(read.csv(file.path(cv_output_path, "cv_rf_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
+mcc_xg <- mean(read.csv(file.path(cv_output_path, "cv_xg_results.csv"), header = TRUE)$MCC, na.rm = TRUE)
 
 mcc <- max(mcc_lr, mcc_rf, mcc_xg, na.rm = TRUE)
 log_metric_to_run("mcc", mcc)
+
