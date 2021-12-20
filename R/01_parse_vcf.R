@@ -28,15 +28,17 @@ S01_parse_vcf <- function(
   cadd_snv_filename,
   cadd_indel_filename,
   output_root_dir,
+  logs_dir = normalizePath("logs", mustWork = FALSE),
   parameters=NULL,
   parameters_path=NULL
 ) {
-  
+
   ### Setup ###
   output_path <- normalizePath(output_root_dir, mustWork = FALSE)
-  dir.create(output_path)
-  
-  futile.logger::flog.appender(futile.logger::appender.tee(file.path(output_root_dir, "01_parse_vcf.log")))
+  create_dir(output_path)
+  create_dir(logs_dir)
+
+  futile.logger::flog.appender(futile.logger::appender.tee(file.path(logs_dir, "01_parse_vcf.log")))
   futile.logger::flog.threshold(futile.logger::DEBUG)
   futile.logger::flog.info("START 01_parse_vcf.R")
   futile.logger::flog.info("OUTPUT Output root path set to %s", output_path)
@@ -61,7 +63,7 @@ S01_parse_vcf <- function(
   } else {
     config <- parameters
   }
-  
+
   if (config[[TRANSCRIPT]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(TRANSCRIPT, "\" not provided"))
   }
@@ -71,20 +73,20 @@ S01_parse_vcf <- function(
   if (config[[RESTRICTION_MISSENSE]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(RESTRICTION_MISSENSE, "\" not provided"))
   }
-  
+
   ### Define output path ###
   parameter_dependent_path <- file.path(output_path, generate_parameter_dependent_name(config))
   dir.create(parameter_dependent_path)
   futile.logger::flog.info("OUTPUT Parameter dependent path set to %s", parameter_dependent_path)
-  
+
   ### Read input ###
   vcf_filename <- normalizePath(vcf_filename)
   futile.logger::flog.info("INPUT Reading annotated ClinVar variant data from VCF file at %s", vcf_filename)
   vcf <- vcfR::read.vcfR(vcf_filename)
-  
+
   vep_filters <- c()
   info_filters <- c()
-  
+
   # Transcript selection parameters
   futile.logger::flog.info("PARAMETER %s = %s", TRANSCRIPT, config[[TRANSCRIPT]])
   if (config[[TRANSCRIPT]] == TRANSCRIPT_CANONICAL) {
@@ -94,7 +96,7 @@ S01_parse_vcf <- function(
   } else stop(
     paste0("Unknown value \"", config[[TRANSCRIPT]], "\" for parameter \"", TRANSCRIPT, "\"")
   )
-  
+
   # Data quality parameters
   futile.logger::flog.info("PARAMETER %s = %s", CLASSIFICATION_QUALITY, config[[CLASSIFICATION_QUALITY]])
   if (config[[CLASSIFICATION_QUALITY]] == CLASSIFICATION_QUALITY_CLINGEN) {
@@ -106,7 +108,7 @@ S01_parse_vcf <- function(
   } else stop(
     paste0("Unknown value \"", config[[CLASSIFICATION_QUALITY]], "\" for parameter \"", CLASSIFICATION_QUALITY, "\"")
   )
-  
+
   # Missense restriction parameter
   futile.logger::flog.info("PARAMETER %s = %s", RESTRICTION_MISSENSE, config[[RESTRICTION_MISSENSE]])
   if (config[[RESTRICTION_MISSENSE]] == MISSENSE_ONLY) {
@@ -116,7 +118,7 @@ S01_parse_vcf <- function(
   } else stop(
     paste0("Unknown value \"", config[[RESTRICTION_MISSENSE]], "\" for parameter \"", RESTRICTION_MISSENSE, "\"")
   )
-  
+
   ### VCF data parsing ###
   futile.logger::flog.info("PROGRESS Processing VCF to a data.frame")
   vcf_df <- vcf_object_to_dataframe(vcf, num_batches = 100, info_filters = info_filters, vep_filters = vep_filters)
