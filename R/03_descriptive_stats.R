@@ -128,9 +128,9 @@ heatmap <- function(long_df, log) {
   cols <- colnames(long_df)
   return(ggplot(long_df) +
            (if (log)
-             scale_fill_gradient("Proportion (%)", low = "white", high = "red", trans = "log1p", breaks = c(0, 2, 9, 30, 100), na.value = "white")
+             scale_fill_fermenter("Proportion (%)", palette="OrRd", direction = 1, breaks = c(0, 25, 50, 75, 100), guide = guide_colorsteps(show.limits=TRUE))
            else
-             scale_fill_gradient("Proportion (%)", low = "white", high = "red", breaks = c(0, 25, 50, 75, 100), na.value = "white")) +
+             scale_fill_fermenter("Proportion (%)", palette="OrRd", direction = 1, breaks = c(0, 25, 50, 75, 100), guide = guide_colorsteps(show.limits=TRUE))) +
            geom_tile(aes(x = x, y = y, fill = z)) +
            theme_bw() +
            theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
