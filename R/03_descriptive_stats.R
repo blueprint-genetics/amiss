@@ -74,7 +74,6 @@ ggsave(filename = here("output", "stats", "MI_vs_value_correlations_positive_lab
 ## Feature value distributions
 
 flog.pid.info("Plotting feature histograms")
-# Next, plot distributions of each numeric feature. Are they normal or linear?
 feature_distribution_plots <- lapply(numeric_features,
                                      function(column) {
                                        ggplot2::quickplot(
@@ -91,7 +90,6 @@ ggsave(filename = here("output", "stats", "feature_histograms.pdf"),
          grobs = feature_distribution_plots
        ),
        device = "pdf", width = 340, height = 340, units = "mm")
-# They are not, and thus it might be worth considering data transformations. In the case of random forest, however, monotone transformations should have no effect.
 
 ## Correlations with outcome indicator
 
@@ -104,6 +102,8 @@ ggsave(filename = here("output", "stats", "feature_to_outcome_correlation.pdf"),
          theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
                legend.text.align = 1),
        device = "pdf", width = 280, height = 140, units = "mm")
+miss_ind_to_outcome_correlations <- sapply(c(numeric_features, categorical_features), function(feature) cor(is.na(training_set[[feature]]), tr_outcome == "positive", use = "pairwise.complete.obs"))
+miss_ind_to_outcome_correlations <- data.frame(Feature = c(numeric_features, categorical_features), Correlation = miss_ind_to_outcome_correlations)
 
 ## Categorical level occurence counts
 
@@ -128,14 +128,23 @@ heatmap <- function(long_df, log) {
   cols <- colnames(long_df)
   return(ggplot(long_df) +
            (if (log)
-             scale_fill_fermenter("Proportion (%)", palette="OrRd", direction = 1, breaks = c(0, 25, 50, 75, 100), guide = guide_colorsteps(show.limits=TRUE))
+             scale_fill_distiller("Proportion (%)",
+                                  palette="YlGnBu",
+                                  direction = 1,
+                                  trans="log1p",
+                                  breaks = c(0, 2, 9, 30, 100),
+                                  guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))
            else
-             scale_fill_fermenter("Proportion (%)", palette="OrRd", direction = 1, breaks = c(0, 25, 50, 75, 100), guide = guide_colorsteps(show.limits=TRUE))) +
+             scale_fill_distiller("Proportion (%)",
+                                  palette="YlGnBu",
+                                  direction = 1,
+                                  breaks = c(0, 25, 50, 75, 100),
+                                  guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))) +
            geom_tile(aes(x = x, y = y, fill = z)) +
            theme_bw() +
            theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
                  text = element_text(size=21),
-                 legend.text.align = 1)
+                 legend.text.align = 1, legend.key = element_rect(fill = "white", colour = "black"))
   )
 }
 cluster <- function(data) {
@@ -159,12 +168,10 @@ missing_values_longer <- cluster(data = missing_value_sum_per_consequence)
 dd <- data.frame(x = missing_values_longer$consequence, y = missing_values_longer$name, z = missing_values_longer$value)
 ggsave(filename = here("output", "stats", "missingness_heatmap.pdf"),
   plot = heatmap(dd, log = FALSE) + coord_flip() + xlab("") + ylab(""),
-  device = "pdf", width = 340, height = 300, units = "mm")
+  device = "pdf", width = 340, height = 190, units = "mm")
 ggsave(filename = here("output", "stats", "missingness_heatmap_log1p.pdf"),
   plot = heatmap(dd, log = TRUE) + coord_flip() + xlab("") + ylab(""),
-  device = "pdf", width = 340, height = 300, units = "mm")
-
-# Stop-gained and non-synonymous variants have much less missingness in certain variables (as expected), and missingness rates are somewhat constant over different consequences in epigenetics variables.
+  device = "pdf", width = 340, height = 190, units = "mm")
 
 ## Basic stats on preprocessed data
 

@@ -92,6 +92,9 @@ doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
     scale_color_manual("Classifier", aesthetics = c("color", "outlier.color"), values = c(`Logistic regression` = "#A82026", `Random forest` = "#555555"))
   if (per_consequence) {
     double_boxplots <- double_boxplots + facet_wrap(vars(consequence))
+    if (metric == "AUC") {
+        double_boxplots <- double_boxplots + scale_y_continuous(breaks = seq(0.65, 1.00, 0.05))
+    }
   }
   if (length(metric) > 1) {
     double_boxplots <- double_boxplots + coord_flip(ylim = c(0.25, 1.0), clip = "on") + facet_wrap(vars(metric), scales = "fixed")
