@@ -1,12 +1,12 @@
 # Results
 
-This section is arranged as follows. First we present results from the added-missingness simulations. We evaluate both the relation of downstream classifier performance and RMSE, and how increasing missingness percentage affects downstream classifier performance. Next, we present results from the repeated random sub-sampling cross-validation experiment, shedding light on robustness of imputation methods to dataset composition. Finally, we present results pertaining the main experiment, comparing the downstream classifier performances of imputation methods. Finally, we compare the imputation methods with respect to their running times.
+This section is arranged as follows. First, we present results from the added-missingness simulations. We evaluate both the relation of downstream classifier performance and RMSE, and how increasing missingness percentage affects downstream classifier performance. Next, we present results from the repeated random sub-sampling cross-validation experiment, shedding light on robustness of missingness handling methods to dataset composition. We then present results pertaining the main experiment, comparing the downstream classifier performances of missingness handling methods. Finally, we compare the missingness handling methods with respect to their running times.
 
 ## Simulation experiments
 
 ### RMSE
 
-We found that RMSE and classification performance as measured by MCC did not correlate in datasets with simulated additional missing values (see supplementary information). This is especially clear in the case of outlier imputation, where RMSE is--as expected--much higher than with any other method, while MCC was comparable to other methods.
+We found that RMSE and classification performance as measured by MCC did not correlate in datasets with simulated additional missing values (for plots of RMSE against MCC for each imputation method, see supplementary information). This is especially clear in the case of outlier imputation, where RMSE is--as expected--much higher than with any other method, while MCC was comparable to other methods.
 
 ### Missingness percentage
 
@@ -17,7 +17,7 @@ Outlier and maximum imputations suffer more drastically, with mean performances 
 
 ![Random forest MCC against actual missingness percentage, with fitted LOESS curves (red). \label{figure:rf-missperc}](figures/rf_mcc_versus_miss_pct_observed.pdf){height=100%, width=100%}
 
-When the downstream classifier is logistic regression, outlier imputation shows a dramatic drop immediately between $30~\%$ and $40~\%$ missingness, and stabilises slightly above $\mathrm{MCC} = 0.20$. Maximum imputation shows a clear linear downward trend, while minimum imputation, zero imputation and BPCA show a much smaller one. Missingness augmentation and all MICE methods show very light reductions in average performance as missing value percentage grows. Median and especially mean imputation show practically no performance reduction due to increasing MCAR missingness. MICE Bayes regression, BPCA and PMM and especially MICE regression all show much larger variability in their performance than other methods.
+When the downstream classifier is logistic regression, outlier imputation shows a dramatic drop immediately between $30~\%$ and $40~\%$ missingness and stabilises slightly above $\mathrm{MCC} = 0.20$. Maximum imputation shows a clear linear downward trend, while minimum imputation, zero imputation and BPCA show a much smaller one. Missingness augmentation and all MICE methods show very light reductions in average performance as missing value percentage grows. Median and especially mean imputation show practically no performance reduction due to increasing MCAR missingness. MICE Bayes regression, BPCA and PMM and especially MICE regression all show much larger variability in their performance than other methods.
 
 ![Logistic regression MCC against actual missingness percentage, with fitted LOESS curves (red). \label{figure:lr-missperc}](figures/lr_mcc_versus_miss_pct_observed.pdf){height=100%, width=100%}
 
@@ -29,7 +29,7 @@ The variability of downstream classifier performance evaluated via repeated rand
 
 The random forest classifier outperforms logistic regression regardless of imputation method, and the lowest performing imputation method wrt. random forest classifiers (MissForest) has higher mean performance than the highest performing imputation method wrt. logistic regression (missingness indicators).  
 
-For both logistic regression and random forest, single imputation methods and k-NN appear to have equivalent performance, though in conjunction with logistic regression outlier imputation seems to perform slightly worse. With regard to random forest classifiers MICE random forest, BPCA, MICE Bayes regression and MICE PMM perform slightly or somewhat worse than simple imputation methods, but display greater differences in conjunction with logistic regression, where MICE random forest and BPCA are clearly preferable to MICE Bayes regression and MICE PMM. MICE ordinary regression and MissForest perform worse on average with both classifier types, but when combined with logistic regression, MICE ordinary regression brings mean classification performance down close to that of a coin flip.
+For both logistic regression and random forest, single imputation methods and k-NN appear to have equivalent performance, though in conjunction with logistic regression outlier imputation seems to perform slightly worse. With regard to random forest classifiers, MICE random forest, BPCA, MICE Bayes regression, and MICE PMM perform slightly or somewhat worse than simple imputation methods, but display greater differences in conjunction with logistic regression, where MICE random forest and BPCA are clearly preferable to MICE Bayes regression and MICE PMM. MICE ordinary regression and MissForest perform worse on average with both classifier types, but when combined with logistic regression, MICE ordinary regression brings mean classification performance down close to that of a coin flip.
 
 ## Main experiment
 
@@ -111,21 +111,20 @@ In addition, membership to class `NON_SYNONYMOUS` was strongly (negatively) corr
 
 Performances show large differences in different consequence classes. `Other` is mostly non-synonymous variants, as described above, and shows good performance for both classifier types, though random forest is always superior. Mean imputation performs best with the random forest classifier, while missingness indicator augmentation and minimum imputation maximize logistic regression performance. The results are essentially equal to the general results depicted in figure \ref{figure:mcc_boxplots} where consequence classes are not distinguished.
 
-The consequence class `INTRONIC` shows a very different and interesting situation. First it is important to note that even after the preprocessing steps which removed variants in consequence classes with high class imbalance, only $\approx 8.1~\%$ of `INTRONIC` variants are positive.However, the robustness of MCC to class imbalance allows us to compare the performances. In this consequence class, logistic regression is virtually useless, though missingness indicator augmentation and maximum imputation seem to allow some discriminatory power. 
-It seems that in `INTRONIC`, logistic regression learns to classify almost everything as negative (see Supplementary information).
+The consequence class `INTRONIC` shows a very different and interesting situation. First it is important to note that even after the preprocessing steps which removed variants in consequence classes with high class imbalance, only $\approx 8.1~\%$ of `INTRONIC` variants are positive. However, the robustness of MCC to class imbalance allows us to compare the performances. In this consequence class, logistic regression is virtually useless, though missingness indicator augmentation and maximum imputation seem to allow some discriminatory power. 
+It seems that in `INTRONIC`, logistic regression learns to classify almost everything as negative (see supplementary information for plots of sensitivity and specificity conditional on consequence class).
 With most imputation methods, MCC is barely above zero. In contrast, the random forest classifier performs well with any imputation method, though the high variation in MissForest imputations seems to allow also for instances of poor performance.  
 
 Compared to `Other`, prediction on variants of `DOWNSTREAM` consequence shows lower performance in both classifiers. For random forest, the relative orders of imputation methods are basically the same as in the main experiment and the cross-validation experiment. Unlike in all other consequence classes, logistic regression seems to perform better with MICE methods and MissForest than most simple imputation methods and k-NN, though maximum and outlier imputation do seem to outperform them even here.
 
-In `UPSTREAM` variants, performance is again lower than in `Other`, but not as low as in `DOWNSTREAM`. Random forest classification shows the common pattern, where simple imputation methods and k-NN seem slightly preferable to MICE methods, and MissForest performs noticeably worse. Logistic regression classification looks, in this case, to actually be disadvantaged by the same methods that dominated `DOWNSTREAM` (that is, maximum and outlier imputation).
+In `UPSTREAM` variants, performance is again lower than in `Other`, but not as low as in `DOWNSTREAM`. Random forest classification shows the common pattern, where simple imputation methods and k-NN seem slightly preferable to MICE methods, and MissForest performs noticeably worse. Logistic regression classification looks, in this case, to be disadvantaged by the same methods that dominated `DOWNSTREAM` (that is, maximum and outlier imputation).
 
-As mentioned earlier, minor differences between simple imputation methods have a good chance of being random. 
+As mentioned earlier, minor differences between simple imputation methods have a good chance of being attributable to randomness. 
 
 ## Running time
 
-Running times were recorded in the main experiment for the best hyperparameter configurations of all imputation methods, and are presented in table \ref{runtimes}. For methods that were used to produce multiple datasets (MICE methods and MissForest) the overall time was recorded and then divided by the number of produced datasets ($10$). The machine used to run the software was a CentOS Linux server with two Intel Xeon CPU E5-2650 v4 @ 2.20GHz processors and $512$ GiB[^gib] of memory. The analysis was run with parallelization using $24$ processes. Each imputation was run inside a single process, and thus running times should not be affected based on whether an imputation method itself offers parallelization features.
+Running times were recorded in the main experiment for the best hyperparameter configurations of all imputation methods and are presented in table \ref{runtimes}. For methods that were used to produce multiple datasets (MICE methods and MissForest) the overall time was recorded and then divided by the number of produced datasets ($10$). The machine used to run the software was a CentOS Linux server with two Intel Xeon CPU E5-2650 v4 @ 2.20GHz processors and $512$ GiB of memory. The analysis was run with parallelization using $24$ processes. Each imputation was run inside a single process, and thus running times should not be affected based on whether an imputation method itself offers parallelization features.
 
-[^gib]: Report GiB or GB?
 
 
 ----------------------------------------------------------------------------

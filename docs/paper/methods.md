@@ -74,53 +74,42 @@ Table: Mockup of data after preprocessing\label{mockup}. Variant identification 
 
 ### Features
 
-The initial feature set was defined manually to include a variety of traditional tools and annotations from both dbNSFP3.5 and the annotation set for CADD while excluding any metapredictors from the feature set. See supplementary information.
-
-[^supp]: Add the stats to supplementary docs & Fix reference when numbers for supplementary materials are fixed
+The initial feature set was defined manually to include a variety of traditional tools and annotations from both dbNSFP3.5 and the annotation set for CADD while excluding any metapredictors from the feature set. For histograms of observed values and correlations to positive outcome indicator for each feature, see supplementary information.
 
 ### Missingness
 
-Missingness percentages of the features conditional on the predicted variant or transcript[^which] consequence are presented in Figure \ref{heatmap}. 
-As expected, `INTRONIC`, `UPSTREAM`, `DOWNSTREAM`, `NON-CODING_CHANGE` and `5PRIME_UTR` variants have the most missingness, exhibiting large missingness percentages across protein-related features and splicing predictions, leaving mainly features related to regulation[^biocheck]. `INFRAME` variants have similar pattern as previously described variants, but have observed values in features describing variant position in coding sequence and protein codon. Such features are partially observed in `SPLICE_SITE` variants, possibly due to some of them also being interpretable as coding variants. `SPLICE_SITE` variants have a feature describing the distance to a splice site completely observed, but curiously, it is `3PRIME_UTR` variants instead that have observations of splicing predictions[^splice].  `NON-SYNONYMOUS` variants have, as expected, nearly completely observed feature vectors, except for mostly unobserved splicing predictions and incompletely observed gnomAD allele frequencies, MutPred predictions and REMAP [@remap] annotations.
+Missingness percentages of the features conditional on the VEP-predicted variant or transcript consequence are presented in Figure \ref{heatmap}. 
+As expected, `INTRONIC`, `UPSTREAM`, `DOWNSTREAM`, `NON-CODING_CHANGE` and `5PRIME_UTR` variants have the most missingness. They exhibit large missingness percentages across protein-related features and microRNA predictions, leaving available mainly features related to regulation. `INFRAME` variants have similar pattern as previously described variants but have observed values in features describing variant position in coding sequence and protein codon. Such features are partially observed in `SPLICE_SITE` variants, possibly due to some of them also being interpretable as coding variants. `SPLICE_SITE` variants have a feature describing the distance to a splice site completely observed. `NON-SYNONYMOUS` variants have, as expected, nearly completely observed feature vectors, except for mostly unobserved microRNA downregulation scores [@mirsvr] and incompletely observed gnomAD allele frequencies, MutPred predictions and REMAP2 [@remap2] annotations.
 
 Since many features are only applicable to variants of a specific consequence, there will be few complete cases.
-Further, the only complete cases can be formed by variants that are interpretable as having several consequences, even if only one is assigned for the purposes of analysis. Such variants are, for example, splicing variants. They can often also be interpreted to be non-synonymous or intronic depending on their position[^biocheck]. The complete cases are thus the very few variants that have both splicing predictions as well as the features available for non-synonymous variants.
-
-[^splice]: ask somebody about this
-
-[^biocheck]: check with somebody that this is accurate
+Further, the only complete cases can be formed by variants that are interpretable as having several consequences, even if only one is assigned for the purposes of analysis. Such variants are, for example, splicing variants. They can often also be classified to be non-synonymous or intronic depending on their position. The complete cases are thus the very few variants that have both splicing predictions as well as the features available for non-synonymous variants.
 
 ![Missingness heatmap of the training set\label{heatmap}. Each cell displays the proportion of missing values of the indicated feature (horizontal axis) in the predicted molecular consequence class (vertical axis).](figures/missingness_heatmap.pdf){height=100%, width=100%}
 
-[^which]: Which? Kind of both?
 
-To assess whether there is informative missingness in the data, we computed each feature's correlation to the outcome indicator (see Supplementary information). For some features, there is moderately large correlation, the largest of which is for MutPred ($\approx -0.33$).
+To assess whether there is informative missingness in the data, we computed each feature's missingness indicator's correlation to the outcome indicator (see supplementary information). Some correlation is present for most features. Also, most correlations are negative, implying lower likelihood of pathogenicity when the feature is missing. However, correlations for `EncodetotalRNA.sum`, `gnomAD_exomes_AF` and `gnomAD_genomes_AF` are positive, implying that their missingness is linked to higher likelihood of pathogenicity.
 
-## Imputation methods
+## Included missingness handling methods {#includedmhm}
 
-### Univariate imputation
+We include, in total, 14 missingness handling methods, consisting of 6 simple imputation methods, 4 multiple imputation by chained equations (MICE) methods, 3 other popular imputation methods, and missingness indicator augmentation.
 
-The simplest imputation methods impute every missing value within a feature with the same value, which may either be a constant or a statistic estimated from the observed values of the feature. These methods are called univariate imputation methods.
-
-In the case of missingness indicators, features with identical missingness patterns produce identical indicator vectors, of which only one is kept.
-
-### Multiple imputation by chained equations
+The simplest imputation methods impute every missing value within a feature with the same value, which may either be a constant or a statistic estimated from the observed values of the feature. Of these methods, we include mean, median, maximum and minimum imputation, as well as constant imputation with zero. In addition, we include outlier imputation, where we impute a feature's missing values with a value far apart from the other values of that feature.
 
 Multiple imputation by chained equations (MICE) [@vanbuuren2006; @vanbuuren2007; @mice] is an algorithm that iteratively imputes single features conditional on other features. In short, a MICE method
 
-1. uses univariate imputation to sequentially impute each feature conditional on the observed values of other features 
+1. uses a univariate imputation method to sequentially impute each feature conditional on the observed values of other features 
 2. reimputes each feature conditional on the imputed data from the previous iteration
 
 Step 2 is repeated until some maximum number of iterations or some measure of convergence is reached.
 
 We used the R `mice` package [@mice] to perform the imputation.
-Each method was run with maximum $10$ iterations.
+Each method was run with maximum $10$ iterations.  
 
-### Other imputation methods {#other}
+Besides unconditional univariate methods and MICE methods, we included three popular imputation methods: k-Nearest Neighbors (k-NN), Bayesian Principal Components Analysis (BPCA) [@bpca] and missForest [@missforest].
 
-Besides unconditional univariate methods and MICE methods, we tested three popular imputation methods: k-Nearest Neighbors (k-NN), Bayesian Principal Components Analysis (BPCA) [@bpca] and missForest [@missforest].
+For k-NN, you must have enough complete cases to start imputation, depending on $k$. As described earlier, the data had very few complete cases, and thus the largest $k$ that could be used was $2$.
 
-For k-NN, you must have enough complete cases to start imputation, depending on $k$. As described above, the data had very few complete cases, and thus the largest $k$ that could be used was $2$.
+In the case of missingness indicators, features with identical missingness patterns produce identical indicator vectors, of which only one is kept.
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Imputation method                      Description                                                          Implementation
@@ -160,7 +149,7 @@ MissForest [@missforest]               Predict values using random forest       
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Table: Used imputation methods
+Table: Included imputation methods
 
 
 ## Framework
@@ -169,10 +158,10 @@ The framework performs imputation and classifier training and evaluation on a pr
 
 Each imputation method is used on the training set, producing at least one imputed dataset for each combination of hyperparameters (see below), and classifiers are trained on each dataset.  
 
-Multiple imputation methods can be used to produce several imputed datasets using the same hyperparameter configuration, and we make use of this in the main experiment. For probabilistic single imputation methods, the method can be run multiple times with different seeds, producing a set of imputed datasets analogous to that generated via multiple imputation. We apply this approach to MissForest.  
+Multiple imputation methods can be used to produce several imputed datasets using the same hyperparameter configuration, and we make use of this in the main experiment. For probabilistic single imputation methods like MissForest, the method can be run multiple times with different seeds, producing a set of imputed datasets analogous to that generated via multiple imputation. We apply this approach to MissForest.  
 For each completed dataset from a probabilistic or multiple imputation method, we train a separate classifier (performing its usual hyperparameter search and model selection procedure separately on each dataset). 
 
-To maximize the performance of each imputation method for fair comparison, hyperparameter grids were defined for each method for which different hyperparameters[^hyper] could be passed. For the simulation and cross-validation experiments we decided to save time by using fewer hyperparameter configuration, sampling a maximum of 8 hyperparameter configurations for each imputation method used on a dataset. The hyperparameter grids are described in table \ref{imphyps}. 
+To maximize the performance of each imputation method for fair comparison, hyperparameter grids were defined for each method for which different hyperparameters could be passed. For the simulation and cross-validation experiments we decided to save time by using fewer hyperparameter configurations, sampling a maximum of 8 hyperparameter configurations for each imputation method used on a dataset. The hyperparameter grids are described in table \ref{imphyps}. 
 
 Method                  Varied hyperparameters          Number of combinations
 --------------          -----------------------         ------------------------
@@ -185,13 +174,11 @@ BPCA                    `nPcs`, `maxSteps`              $112$
 MissForest:             `mtry`, `ntree`                 $12$
 Simple methods          None                            $1$ each
 
-Table: Statistics on hyperparameter grids for imputation methods. For k-NN, only two values of `k` succeed, see subsection [Other imputation methods](#other).\label{imphyps}
+Table: Statistics on hyperparameter grids for imputation methods. For k-NN, only two values of `k` succeed, see [Included missingness handling methods](#includedmhm).\label{imphyps}
 
 After imputations of the training set and classifier training, the hyperparameter configuration with highest downstream classifier performance (or highest mean performance, in case of multiple imputation methods), and its associated classifiers, are selected and stored for each method, and that hyperparameter configuration is used when imputing the test set. Finally, performance is computed using the associated classifiers and associated test set (or test sets, for probabilistic and multiple imputation) of each imputation method.
 
 The process is depicted visually in figure \ref{flowchart}.
-
-[^hyper]: Are these usually called hyperparameters in imputation methods? Technically I think they are hyperparameters even if not called that, but it might be better to conform to common terminology.
 
 ![Framework flowchart. Features are filtered on the training data according to their correlations and variance, and the feature set of the test data is synchronized to match the filtered feature set. Afterwards, the training data is imputed using each imputation method, with each hyperparameter configuration. In the main experiment, multiple imputation methods are set to produce 10 imputed datasets per hyperparameter configuration. Only one dataset is set to be produced in the simulation and cross-validation experiments. Every dataset is then used to train a classifier, and for each imputation method the best-performing hyperparameter configuration is selected by the training-set performance of the corresponding classifier. For multiple imputation methods, the mean performance of the corresponding classifier set is used. The test set is then imputed with the selected hyperparameter configuration for each method, and corresponding classifier is used to predict on the imputed test set(s). Classifier performance is then evaluated on each set of predictions. \label{flowchart}](body.pdf){height=60%, width=60%}
 
@@ -217,7 +204,7 @@ Finally, we compute the root-mean-square error (RMSE) to compare imputed and ori
 
 $$\sqrt{\frac{1}{N} \sum_{i = 1}^{N}(\hat{y}_i - y_i)^2 }$$
 
-where $y_i$ is the $i$th true value, $\hat{y}_i$ is the $i$th prediction (in this case, the imputed value), $N$ is the number of predictions (in this case, the number of imputed values).
+where $y_i$ is the $i$th true value, $\hat{y}_i$ is the $i$th prediction (in this case, the imputed value) and $N$ is the number of predictions (in this case, the number of imputed values).
 
 ## Simulation {#simulations}
 
@@ -247,14 +234,12 @@ The input matrix of `ampute` is required to be complete, so we partitioned the d
 
 Many imputation studies are specifically built to assess an imputation method's capability to predict the original values from the observed values of a dataset with missing data.
 Thus, they use the RMSE between the original dataset and an imputed dataset as a metric of performance of the imputation method.
-However, a model with the lowest RMSE is not in general the best one in the statistical inference context [@fimd, chapter 2.6]. In short, the best model wrt. RMSE is linear regression estimated via least squares, and the deterministic nature of a regression prediction necessarily ignores uncertainty due to the missing data. 
+However, an imputation method with the lowest RMSE is not in general the best one in the statistical inference context [@fimd, chapter 2.6]. In short, the best imputation method wrt. RMSE is linear regression estimated via least squares, and the deterministic nature of a regression prediction necessarily ignores uncertainty due to the missing data. 
 The same argument cannot be applied to the predictive context, but the same end result may apply when missingness is informative. 
 
 Consider a situation where missingness is highly informative. Then a perfect imputation method (with respect to RMSE; i.e. one where RMSE would equal $0$) would impute the dataset with the original values. However, the informativeness in the missing values would be lost. The loss of information could, in principle, be avoided by adding missingness indicators before imputing, but this comes with the increase in dimensionality (doubling the number of features in the worst case) and thus cannot be seen as a universal solution.
 
-Since RMSE cannot be used as a universal metric of imputation method performance, we perform a lean version of the framework on each simulated dataset. That is, we impute each simulated dataset using a sparser hyperparameter grid (downsampled to eight hyperparameter configurations separately for each simulated dataset) and producing only one dataset each when using probabilistic methods. A classifier of each type is trained on the imputed simulated datasets, the best performing imputation hyperconfiguration is chosen by the highest performing classifier trained on a dataset imputed via that configuration. Performance is estimated on the test set imputed with the winning configuration. We compute, in addition, RMSE of each imputation method on each dataset, and can thus investigate whether low RMSE on the training set predicts high downstream classifier performance on the test set. [^necessary]
-
-[^necessary]: Is this block necessary? Does it suffice to say (with a single sentence) that we run the framework on the datasets?
+Since RMSE cannot be used as a universal metric of imputation method performance, we perform a lean version of the framework on each simulated dataset. That is, we impute each simulated dataset using a sparser hyperparameter grid (downsampled to eight hyperparameter configurations separately for each simulated dataset) and producing only one dataset each when using probabilistic methods. A classifier of each type is trained on the imputed simulated datasets, the best performing imputation hyperparameter configuration is chosen by the highest performing classifier trained on a dataset imputed via that configuration. Performance is estimated on the test set imputed with the winning configuration. We compute, in addition, RMSE of each imputation method on each dataset, and can thus investigate whether low RMSE on the training set predicts high downstream classifier performance on the test set.
 
 As mentioned in the [Preprocessing section](#preprocessing), due to the removal of features with fewer than $1~\%$ unique values and features that highly correlate with another feature, the addition of missing values may lead to differing feature sets between different simulated datasets. Especially large numbers of additional (MCAR) missing values may lead to fewer unique values, and both increase or decrease correlation between features by chance.
 
@@ -277,7 +262,7 @@ Even after *a-priori* imputation, there is a very high proportion of missing val
 
 ### Studying imputation methods developed for statistical inference in a predictive context {#parameter-reuse}
 
-As mentioned in subsection \ref{reuse-intro}, the differences in intended usage between statistical inference and prediction make use of existing implementations--many of which were designed for the former purpose--difficult. The first and main issue is that out-of-the-box implementations often do not provide an easy way to reuse learned parameters from an earlier run. This makes it difficult to use parameters from the training set on the test set.
+As mentioned in subsection \ref{reuse-intro}, the differences in intended usage between statistical inference and prediction make it difficult to use existing implementations of imputation methods--many of which were designed for the former purpose--in prediction. The first and main issue is that out-of-the-box implementations often do not provide an easy way to reuse learned parameters from an earlier run. This makes it difficult to use parameters from the training set on the test set.
 
 Some ways to deal with this are
 
@@ -299,7 +284,7 @@ MissForest                  `missForest`    No
 
 The package `mlr`[@mlr2016] offers wrapper functionality that allows use of any prediction method offered by the package also for univariate imputation, along with functionality for correct reimputing data with previously learned parameters, but using this option is difficult in a dataset with very few complete cases. We did not explore this possibility in this work. Investigation of the imputation performance of methods originally intended for prediction might merit further study.
 
-We choose to implement option *Ignore* due to its simplicity for methods where out-of-the-box parameter reuse is not available. There is a possibility that this will give an advantage to simple methods and k-NN even if MICE, BPCA and MissForest would otherwise outperform them. However, this comparison still represents the situation as it shows itself to the practitioner that may not have the time or expertise to make use of the other options.
+We choose to implement option *Ignore* due to its simplicity for methods where out-of-the-box parameter reuse is not available. There is a possibility that this will give an advantage to simple methods and k-NN even if MICE, BPCA and MissForest would otherwise outperform them. However, this comparison still represents the situation as it presents itself to the practitioner that may not have the time or expertise to make use of the other options.
 
 ## Implementation
 
@@ -353,7 +338,7 @@ Number  Description                 File name
         results 
 -------------------------------------------------------------
 
-The scripts are intended to be executed in order, but users may choose only run a subset if they are only interested in a subset of the results. To run the main experiment, one must run 1., 2., 4., 5., and 8.; to run the simulations, one must run 1., 2., 6., 7., 9. and 10.; to run the crossvalidation experiment, one must run 1., 2. and 11.
+The scripts are intended to be executed in order, but users may choose only run a subset if they are only interested in a subset of the results. To run the main experiment, one must run 1., 2., 4., 5., and 8.; to run the simulations, one must run 1., 2., 6., 7., 9. and 10.; to run the cross-validation experiment, one must run 1., 2. and 11.
 
 ## Availability of source code and requirements
 
@@ -369,9 +354,7 @@ Other requirements: The software was run with R 3.6.0 with packages vcfR [@vcfR]
 
 License: MIT
 
-Any restrictions to use by non-academics: CADD annotations[^caddann] require commercial users to contact authors for licensing. dbNSFP [@dbnsfp3] annotations may require licenses for commercial use and must be reviewed individually.
-
-[^caddann]: I am not sure whether this refers to all annotations or just the score, which I don't use.
+Any restrictions to use by non-academics: CADD annotations require commercial users to contact authors for licensing. dbNSFP [@dbnsfp3] annotations may require licenses for commercial use and must be reviewed individually.
 
 ## Availability of supporting data and materials
 
