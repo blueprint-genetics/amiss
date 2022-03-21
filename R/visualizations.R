@@ -1,5 +1,6 @@
 library(ggcorrplot)
 library(tidyr)
+library(tidyselect)
 
 #' Plot correlation matrix over missingness indicators
 #'
@@ -68,27 +69,32 @@ plot_missingness_vs_observed_correlations <- function(data, features, title) {
 
 doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
 
-  rf_perf %<>% gather("metric", "value", metric)
-  lr_perf %<>% gather("metric", "value", metric)
+  rf_perf %<>% gather("metric", "value", all_of(metric))
+  lr_perf %<>% gather("metric", "value", all_of(metric))
 
   by <- if (per_consequence) c("method", "metric", "consequence") else c("method", "metric")
   rf_med <- aggregate(rf_perf[["value"]], by = rf_perf[, by, drop = FALSE], FUN = median)
   lr_med <- aggregate(lr_perf[["value"]], by = lr_perf[, by, drop = FALSE], FUN = median)
 
   double_boxplots <- ggplot() +
-    geom_boxplot(data = lr_perf, color = "#A82026", aes(x=method, y=value, fill = "Logistic regression"), outlier.color = "#DB607A" ) +
-    geom_boxplot(data = rf_perf, aes(x = method, y = value, fill = "Random forest"), outlier.color = "#41444C" ) +
-    geom_point(data = lr_med, color = "#A82026", aes(x = method, y = x, fill = "Logistic regression"), shape = 18, size = 3) +
-    geom_point(data = rf_med, aes(x = method, y = x,  fill = "Random forest"), shape = 18, size = 3) +
+    geom_boxplot(data = lr_perf, aes(x=method, y=value, fill = "Logistic regression", color = "Logistic regression")) +
+    geom_boxplot(data = rf_perf, aes(x = method, y = value, fill = "Random forest", color = "Random forest")) +
+    geom_point(data = lr_med, aes(x = method, y = x, color = "Logistic regression"), shape = 18, size = 3) +
+    geom_point(data = rf_med, aes(x = method, y = x,  color = "Random forest"), shape = 18, size = 3) +
+    scale_y_continuous(breaks = scales::extended_breaks(n = 8)) +
     theme_bw() +
     xlab(label = NULL) +
     (if (length(metric) == 1) ylab(metric) else ylab("Value")) +
     coord_flip() +
     theme(legend.position = 'bottom', legend.direction = "vertical") +
     theme(text = element_text(size = 18)) +
-    scale_fill_manual("Classifier", values = c("#DB607A", "#41444C", "#11222A"))
+    scale_fill_manual("Classifier", values = c(`Logistic regression` = "#DB607A", `Random forest` = "#AAAAAA")) +
+    scale_color_manual("Classifier", aesthetics = c("color", "outlier.color"), values = c(`Logistic regression` = "#A82026", `Random forest` = "#555555"))
   if (per_consequence) {
     double_boxplots <- double_boxplots + facet_wrap(vars(consequence))
+    if (metric == "AUC") {
+        double_boxplots <- double_boxplots + scale_y_continuous(breaks = seq(0.65, 1.00, 0.05))
+    }
   }
   if (length(metric) > 1) {
     double_boxplots <- double_boxplots + coord_flip(ylim = c(0.25, 1.0), clip = "on") + facet_wrap(vars(metric), scales = "fixed")
