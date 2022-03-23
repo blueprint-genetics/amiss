@@ -104,6 +104,13 @@ ggsave(filename = here("output", "stats", "feature_to_outcome_correlation.pdf"),
        device = "pdf", width = 280, height = 140, units = "mm")
 miss_ind_to_outcome_correlations <- sapply(c(numeric_features, categorical_features), function(feature) cor(is.na(training_set[[feature]]), tr_outcome == "positive", use = "pairwise.complete.obs"))
 miss_ind_to_outcome_correlations <- data.frame(Feature = c(numeric_features, categorical_features), Correlation = miss_ind_to_outcome_correlations)
+ggsave(filename = here("output", "stats", "feature_missingness_to_outcome_correlation.pdf"),
+       ggplot(miss_ind_to_outcome_correlations) +
+         geom_col(aes(x=Feature, y = Correlation)) +
+         theme_bw() +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+               legend.text.align = 1),
+       device = "pdf", width = 280, height = 140, units = "mm")
 
 ## Categorical level occurence counts
 
