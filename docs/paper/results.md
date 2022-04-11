@@ -130,37 +130,37 @@ Running times were recorded in the main experiment for the best hyperparameter c
 ----------------------------------------------------------------------------
 Method                                    LR (elapsed (s))  RF (elapsed (s))
 ------------------------------------    ------------------ -----------------
-Zero                                    $0.007$             $0.007$
+Zero                                    $0.006$             $0.006$
 
-Minimum                                 $0.008$             $0.008$
+Maximum                                 $0.007$             $0.007$
 
-Maximum                                 $0.009$             $0.009$
+Minimum                                 $0.007$             $0.007$
 
 Mean                                    $0.009$             $0.009$
 
-Median                                  $0.013$             $0.013$
+Median                                  $0.011$             $0.011$
 
 Outlier                                 $0.014$             $0.014$
 
-Missingness indicator augmentation      $0.553$             $0.553$
+Missingness indicator augmentation      $0.478$             $0.478$
 
-MICE Bayes regression                   $5.475$             $5.475$
+MICE Bayes regression                   $5.379$             $5.379$
 
-MICE regression                         $6.033$             $6.033$
+MICE regression                         $5.839$             $5.839$
 
-k-NN                                    $12.386$            $12.211$
+k-NN                                    $12.792$            $12.948$
 
-BPCA                                    $14.461$            $19.15$
+BPCA                                    $14.884$            $19.511$
 
-MICE PMM                                $15.464$            $15.429$
+MICE PMM                                $15.427$            $14.921$
 
-MICE RF                                 $107.919$           $103.632$
+MICE RF                                 $107.036$           $104.278$
 
-MissForest                              $363.018$           $363.018$
+MissForest                              $362.352$           $362.352$
 
 ---------------------------------------------------------------------------
 
 Table: Running time for imputing the training set with the best hyperparameter configurations in the main experiment.\label{runtimes}
 
-MICE regression and MICE Bayes regression show similar running times and finish around 6 seconds, while k-NN, MICE PMM and BPCA take somewhat longer. MICE random forest and especially MissForest take much longer. Simple imputation methods are much faster than all other methods.
+MICE regression and MICE Bayes regression show similar running times and finish between 5 and 6 seconds, while k-NN, MICE PMM and BPCA take somewhat longer. MICE random forest and especially MissForest take much longer. Simple imputation methods are much faster than all other methods.
 

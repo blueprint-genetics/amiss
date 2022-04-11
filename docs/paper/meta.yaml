@@ -27,9 +27,9 @@ author:
 affiliation:
 - name: "Blueprint Genetics Ltd, Helsinki, Finland"
   id: 1
-- name: "University of Eastern Finland, Institute of Biomedicine, Kuopio, Finland"
+- name: "University of Eastern Finland, Department of Health Sciences, School of Medicine, Institute of Biomedicine, Kuopio, Finland"
   id: 2
-- name: "University of Turku, Department of Future Technologies, Turku, Finland"
+- name: "University of Turku, Faculty of Technology, Department of Computing, Turku, Finland"
   id: 3
 
 bibliography: references.bib

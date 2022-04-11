@@ -84,7 +84,7 @@ To use such data, one can adopt one of the following strategies.
 **Removal of incomplete observations**. Simple removal of incomplete observations is a valid approach when all data we wish to predict on can be assumed to be complete. This is not a viable alternative for variant pathogenicity prediction, since the predictor would be unable to predict on any variant whose feature vector contains any missing values. The number of such variants grows as more features with missing values are added, and as such would greatly restrict the available set of features.
 
 **Model-based approach**.
-There exist classification methods that can be trained and can predict directly on feature vectors with missing values. Such models may require explicit specification of the mechanism behind missing values. E.g. Marlin [@marlin] presented a variation on linear discriminant analysis (LDA) that can both be trained and predict on feature vectors with missing values. Random forest [@randomforests] offers a method for handling missing data by iteratively making use of the proximities of observations [@randomforestlink], but is only available for the training phase.
+There exist classification methods that can be trained and can predict directly on feature vectors with missing values. Such models may require explicit specification of the mechanism behind missing values. E.g. Marlin [@marlin] presented a variation on linear discriminant analysis (LDA) that can both be trained and predict on feature vectors with missing values. In the class of non-linear models, random forest [@randomforests] offers a method for handling missing data by iteratively making use of the proximities of observations [@randomforestlink], but is only available for the training phase.
 CART offers a missingness handling method [@cart] via so-called surrogate splits, but this method is not suitable for an ensemble of trees like random forest (see [@ishwaran2008]).
 The `randomForestSRC` R package [@rfsrc] implements a missingness handling strategy that is usable in both training and prediction phases [@ishwaran2008].
 
@@ -99,7 +99,7 @@ If aiming to perform statistical inference on the imputed data, one must careful
 
 Indeed, naïvely imputing data with a single imputation method is misleading as use of even highly accurate single imputation methods will cause underestimation of the standard errors in inference [@fimd, subchapter 2.6].
 The uncertainty can be properly incorporated via two main avenues: *likelihood-based approaches* and *multiple imputation* (see [@little-rubin]).
-Likelihood-based approaches account for missing values by integrating out the parameter representing the missingness generating process, and do not require explicit imputation of missing values [@little-rubin].
+Likelihood-based approaches estimate the parameter of an assumed probability distribution representing the missingness generating process, and do not require explicit imputation of missing values [@little-rubin].
 
 As opposed to single imputation, the main idea of multiple imputation for statistical inference is to impute the incomplete data multiple times with draws from predictive distributions, fit separate models on each imputed dataset, and *pool* the parameter estimates [@little-rubin].
 In classification, there are several ways to utilize the set of imputed datasets. The first is to obtain estimates of the variability of the classification performance due to the randomness from draws from a predictive distribution.
