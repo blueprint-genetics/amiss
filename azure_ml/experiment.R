@@ -123,7 +123,7 @@ S02_preprocess_data(
 ## Create parallel backend
 library(doParallel)
 no_cores <- detectCores()
-cl <- makeCluster(no_cores)
+cl <- makeCluster(no_cores, outfile="")
 #clusterExport(cl, c(""))
 registerDoParallel(cl)
 

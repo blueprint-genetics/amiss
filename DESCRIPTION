@@ -12,12 +12,11 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 Imports: 
     here,
     foreach,
     magrittr,
-    mice,
     doRNG,
     doParallel,
     caret,
@@ -29,8 +28,6 @@ Imports:
     vcfR,
     tidyr,
     iterators,
-    missForest,
-    DMwR,
     rngtools,
     lattice,
     itertools,
@@ -39,7 +36,6 @@ Imports:
     gridExtra,
     digest,
     testthat,
-    e1071,
-    pcaMethods,
     rjson,
-    xgboost
+    xgboost,
+    ranger

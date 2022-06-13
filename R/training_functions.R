@@ -82,7 +82,7 @@ select_from_tree <- function(tree, ix) {
 #' @return List containing data.frames containing selected hyperparameters
 select_hyperparams <- function(hyperparams, ix) {
   if (!all(names(ix) %in% names(hyperparams))) stop("Index names do not match hyperparameter names")
-
+  
   best_hyperparams <- purrr::map(enumerate(ix), . %>% with(hyperparams[[name]][value, , drop = FALSE]))
 
   return(best_hyperparams)
@@ -160,7 +160,7 @@ train_rf <- function(data, outcome, control, grid, tunelength) {
   rf_model <- tryCatch({
     caret::train(x = data,
                  y = outcome,
-                 method = "rf",
+                 method = "ranger",
                  preProcess = c("center", "scale"),
                  trControl = control,
                  tuneLength = tunelength,
@@ -199,7 +199,7 @@ train_xgboost <- function(data, outcome, control, grid, tunelength) {
     caret::train(x = data,
                  y = outcome,
                  method = "xgbTree",
-                 nthread = 2,
+                 nthread = 1,
                  tree_method = "hist",
                  preProcess = c("center", "scale"),
                  trControl = control,

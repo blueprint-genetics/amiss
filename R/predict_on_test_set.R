@@ -57,7 +57,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
   
   ### Imputation and prediction ###
   # Random Forest
-  if (rf_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
+  if (recursive_apply(rf_models, .%>%is.null, "train", FALSE) %>% unlist(recursive = TRUE) %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
     rf_hyperparams_path <- file.path(tr_output_path, FILE_RF_HP_CONFIGS_RDS)
@@ -80,7 +80,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     
   }
   # XGBoost
-  if (xg_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
+  if (recursive_apply(xg_models, is.null, "train", FALSE) %>% unlist(recursive = TRUE) %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
     xg_hyperparams_path <- file.path(tr_output_path, FILE_XGBOOST_HP_CONFIGS_RDS)
@@ -106,7 +106,7 @@ predict_on_test_set <- function(test_path, outcome_path, tr_output_path, results
     
   }
   # Logistic regression
-  if (lr_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
+  if (recursive_apply(lr_models, is.null, "train", FALSE) %>% unlist(recursive = TRUE) %>% all %>% `!`) {
     
     ## Multiply impute the test set using the best hyperparameter configurations from the training set
     lr_hyperparams_path <- file.path(tr_output_path, FILE_LR_HP_CONFIGS_RDS)

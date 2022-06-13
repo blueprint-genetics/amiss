@@ -60,7 +60,7 @@ MICE_ITERATIONS <- 10L
 
 SIMULATION_HP_SAMPLE_SIZE <- 8L
 
-RF_HYPERPARAMETER_GRID <- data.frame(mtry = 1:5 * 8 - 1)
+RF_HYPERPARAMETER_GRID <- data.frame(mtry = 1:5 * 8 - 1, splitrule="gini", min.node.size=10)
 XGBOOST_HYPERPARAMETER_GRID <- expand.grid(eta = (0:2) / 2,
                                            nrounds = (1:2) * 200,
                                            #n_estimators = (1:5) * 100,
