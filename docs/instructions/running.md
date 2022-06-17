@@ -1,17 +1,25 @@
+# Building the docker image
+
+In order to use the exact commit used for the run in the paper, checkout commit `fccc5454eb1dac78e7ca85963f05bd25b3cf0016`:
+
+```
+git checkout fccc5454eb1dac78e7ca85963f05bd25b3cf0016
+```
+
+To build the docker image, run the following command from the repository root folder:
+
+```
+docker build -t amiss:amiss .
+```
+
+This builds an image with the tag `amiss:amiss`.
+
 # Running the full experiment set with docker
 
-To obtain the prebuilt image, go to the Zenodo repository linked in the [README](../../README.md). You can load the image for use with a local docker installation using
+In order to run the full set of experiments, you can use the following:
 
 ```
-docker load -i amiss_run_2.tar.gz
-```
-
-The loaded image has the tag `amiss:run_2_no_cache`.
-
-In order to run the full set of experiments using the prebuilt image, you can use the following:
-
-```
-docker run --rm -e OPENBLAS_NUM_THREADS=1 -e AMISS_CORES=24 -v <full path to data on host system>:/amiss_data -v <full path to cloned repository on host system>/output:/amiss/output amiss:run_2_no_cache > std_out.txt &
+docker run --rm -e OPENBLAS_NUM_THREADS=1 -e AMISS_CORES=24 -v <full path to data on host system>:/amiss_data -v <full path to cloned repository on host system>/output:/amiss/output amiss:amiss > std_out.txt &
 ```
 
 The data must have been downloaded and annotated beforehand as described [here](annotation.md) and [here](cadd_data_download.md).
@@ -19,17 +27,7 @@ Make sure that the output folder (`<full path to cloned repository on host syste
 
 The two environment variables control how the code is parallelized. `OPENBLAS_NUM_THREADS` controls how many threads a single process can use to parallelize linear algebra operations. `AMISS_CORES` controls how many processes are forked to run in parallel. `OPENBLAS_NUM_THREAD` only affects the performance of linear algebra operations while `AMISS_CORES` affects most steps of the computation, so we prefer to set `OPENBLAS_NUM_THREADS` to 1 and control the parallelization with `AMISS_CORES`.
 
-Note that running the full experiment set may take a long time. 
-
-# Building the docker image
-
-To build the docker image yourself, run the following command from the repository root folder:
-
-```
-docker build -t amiss:amiss .
-```
-
-This builds an image with the tag `amiss:amiss`.
+Note that running the full experiment set may take a long time, and produce approx. 51 GB of output files.
 
 # Running individual scripts locally
 
@@ -38,7 +36,6 @@ You can also run individual scripts.
 When run in this way, the downloaded and annotated data is expected to be in a folder called `amiss_data` and present in the same directory as the repository root (i.e. not inside the repository root, but at the same level; the same directory should contain both `amiss_data` and `amiss` directories).
 
 ## Installing prerequisites
-
 
 To install the needed packages, you need to run `R/install_packages.R`. 
 
