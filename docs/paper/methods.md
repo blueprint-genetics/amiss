@@ -350,7 +350,7 @@ Operating system(s): Linux
 
 Programming language: R [@rproject]
 
-Other requirements: The software was run with R 3.6.0 with packages vcfR [@vcfR], futile.logger [@futile.logger], tidyr [@tidyr], here [@here], magrittr [@magrittr], ggcorrplot [@ggcorrplot], mice [@mice], foreach [@foreach], doParallel [@doParallel], ggplot2 [@ggplot2], iterators [@iterators], missForest [@missforestpkg; @missforest], DMwR [@DMwR], doRNG [@doRNG], rngtools [@rngtools], lattice [@lattice], itertools [@itertools], randomForest [@randomforestpkg], ModelMetrics [@ModelMetrics], stringr [@stringr], gridExtra [@gridExtra], digest [@digest], purrr [@purrr], caret [@caret;@caretpkg], testthat [@testthat] and e1071 [@e1071], and pcaMethods [@pcaMethods] via BioConductor[@bioconductor] BiocManager [@BiocManager].
+Other requirements: The software was run with R 3.6.0 with packages vcfR [@vcfR], futile.logger [@futile.logger], tidyr [@tidyr], here [@here], magrittr [@magrittr], ggcorrplot [@ggcorrplot], mice [@mice], foreach [@foreach], doParallel [@doParallel], ggplot2 [@ggplot2], iterators [@iterators], missForest [@missforestpkg; @missforest], DMwR [@DMwR], doRNG [@doRNG], rngtools [@rngtools], lattice [@lattice], itertools [@itertools], randomForest [@randomforestpkg], ModelMetrics [@ModelMetrics], stringr [@stringr], gridExtra [@gridExtra], digest [@digest], purrr [@purrr], caret [@caret;@caretpkg], testthat [@testthat] and e1071 [@e1071], and pcaMethods [@pcaMethods] via BioConductor [@bioconductor] BiocManager [@BiocManager].
 
 License: MIT
 
@@ -358,5 +358,5 @@ Any restrictions to use by non-academics: CADD annotations require commercial us
 
 ## Availability of supporting data and materials
 
-The data sets supporting the results of this article are available in the Zenodo repository, DOI [@amiss-zenodo-doi].
+The result files from experiments described in this article are available in the Zenodo repository, DOI 10.5281/zenodo.6656616 [@amiss_zenodo].
 
