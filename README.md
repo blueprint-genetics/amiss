@@ -1,21 +1,15 @@
 
-# Comparison of missing data handling methods in building variant pathogenicity metapredictors
+# Comparison of missing data handling methods for variant pathogenicity predictors
 
 ## Description
 
-This project will compare methods for handling missing data in variant annotations for the purpose of building variant pathogenicity metapredictors.
+This project compares methods for handling missing data in variant annotations for the purpose of building variant pathogenicity predictors.
 
-See [the research plan](docs/research_plan/research_plan.md) for a more detailed description. 
+See [the paper](docs/paper/paper.pdf) for a more detailed description. 
 
-To generate a PDF version with a working references section:
+## Results data
 
-```
-$ git clone https://github.com/blueprint-genetics/amiss.git
-$ cd amiss/docs/research_plan
-$ make
-```
-
-[Pandoc](https://pandoc.org/) and a [LaTeX distribution](https://www.latex-project.org/) must be installed.
+The result files are available in [Zenodo with DOI 10.5281/zenodo.6656616](https://doi.org/10.5281/zenodo.6656616).
 
 ## Open science
 
@@ -37,3 +31,8 @@ This project conforms to the principles of open science:
   - We welcome
     - [ideas, bug reports and comments](https://github.com/blueprint-genetics/amiss/issues)
     - [code contributions through GitHub pull requests](https://github.com/blueprint-genetics/amiss/pulls)
+
+## Disclaimer
+
+We license our code with the MIT license (see the [LICENSE](LICENSE) file), but note that the license of the entire system may depend on the licenses of individual libraries.
+
