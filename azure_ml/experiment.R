@@ -54,9 +54,6 @@ log_metric_to_run("nonzero_variance_check", nonzero_variance_check)
 correlation_check <- as.character(args$correlation_check)
 log_metric_to_run("correlation_check", correlation_check)
 
-correlation_check <- as.character(args$correlation_check)
-log_metric_to_run("correlation_check", correlation_check)
-
 hyperparameter_search_type <- as.character(args$hyperparameter_search_type)
 log_metric_to_run("hyperparameter_search_type", hyperparameter_search_type)
 
