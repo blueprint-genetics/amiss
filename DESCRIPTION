@@ -38,4 +38,5 @@ Imports:
     testthat,
     rjson,
     xgboost,
-    ranger
+    ranger,
+    e1071
