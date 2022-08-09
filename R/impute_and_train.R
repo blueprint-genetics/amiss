@@ -239,7 +239,7 @@ impute_and_train <- function(training_path,
 
   ### Training classifier ###
   flog.pid.info("PROGRESS Starting classifier training")
-  RF_HYPERPARAMETER_GRID$mtry <- mapply(FUN=min, RF_HYPERPARAMETER_GRID$mtry, NCOL(training_data))
+  RF_HYPERPARAMETER_GRID$mtry <- mapply(FUN=min, RF_HYPERPARAMETER_GRID$mtry, length(tr_colnames))
   RF_HYPERPARAMETER_GRID <- unique(RF_HYPERPARAMETER_GRID)
   flog.pid.info("DESIGN_CHOICE Hyperparameter grid for RF:")
   flog.pid.info(paste0("DESIGN_CHOICE ", capture.output(print(RF_HYPERPARAMETER_GRID))))
