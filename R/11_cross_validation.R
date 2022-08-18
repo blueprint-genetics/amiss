@@ -64,7 +64,7 @@ cv_loop <- function(parameters, fold_paths, output_path, i) {
   flog.pid.info("PROGRESS Obtaining results for XGBoost from delimited file %s", xg_results_path)
   xg_results <- get_result_frame(xg_results_path, i)
 
-  xg_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results_per_conseq", FILE_XGBOOST_PERFORMANCE_CSV)
+  xg_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results", FILE_XGBOOST_PERFORMANCE_PER_CONSEQUENCE_CSV)
   flog.pid.info("PROGRESS Obtaining results per consequence for XGBoost from delimited file %s", xg_results_per_conseq_path)
   xg_results_per_conseq <- get_result_frame(xg_results_per_conseq_path, i)
 
@@ -72,7 +72,7 @@ cv_loop <- function(parameters, fold_paths, output_path, i) {
   flog.pid.info("PROGRESS Obtaining results for LR from delimited file %s", lr_results_path)
   lr_results <- get_result_frame(lr_results_path, i)
 
-  lr_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results_per_conseq", FILE_LR_PERFORMANCE_CSV)
+  lr_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results", FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
   flog.pid.info("PROGRESS Obtaining results per consequence for LR from delimited file %s", lr_results_per_conseq_path)
   lr_results_per_conseq <- get_result_frame(lr_results_per_conseq_path, i)
 
