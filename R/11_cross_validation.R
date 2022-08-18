@@ -1,3 +1,14 @@
+get_result_frame <- function(path, fold_i) {
+  results <- tryCatch({
+    results <- read.csv(path)
+  }, error = function(e) {
+    results <- data.frame(t(rep(NA, 17)))
+    colnames(results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
+    return(results)
+  })
+  results$fold <- fold_i
+
+}
 #' Cross-validation body
 #'
 #' This function performs training and testing with a given parameter combination,
@@ -43,37 +54,36 @@ cv_loop <- function(parameters, fold_paths, output_path, i) {
   # Obtain and combine results
   rf_results_path <- file.path(fold_paths[["dir_path"]], "results", FILE_RF_PERFORMANCE_CSV)
   flog.pid.info("PROGRESS Obtaining results for RF from delimited file %s", rf_results_path)
-  rf_results <- tryCatch({
-    rf_results <- read.csv(rf_results_path)
-  }, error = function(e) {
-    rf_results <- data.frame(t(rep(NA, 17)))
-    colnames(rf_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
-    return(rf_results)
-  })
-  rf_results$fold <- i
+  rf_results <- get_result_frame(rf_results_path, i)
+
+  rf_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results", FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV)
+  flog.pid.info("PROGRESS Obtaining per-consequence results for RF from delimited file %s", rf_results_per_conseq_path)
+  rf_results_per_conseq <- get_result_frame(rf_results_per_conseq_path, fold_i)
+
   xg_results_path <- file.path(fold_paths[["dir_path"]], "results", FILE_XGBOOST_PERFORMANCE_CSV)
   flog.pid.info("PROGRESS Obtaining results for XGBoost from delimited file %s", xg_results_path)
-  xg_results <- tryCatch({
-    xg_results <- read.csv(xg_results_path)
-  }, error = function(e) {
-    xg_results <- data.frame(t(rep(NA, 17)))
-    colnames(xg_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
-    return(xg_results)
-  })
-  xg_results$fold <- i
+  xg_results <- get_result_frame(xg_results_path, i)
+
+  xg_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results_per_conseq", FILE_XGBOOST_PERFORMANCE_CSV)
+  flog.pid.info("PROGRESS Obtaining results per consequence for XGBoost from delimited file %s", xg_results_per_conseq_path)
+  xg_results_per_conseq <- get_result_frame(xg_results_per_conseq_path, i)
+
   lr_results_path <- file.path(fold_paths[["dir_path"]], "results", FILE_LR_PERFORMANCE_CSV)
   flog.pid.info("PROGRESS Obtaining results for LR from delimited file %s", lr_results_path)
-  lr_results <- tryCatch({
-    lr_results <- read.csv(lr_results_path)
-  }, error = function(e) {
-    lr_results <- data.frame(t(rep(NA, 17)))
-    colnames(lr_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
-    return(lr_results)
-  })
-  lr_results$fold <- i
+  lr_results <- get_result_frame(lr_results_path, i)
+
+  lr_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results_per_conseq", FILE_LR_PERFORMANCE_CSV)
+  flog.pid.info("PROGRESS Obtaining results per consequence for LR from delimited file %s", lr_results_per_conseq_path)
+  lr_results_per_conseq <- get_result_frame(lr_results_per_conseq_path, i)
 
   flog.pid.info("PROGRESS Finishing fold %d", i)
-  return(list(rf_results, xg_results, lr_results))
+  return(list(rf_results = rf_results,
+              xg_results = xg_results,
+              lr_results = lr_results,
+              rf_results_per_conseq = rf_results_per_conseq,
+              xg_results_per_conseq = xg_results_per_conseq,
+              lr_results_per_conseq = lr_results_per_conseq)
+         )
 }
 
 prep_cv <- function(preprocessed_data_path,
@@ -81,7 +91,7 @@ prep_cv <- function(preprocessed_data_path,
                     parameters_path,
                     n_folds,
                     seed) {
-  
+
   # Setup paths
   training_data_path <- file.path(preprocessed_data_path, FILE_PREPROCESSED_TRAINING_DATA_CSV) %>% normalizePath
   flog.pid.info("INPUT Reading preprocessed data from delimited file at %s", training_data_path)
@@ -113,7 +123,7 @@ prep_cv <- function(preprocessed_data_path,
     dir_path <- file.path(output_path, paste0("fold_", i)) %>% normalizePath(mustWork = FALSE)
     create_dir(dir_path)
     flog.pid.info("OUTPUT Output root folder for fold %d set to %s", i, dir_path)
-  
+
     tr_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_DATA, "_", i, ".csv"))
     flog.pid.info("INPUT Writing training data for fold %d into delimited file %s", i, tr_data_path)
     tr_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_OUTCOMES, "_", i, ".csv"))
@@ -122,15 +132,15 @@ prep_cv <- function(preprocessed_data_path,
     flog.pid.info("INPUT Writing test data for fold %d into delimited file %s", i, te_data_path)
     te_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_OUTCOMES, "_", i, ".csv"))
     flog.pid.info("INPUT Writing test outcomes for fold %d into delimited file %s", i, te_outcome_path)
-  
+
     # Write out data for fold
     write.csv(fold_tr_datas[[i]], tr_data_path)
     write.csv(fold_tr_outcomes[[i]], tr_outcome_path)
     write.csv(fold_te_datas[[i]], te_data_path)
     write.csv(fold_te_outcomes[[i]], te_outcome_path)
-    
+
     return(
-      list( 
+      list(
         dir_path = dir_path,
         tr_data_path = tr_data_path,
         tr_outcome_path = tr_outcome_path,
@@ -141,9 +151,9 @@ prep_cv <- function(preprocessed_data_path,
   }
 
   return(paths)
-  
+
 }
-  
+
 
 #' Step 11: Cross-validation
 #'
@@ -237,16 +247,26 @@ S11_cross_validation <- function(preprocessed_data_path,
 
   ### Gathering results ###
   flog.pid.info("PROGRESS Gathering results from cross-validation")
-  rf_results <- lapply(results_triplet, function(x) x[[1]])
-  xg_results <- lapply(results_triplet, function(x) x[[2]])
-  lr_results <- lapply(results_triplet, function(x) x[[3]])
+  rf_results <- lapply(results_triplet, function(x) x[["rf_results"]])
+  xg_results <- lapply(results_triplet, function(x) x[["xg_results"]])
+  lr_results <- lapply(results_triplet, function(x) x[["lr_results"]])
   rf_results <- do.call(rbind, rf_results)
   xg_results <- do.call(rbind, xg_results)
   lr_results <- do.call(rbind, lr_results)
-
   rf_results <- rename_methods(rf_results)
   xg_results <- rename_methods(xg_results)
   lr_results <- rename_methods(lr_results)
+
+  flog.pid.info("PROGRESS Gathering results from cross-validation")
+  rf_results_per_conseq <- lapply(results_per_conseq_triplet, function(x) x[["rf_results_per_conseq"]])
+  xg_results_per_conseq <- lapply(results_per_conseq_triplet, function(x) x[["xg_results_per_conseq"]])
+  lr_results_per_conseq <- lapply(results_per_conseq_triplet, function(x) x[["lr_results_per_conseq"]])
+  rf_results_per_conseq <- do.call(rbind, rf_results_per_conseq)
+  xg_results_per_conseq <- do.call(rbind, xg_results_per_conseq)
+  lr_results_per_conseq <- do.call(rbind, lr_results_per_conseq)
+  rf_results_per_conseq <- rename_methods(rf_results_per_conseq)
+  xg_results_per_conseq <- rename_methods(xg_results_per_conseq)
+  lr_results_per_conseq <- rename_methods(lr_results_per_conseq)
 
   ### Writing output ###
   rf_output_path <- file.path(output_path, FILE_RF_CROSSVALIDATION_RESULTS_CSV)
@@ -260,6 +280,18 @@ S11_cross_validation <- function(preprocessed_data_path,
   lr_output_path <- file.path(output_path, FILE_LR_CROSSVALIDATION_RESULTS_CSV)
   flog.pid.info("OUTPUT Writing results from cross-validation for LR into delimited file at %s", lr_output_path)
   write.csv(lr_results, lr_output_path)
+
+  rf_output_per_conseq_path <- file.path(output_path, FILE_RF_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV)
+  flog.pid.info("OUTPUT Writing results per consequence from cross-validation for RF into delimited file at %s", rf_output_per_conseq_path)
+  write.csv(rf_results_per_conseq, rf_output_per_conseq_path)
+
+  xg_output_per_conseq_path <- file.path(output_path, FILE_XGBOOST_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV)
+  flog.pid.info("OUTPUT Writing results per consequence from cross-validation for XGBoost into delimited file at %s", xg_output_per_conseq_path)
+  write.csv(xg_results_per_conseq, xg_output_per_conseq_path)
+
+  lr_output_per_conseq_path <- file.path(output_path, FILE_LR_CROSSVALIDATION_RESULTS_PER_CONSEQUENCE_CSV)
+  flog.pid.info("OUTPUT Writing results per consequence from cross-validation for LR into delimited file at %s", lr_output_per_conseq_path)
+  write.csv(lr_results_per_conseq, lr_output_per_conseq_path)
 
   flog.pid.info("DONE 11_cross_validation.R")
 }
