@@ -8,6 +8,7 @@ get_result_frame <- function(path, fold_i) {
   })
   results$fold <- fold_i
 
+  return(results)
 }
 #' Cross-validation body
 #'
@@ -258,9 +259,9 @@ S11_cross_validation <- function(preprocessed_data_path,
   lr_results <- rename_methods(lr_results)
 
   flog.pid.info("PROGRESS Gathering results from cross-validation")
-  rf_results_per_conseq <- lapply(results_per_conseq_triplet, function(x) x[["rf_results_per_conseq"]])
-  xg_results_per_conseq <- lapply(results_per_conseq_triplet, function(x) x[["xg_results_per_conseq"]])
-  lr_results_per_conseq <- lapply(results_per_conseq_triplet, function(x) x[["lr_results_per_conseq"]])
+  rf_results_per_conseq <- lapply(results_triplet, function(x) x[["rf_results_per_conseq"]])
+  xg_results_per_conseq <- lapply(results_triplet, function(x) x[["xg_results_per_conseq"]])
+  lr_results_per_conseq <- lapply(results_triplet, function(x) x[["lr_results_per_conseq"]])
   rf_results_per_conseq <- do.call(rbind, rf_results_per_conseq)
   xg_results_per_conseq <- do.call(rbind, xg_results_per_conseq)
   lr_results_per_conseq <- do.call(rbind, lr_results_per_conseq)
