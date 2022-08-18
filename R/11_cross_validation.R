@@ -58,7 +58,7 @@ cv_loop <- function(parameters, fold_paths, output_path, i) {
 
   rf_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results", FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV)
   flog.pid.info("PROGRESS Obtaining per-consequence results for RF from delimited file %s", rf_results_per_conseq_path)
-  rf_results_per_conseq <- get_result_frame(rf_results_per_conseq_path, fold_i)
+  rf_results_per_conseq <- get_result_frame(rf_results_per_conseq_path, i)
 
   xg_results_path <- file.path(fold_paths[["dir_path"]], "results", FILE_XGBOOST_PERFORMANCE_CSV)
   flog.pid.info("PROGRESS Obtaining results for XGBoost from delimited file %s", xg_results_path)
