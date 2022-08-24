@@ -1,9 +1,11 @@
 library(azuremlsdk)
 library(optparse)
 library(here)
+library(digest)
 library(amiss)
 
 ## Parameters --------------------------------------------------------------
+start_time <- as.numeric(Sys.time())
 
 option_list <-
   list(
@@ -54,6 +56,9 @@ log_metric_to_run("nonzero_variance_check", nonzero_variance_check)
 correlation_check <- as.character(args$correlation_check)
 log_metric_to_run("correlation_check", correlation_check)
 
+correlation_check <- as.character(args$correlation_check)
+log_metric_to_run("correlation_check", correlation_check)
+
 hyperparameter_search_type <- as.character(args$hyperparameter_search_type)
 log_metric_to_run("hyperparameter_search_type", hyperparameter_search_type)
 
@@ -92,23 +97,46 @@ parameter_json = paste0('{',
                         '}')
 print(parameter_json)
 
-session_params_path = "session_parameters.json"
-param_file <- file(session_params_path)
-writeLines(parameter_json, param_file)
-close(param_file)
-
 ## Step 2 - Preprocess Data
 print("### RUNNING STEP 2 - Preprocess Data\n")
 
 gc()
-output_path_name <- amiss::generate_parameter_dependent_name(
-    list(
-      transcript = transcript,
-      quality = quality,
-      restriction = restriction
-    )
+parameter_list <- list(
+  transcript = transcript,
+  quality = quality,
+  restriction = restriction,
+  vus_inclusion = vus_inclusion,
+  categorical = categorical,
+  imputation = imputation,
+  nonzero_variance_check = nonzero_variance_check,
+  correlation_check = correlation_check,
+  hyperparameter_search_type = hyperparameter_search_type,
+  training_data_sampling = training_data_sampling,
+  feature_sampling = feature_sampling,
+  training_data_sampling_percentage = training_data_sampling_percentage,
+  feature_sampling_percentage = feature_sampling_percentage,
+  downsampling = downsampling
 )
-parsed_data_path <- here("data", output_path_name) 
+parsed_path_name <- amiss::generate_parameter_dependent_name(
+  list(
+    transcript = transcript,
+    quality = quality,
+    restriction = restriction
+  )
+)
+output_path_name <- amiss::generate_parameter_dependent_name(
+    parameter_list, subset = names(parameter_list)
+)
+# Name gets too long so need to hash it
+output_path_name <- digest2int(output_path_name)
+dir.create(here("outputs", output_path_name))
+
+session_params_path = here("outputs", output_path_name, "session_parameters.json")
+param_file <- file(session_params_path)
+writeLines(parameter_json, param_file)
+close(param_file)
+
+parsed_data_path <- here("data", parsed_path_name)
 preprocessed_data_path <- here("outputs", "intermediate_files", output_path_name)
 dir.create(preprocessed_data_path, recursive=TRUE)
 S02_preprocess_data(
@@ -146,3 +174,8 @@ mcc_xg <- mean(read.csv(file.path(cv_output_path, "cv_xg_results.csv"), header =
 mcc <- max(mcc_lr, mcc_rf, mcc_xg, na.rm = TRUE)
 log_metric_to_run("mcc", mcc)
 
+stop_time <- as.numeric(Sys.time())
+times <- data.frame(start = start_time, stop = stop_time)
+write.csv(times, file = here("outputs", output_path_name, "times.csv"), row.names = FALSE)
+
+stopCluster(cl)
