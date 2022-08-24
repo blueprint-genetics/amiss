@@ -30,7 +30,6 @@
 #' @param seed Seed value
 #'
 #' @importFrom magrittr %>%
-#' @importFrom foreach %do%
 impute_and_train <- function(training_path,
                              outcome_path,
                              output_path,

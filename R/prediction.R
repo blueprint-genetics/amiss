@@ -9,18 +9,17 @@
 #'
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
-#' @importFrom doRNG %dorng%
 
 prediction <- function(models, completions, positive_label = POSITIVE_LABEL, seed = 1) {
-  
+
   predictions <- lapply(names(models), function(method) {
-  
+
     pred_per_model <- lapply(models[[method]], function(model) {
 
       if (is.null(completions[[method]]) || length(completions[[method]]) < 1) {
         return(list(NA))
       }
-      pred_per_completion <- foreach::foreach(completed_dataset = completions[[method]], .options.RNG = seed) %dorng% {
+      pred_per_completion <- foreach::foreach(completed_dataset = completions[[method]]) %do% {
         if (!is.null(completed_dataset)) {
           tryCatch({
             tr_cats <- model$trainingData %>% sapply(levels) %>% Filter(f = Negate(is.null))

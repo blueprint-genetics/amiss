@@ -13,7 +13,6 @@
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
 #' @importFrom foreach %dopar%
-#' @importFrom doRNG %dorng%
 
 single_value_univariate_imputation <- function(f) {
   force(f)
@@ -118,7 +117,7 @@ impute_with_hyperparameters <- function(data, impute_function, method_name, hype
     imputations <- list(imp_hp_1 = impute_function(data, list(), times, ...))
   }
   else {
-    imputations <- foreach::foreach(hp_row = 1:nrow(hyperparameters), .options.RNG = seed) %dorng% {
+    imputations <- foreach::foreach(hp_row = 1:nrow(hyperparameters)) %do% {
       flog.pid.info("Imputing with %s, parameters %s", method_name, paste0(names(hyperparameters), ": ", hyperparameters[hp_row, ], collapse = ", "))
       impute_function(data, unlist(hyperparameters[hp_row,]), times, ...)
     } %>% magrittr::set_names(paste0("imp_hp_", 1:nrow(hyperparameters)))
@@ -142,7 +141,7 @@ impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
 
 impute_w_hps <- function(data, hp_tree, times, iters, seed){
 
-  imputations <- foreach::foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
+  imputations <- foreach::foreach(hps = enumerate(hp_tree)) %do% {
     # The imputation parameters estimated from the training set should be used
     # where possible.
     estimates <- attr(hps$value, IMPUTATION_REUSE_PARAMETERS)
