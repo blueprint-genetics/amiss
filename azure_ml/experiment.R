@@ -125,7 +125,7 @@ parsed_path_name <- amiss::generate_parameter_dependent_name(
   )
 )
 output_path_name <- amiss::generate_parameter_dependent_name(
-    parameter_list, subset = names(parameter_list)
+  parameter_list, subset = names(parameter_list)
 )
 # Name gets too long so need to hash it
 output_path_name <- digest2int(output_path_name)
@@ -137,7 +137,7 @@ writeLines(parameter_json, param_file)
 close(param_file)
 
 parsed_data_path <- here("data", parsed_path_name)
-preprocessed_data_path <- here("outputs", "intermediate_files", output_path_name)
+preprocessed_data_path <- here("intermediate_files", output_path_name)
 dir.create(preprocessed_data_path, recursive=TRUE)
 S02_preprocess_data(
   parsed_data_path = parsed_data_path,
@@ -157,7 +157,7 @@ print("### RUNNING STEP 11 - Cross-Validation\n")
 
 gc()
 
-cv_output_path <- here("outputs", output_path_name, "cv")
+cv_output_path <- here("intermediate_files", output_path_name, "cv")
 dir.create(cv_output_path, recursive=TRUE)
 S11_cross_validation(
   preprocessed_data_path = preprocessed_data_path,
@@ -177,5 +177,13 @@ log_metric_to_run("mcc", mcc)
 stop_time <- as.numeric(Sys.time())
 times <- data.frame(start = start_time, stop = stop_time)
 write.csv(times, file = here("outputs", output_path_name, "times.csv"), row.names = FALSE)
+
+# Copy CV results to output folder
+file.copy(from = paste0(cv_output_path, "/cv_lr_pc_results.csv"), here("outputs", output_path_name, "cv_lr_pc_results.csv"))
+file.copy(from = paste0(cv_output_path, "/cv_rf_pc_results.csv"), here("outputs", output_path_name, "cv_rf_pc_results.csv"))
+file.copy(from = paste0(cv_output_path, "/cv_xg_pc_results.csv"), here("outputs", output_path_name, "cv_xg_pc_results.csv"))
+file.copy(from = paste0(cv_output_path, "/cv_lr_results.csv"), here("outputs", output_path_name, "cv_lr_results.csv"))
+file.copy(from = paste0(cv_output_path, "/cv_rf_results.csv"), here("outputs", output_path_name, "cv_rf_results.csv"))
+file.copy(from = paste0(cv_output_path, "/cv_xg_results.csv"), here("outputs", output_path_name, "cv_xg_results.csv"))
 
 stopCluster(cl)

@@ -1,9 +1,14 @@
-get_result_frame <- function(path, fold_i) {
+get_result_frame <- function(path, fold_i, pc) {
   results <- tryCatch({
     results <- read.csv(path)
   }, error = function(e) {
+
     results <- data.frame(t(rep(NA, 17)))
     colnames(results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
+    if(pc) {
+      results <- cbind(results, data.frame(consequence = NA_character_))
+    }
+
     return(results)
   })
   results$fold <- fold_i
@@ -55,27 +60,27 @@ cv_loop <- function(parameters, fold_paths, output_path, i) {
   # Obtain and combine results
   rf_results_path <- file.path(fold_paths[["dir_path"]], "results", FILE_RF_PERFORMANCE_CSV)
   flog.pid.info("PROGRESS Obtaining results for RF from delimited file %s", rf_results_path)
-  rf_results <- get_result_frame(rf_results_path, i)
+  rf_results <- get_result_frame(rf_results_path, i, FALSE)
 
   rf_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results", FILE_RF_PERFORMANCE_PER_CONSEQUENCE_CSV)
   flog.pid.info("PROGRESS Obtaining per-consequence results for RF from delimited file %s", rf_results_per_conseq_path)
-  rf_results_per_conseq <- get_result_frame(rf_results_per_conseq_path, i)
+  rf_results_per_conseq <- get_result_frame(rf_results_per_conseq_path, i, TRUE)
 
   xg_results_path <- file.path(fold_paths[["dir_path"]], "results", FILE_XGBOOST_PERFORMANCE_CSV)
   flog.pid.info("PROGRESS Obtaining results for XGBoost from delimited file %s", xg_results_path)
-  xg_results <- get_result_frame(xg_results_path, i)
+  xg_results <- get_result_frame(xg_results_path, i, FALSE)
 
   xg_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results", FILE_XGBOOST_PERFORMANCE_PER_CONSEQUENCE_CSV)
   flog.pid.info("PROGRESS Obtaining results per consequence for XGBoost from delimited file %s", xg_results_per_conseq_path)
-  xg_results_per_conseq <- get_result_frame(xg_results_per_conseq_path, i)
+  xg_results_per_conseq <- get_result_frame(xg_results_per_conseq_path, i, TRUE)
 
   lr_results_path <- file.path(fold_paths[["dir_path"]], "results", FILE_LR_PERFORMANCE_CSV)
   flog.pid.info("PROGRESS Obtaining results for LR from delimited file %s", lr_results_path)
-  lr_results <- get_result_frame(lr_results_path, i)
+  lr_results <- get_result_frame(lr_results_path, i, FALSE)
 
   lr_results_per_conseq_path <- file.path(fold_paths[["dir_path"]], "results", FILE_LR_PERFORMANCE_PER_CONSEQUENCE_CSV)
   flog.pid.info("PROGRESS Obtaining results per consequence for LR from delimited file %s", lr_results_per_conseq_path)
-  lr_results_per_conseq <- get_result_frame(lr_results_per_conseq_path, i)
+  lr_results_per_conseq <- get_result_frame(lr_results_per_conseq_path, i, TRUE)
 
   flog.pid.info("PROGRESS Finishing fold %d", i)
   return(list(rf_results = rf_results,
