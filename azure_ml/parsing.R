@@ -60,7 +60,8 @@ S01_parse_vcf(
   parameters = list(quality = quality,
                     restriction = restriction,
                     transcript = transcript),
-  output_root_dir = here("outputs")
+  output_root_dir = here("data")
 )
 
 log_metric_to_run("dummy", 1)
+
