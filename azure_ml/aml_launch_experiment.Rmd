@@ -28,7 +28,7 @@ parsed_data <- dataset_consumption_config(
 ## Create the estimator
 est <- estimator(source_directory = '.',
                  entry_script = 'experiment.R',
-                 script_params = list("--n_folds" = 10), 
+                 script_params = list("--n_folds" = 5), 
                  compute_target = compute_target,
                  environment = env,
                  inputs = list(parsed_data)
