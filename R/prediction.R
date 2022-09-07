@@ -32,8 +32,8 @@ prediction <- function(models, completions, positive_label = POSITIVE_LABEL, see
                 if (length(tr_levels) > length(te_levels)) {
                   levels(completed_dataset[, cat]) <- c(te_levels, setdiff(tr_levels, te_levels))
                 } else if (length(tr_levels) < length(te_levels)) {
+                  levels(completed_dataset[, cat]) <- c(levels(completed_dataset[, cat]), "MISSING")
                   completed_dataset[completed_dataset[,cat] %in% setdiff(te_levels, tr_levels), cat] <- "MISSING"
-                  completed_dataset[, cat] <- factor(completed_dataset[, cat])
                 }
               }
             }
