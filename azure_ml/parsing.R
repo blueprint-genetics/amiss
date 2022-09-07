@@ -53,6 +53,7 @@ if (!file.exists(cadd_indel_filename))
 
 ## Step 1 - Parse VCF
 print("### RUNNING STEP 1 - Parse VCF\n")
+writeLines("-", con = here("outputs", "data", "fail_fast.txt"))
 S01_parse_vcf(
   vcf_filename,
   cadd_snv_filename,
@@ -60,8 +61,9 @@ S01_parse_vcf(
   parameters = list(quality = quality,
                     restriction = restriction,
                     transcript = transcript),
-  output_root_dir = here("data")
+  output_root_dir = here("outputs", "data")
 )
 
 log_metric_to_run("dummy", 1)
+
 

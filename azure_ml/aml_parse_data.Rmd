@@ -77,12 +77,12 @@ child_run_ids <- get_child_runs_sorted_by_primary_metric(run) %>% sapply(. %>% e
 for (child_run_id in child_run_ids){
 
   child_run_iter <- get_run(exp, run_id = child_run_id)
-  download_files_from_run(child_run_iter, "data/", output_directory = "../")
+  download_files_from_run(child_run_iter, "outputs/data/", output_directory = "../")
 
 }
 
 # TODO: I don't know how that csv gets involved, get rid of it and this check
-output_files <- Filter(Negate(function(x) (grepl(".log$", x) | grepl(".csv$", x))), list.files("../data/", full.names = TRUE))
+output_files <- Filter(Negate(function(x) (grepl(".log$", x) | grepl(".csv$", x))), list.files("../outputs/data/", full.names = TRUE))
 output_files %<>% lapply(. %>% file.path("merged_data.csv"))
 
 datastore <- get_default_datastore(ws)
@@ -99,5 +99,6 @@ upload_files_to_datastore(
 parsed_dataset <- create_file_dataset_from_files(data_path(datastore, "parsed_data"), validate = TRUE)
 registered_parsed_dataset <- register_dataset(ws, parsed_dataset, "parsed_data")
 ```
+
 
 
