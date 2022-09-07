@@ -1,6 +1,5 @@
 get_config <- function (filename) {
-  config <- readLines(filename)
-  return(rjson::fromJSON(config))
+  return(rjson::fromJSON(file = filename))
 }
 
 generate_parameter_combination <- function(parameter_grid) {
