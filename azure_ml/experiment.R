@@ -20,9 +20,7 @@ option_list <-
     make_option("--nonzero_variance_check", action = "store"),
     make_option("--correlation_check", action = "store"),
     make_option("--hyperparameter_search_type", action = "store"),
-    make_option("--training_data_sampling", action = "store"),
     make_option("--training_data_sampling_percentage", action = "store"),
-    make_option("--feature_sampling", action = "store"),
     make_option("--feature_sampling_percentage", action = "store")
   )
 args <- parse_args(OptionParser(option_list = option_list))
