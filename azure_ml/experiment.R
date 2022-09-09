@@ -60,12 +60,6 @@ log_metric_to_run("correlation_check", correlation_check)
 hyperparameter_search_type <- as.character(args$hyperparameter_search_type)
 log_metric_to_run("hyperparameter_search_type", hyperparameter_search_type)
 
-training_data_sampling <- as.character(args$training_data_sampling)
-log_metric_to_run("training_data_sampling", training_data_sampling)
-
-feature_sampling <- as.character(args$feature_sampling)
-log_metric_to_run("feature_sampling", feature_sampling)
-
 training_data_sampling_percentage <- as.numeric(args$training_data_sampling_percentage)
 log_metric_to_run("training_data_sampling_percentage", training_data_sampling_percentage)
 
@@ -87,8 +81,6 @@ parameter_json = paste0('{',
                         '"nonzero_variance_check": "', nonzero_variance_check, '", ',
                         '"correlation_check": "', correlation_check, '", ',
                         '"hyperparameter_search_type": "', hyperparameter_search_type, '", ',
-                        '"training_data_sampling": "', training_data_sampling, '", ',
-                        '"feature_sampling": "', feature_sampling, '", ',
                         '"training_data_sampling_percentage": ', training_data_sampling_percentage, ', ',
                         '"feature_sampling_percentage": ', feature_sampling_percentage, ', ',
                         '"downsampling": "', downsampling, '"',
@@ -109,8 +101,6 @@ parameter_list <- list(
   nonzero_variance_check = nonzero_variance_check,
   correlation_check = correlation_check,
   hyperparameter_search_type = hyperparameter_search_type,
-  training_data_sampling = training_data_sampling,
-  feature_sampling = feature_sampling,
   training_data_sampling_percentage = training_data_sampling_percentage,
   feature_sampling_percentage = feature_sampling_percentage,
   downsampling = downsampling
