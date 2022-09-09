@@ -37,7 +37,7 @@ est <- estimator(source_directory = '.',
 source("../R/parameters.R")
 param_sampling <- rjson::fromJSON(readLines("../parameter_grid.json"))
 param_sampling <- lapply(param_sampling, function(x) choice(x))
-param_sampling <- random_parameter_sampling(param_sampling)
+param_sampling <- random_parameter_sampling(param_sampling, properties=list(seed=11L))
 
 goal = primary_metric_goal("MAXIMIZE")
 hyperdrive_run_config = hyperdrive_config(hyperparameter_sampling = param_sampling,
