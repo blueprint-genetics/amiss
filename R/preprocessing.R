@@ -88,6 +88,11 @@ dummify_categoricals <- function(data) {
   return(data)
 }
 
+#' From ID strings for variants
+#'
+#' @param data Variant data
+#'
+#' @return A vector containing ID strings generated from corresponding variants input
 form_variant_ids <- function(data) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
@@ -104,6 +109,12 @@ form_variant_ids <- function(data) {
 
 }
 
+#' Impute with specific values that can be considered appropriate for the feature a-priori
+#'
+#' @param data data.frame with columns corresponding to names in default_imputations
+#' @param default_imputations A list mapping column names to a value with which the column should be imputed
+#'
+#' @return Same as `data` but with specified columns imputed by specified values
 a_priori_impute <- function(data, default_imputations) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
@@ -122,6 +133,11 @@ a_priori_impute <- function(data, default_imputations) {
 
 }
 
+#' Same as base `table` but with margin sums added
+#'
+#' @param ... Arguments to pass to `table`
+#'
+#' @return Output of `table` with margin sums added
 table_with_margin <- function(...) {
   tabl <- table(...)
   tabl %<>% cbind(ALL_ = rowSums(tabl))
@@ -129,26 +145,20 @@ table_with_margin <- function(...) {
   return(tabl)
 }
 
-detect_imbalanced_consequence_classes <- function(consequence, outcome, freq) {
-
-  if (!is.vector(consequence)) stop("`consequence` must be a vector")
-  if (!is.character(consequence)) stop("`outcome` must be a character vector")
-  if (!is.vector(outcome)) stop("`outcome` must be a vector")
-  if (!is.character(outcome)) stop("`outcome` must be a character vector")
-  if (length(freq) != 1) stop("`freq` must have length 1")
-  if (!is.numeric(freq)) stop("`freq` must be numeric")
-  stopifnot(freq < 1.0)
-  stopifnot(freq > 0.0)
-
-  class_distribution <- table_with_margin(consequence, outcome, useNA = "always") %>% as.data.frame
-  prop_pathg <- class_distribution[,"positive"]/(class_distribution[,"negative"] + class_distribution[,"positive"])
-  unbalanced_conseqs <- class_distribution[(prop_pathg < freq | prop_pathg > 1 - freq) & !is.na(prop_pathg), ]
-
-  return(unbalanced_conseqs)
-
-}
-
-select_features <- function(data, numeric_features, categorical_features) {
+#' Select features from data where categorical features have been dummy-coded
+#'
+#' This function keeps all numeric features listed in `numeric_features` as well as
+#' features whose names have been derived from those listed in `categorical_features`
+#' by use of `dummify_categoricals`. All other columns are dropped.
+#'
+#' @param data A data.frame with features listed in the latter arguments, as well as
+#' those generated via `dummify_categoricals` from those listed in `categorical_features`.
+#' @param numeric_features Character vector of numeric features to keep
+#' @param categorical_features Character vector of categorical features from which dummy
+#' features have been generated
+#'
+#' @return A data.frame derived from `data` with columns as described above
+select_features_after_dummy_coding <- function(data, numeric_features, categorical_features) {
 
   if (!is.vector(numeric_features)) stop("`numeric_features` must be a vector")
   if (!is.character(numeric_features)) stop("`numeric_features` must be a character vector")

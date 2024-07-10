@@ -28,24 +28,6 @@ flog.pid.debug <- function(msg, ...) {
   futile.logger::flog.debug(paste0("pid=", Sys.getpid(), " ", msg), ...)
 }
 
-form_run_time_df <- function(imputers, times_imputed) {
-  timing <- purrr::map(.x = imputers, function(x) attr(x, TIMING_ATTR))
-  # Make sure that method and elapsed columns exist even if timing is empty
-  timing_df <- do.call(rbind, timing) %>% data.frame
-  timing_df$method <- row.names(timing_df)
-  if(!is.null(timing_df$method) && !is.null(timing_df$elapsed)) {
-    timing_df <- timing_df %>% magrittr::extract(c("method", "elapsed"))
-  } else {
-    timing_df <- data.frame(method = character(0), elapsed = numeric(0))
-  }
-  row.names(timing_df) <- NULL
-
-  # Stochastic methods are timed over the repetitions, so need to be divided by the number of repetitions
-  timing_df[timing_df$method %in% c("pmm", "norm.predict", "norm", "rf", "knnImpute", "missForest"), "elapsed"] %<>% `/`(times_imputed)
-
-  return(timing_df)
-}
-
 create_dir <- function(path) {
   if (!dir.exists(path)) {
     dir_creation_success <- dir.create(path, showWarnings = TRUE)
@@ -55,31 +37,34 @@ create_dir <- function(path) {
   }
 }
 
-get_env_cores <- function() {
-  cores <- Sys.getenv("AMISS_CORES")
-  cores <- as.integer(cores)
-  if (is.na(cores))
-      cores <- 1
-  return(cores)
-}
-
-#' Generate a file prefix / folder name for a file / folder generated
-#' with specific parameter values.
+#' Generate a string for use as a folder name generated with specific parameter values
 #'
-#' @param combination
-#' @param subset
-#' @param parameter_separator
-#' @param value_separator
+#' @param combination List mapping parameter names to values
+#' @param subset Character vector listing all parameters that should be included in the output
+#' @param parameter_separator String with which parameters will be separated in the output
+#' @param value_separator String with which parameter name and value will be separated in the output
 #'
-#' @return
+#' @return String generated from specified parameters and their values
 #' @export
-generate_file_prefix <- function(combination, subset = PREPROCESSING_PARAMETER_SUBSET, parameter_separator=".", value_separator="-") {
+generate_parameter_dependent_name <- function(combination, subset = PREPROCESSING_PARAMETER_SUBSET, parameter_separator=".", value_separator="-") {
   relevant_parameters <- combination[names(combination) %in% subset]
   relevant_parameters <- relevant_parameters[names(relevant_parameters) %>% order]
   prefix <- paste0(names(relevant_parameters), "-", relevant_parameters, collapse = parameter_separator)
   return(prefix)
 }
-decode_file_prefix <- function(path, parameter_separator=".", value_separator="-") {
+
+#' Decode folder name to form list mapping parameter names to values
+#'
+#' This is an "inverse" operation of `generate_parameter_dependent_path` in the sense that
+#' it constructs the parameter name-value pairs from a string that was generated with
+#' `generate_parameter_dependent_name`.
+#'
+#' @param path Path to decode
+#' @param parameter_separator String that marks separation between different parameters
+#' @param value_separator String that marks separation between parameter name and value
+#'
+#' @return List mapping parameter names to values
+decode_parameter_dependent_path <- function(path, parameter_separator=".", value_separator="-") {
   # Strip training "/"s
   p <- str_remove(path, "/$")
   p %<>% str_split(pattern = fixed("/")) %>% extract2(1) %>% tail(1)

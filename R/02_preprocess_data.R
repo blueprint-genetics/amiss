@@ -4,8 +4,6 @@
 #' - Encoding of labels
 #' - Training/test split
 #' - Categorical feature encoding
-#' - Removal of variants from predicted consequence classes that are very
-#' infrequent
 #' - A-priori imputation, i.e. constant imputation with known correct values
 #' - (Pre-specified) selection of features
 #' 
@@ -194,8 +192,8 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
   # whether they might be usable by the classifier.
   futile.logger::flog.info("DESIGN_CHOICE Performing feature selection")
   if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
-    training_set <- select_features(training_set, numeric_features, categorical_features)
-    test_set <- select_features(test_set, numeric_features, categorical_features)
+    training_set <- select_features_after_dummy_coding(training_set, numeric_features, categorical_features)
+    test_set <- select_features_after_dummy_coding(test_set, numeric_features, categorical_features)
   } else if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
     training_set <- training_set[,c(numeric_features, categorical_features)]
     test_set <- test_set[,c(numeric_features, categorical_features)]
