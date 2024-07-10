@@ -217,7 +217,7 @@ S02_preprocess_data <- function(parsed_data_path, parameters_path, output_path, 
     
     # Drop n majority class instances, where n is the number 
     # by which majority class size exceeds minority class size
-    drop_idx <- sample(which(training_outcome == names(majority_class)), majority_class - minority_class)
+    drop_idx <- sample(which(training_outcome == names(majority_class)), majority_class - minority_class, replace = FALSE)
     futile.logger::flog.info(paste0("PARAMETER Dropping ", length(drop_idx), " instances of the majority class"))
     training_outcome <- training_outcome[-drop_idx]
     training_set <- training_set[-drop_idx,, drop = FALSE]
