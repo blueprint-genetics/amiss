@@ -89,6 +89,9 @@ doubleboxplot <- function(metric, rf_perf, lr_perf, per_consequence) {
     ggplot2::scale_fill_manual("Classifier", values = c("#DB607A", "#41444C", "#11222A"))
   if (per_consequence) {
     double_boxplots <- double_boxplots + ggplot2::facet_wrap(ggplot2::vars(consequence))
+    if (metric == "AUC") {
+        double_boxplots <- double_boxplots + ggplot2::scale_y_continuous(breaks = seq(0.65, 1.00, 0.05))
+    }
   }
   if (length(metric) > 1) {
     double_boxplots <- double_boxplots + ggplot2::coord_flip(ylim = c(0.25, 1.0), clip = "on") + ggplot2::facet_wrap(ggplot2::vars(metric), scales = "fixed")

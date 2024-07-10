@@ -1,0 +1,40 @@
+---
+title: "Comparison of missing data handling methods for variant pathogenicity predictors"
+author: 
+- name: "Mikko Särkkä"
+  affiliation: 
+    - 1
+    - 2
+- name: "Sami Myöhänen"
+  affiliation: 
+    - 1
+- name: "Kaloyan Marinov"
+  affiliation: 
+    - 1
+- name: "Inka Saarinen"
+  affiliation: 
+    - 1
+- name: "Leo Lahti"
+  affiliation:
+    - 3
+- name: "Vittorio Fortino"
+  affiliation:
+    - 2
+- name: "Jussi Paananen"
+  affiliation: 
+    - 1
+    - 2
+affiliation:
+- name: "Blueprint Genetics Ltd, Helsinki, Finland"
+  id: 1
+- name: "University of Eastern Finland, Department of Health Sciences, School of Medicine, Institute of Biomedicine, Kuopio, Finland"
+  id: 2
+- name: "University of Turku, Faculty of Technology, Department of Computing, Turku, Finland"
+  id: 3
+
+bibliography: references.bib
+biblatexoptions: "sorting=none"
+
+...
+
+
