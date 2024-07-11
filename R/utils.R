@@ -6,15 +6,15 @@
 #' @return List containing vectors of row numbers.
 #' @importFrom magrittr %>%
 partition_rows_into_batches <- function(num_rows, batches = 100) {
-  
+
   breakpoints <- seq(1, num_rows, length.out = batches + 1)
   # Keep only midpoints
   breakpoints <- breakpoints[2:batches]
   row_batch_indicator <- findInterval(1:num_rows, breakpoints)
   batch_list <- split(1:num_rows, row_batch_indicator)
-  
+
   return(batch_list)
-  
+
 }
 
 find_dummies <- function(original_variable_name, name_list) {
@@ -72,6 +72,24 @@ decode_parameter_dependent_path <- function(path, parameter_separator=".", value
   p %<>% str_split(pattern = fixed(value_separator))
   p %<>% sapply(FUN = function(x) list(x[2]) %>% set_names(x[1]))
   p <- do.call(list, p)
-  
+
   return(p)
+}
+
+form_run_time_df <- function(imputers, times_imputed) {
+  timing <- purrr::map(.x = imputers, function(x) attr(x, TIMING_ATTR))
+  # Make sure that method and elapsed columns exist even if timing is empty
+  timing_df <- do.call(rbind, timing) %>% data.frame
+  timing_df$method <- row.names(timing_df)
+  if(!is.null(timing_df$method) && !is.null(timing_df$elapsed)) {
+    timing_df <- timing_df %>% magrittr::extract(c("method", "elapsed"))
+  } else {
+    timing_df <- data.frame(method = character(0), elapsed = numeric(0))
+  }
+  row.names(timing_df) <- NULL
+
+  # Stochastic methods are timed over the repetitions, so need to be divided by the number of repetitions
+  timing_df[timing_df$method %in% c("pmm", "norm.predict", "norm", "rf", "knnImpute", "missForest"), "elapsed"] %<>% `/`(times_imputed)
+
+  return(timing_df)
 }

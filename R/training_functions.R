@@ -1,3 +1,19 @@
+
+#'
+#'
+#' @param
+#'
+#' @return
+#' @export
+sample_max <- function(x, size) {
+  if (!is.data.frame(x)) stop("`x` must be a data.frame")
+  if (!is.integer(size) || length(size) != 1) stop("`size` must be an integer vector of length 1")
+
+  if (NROW(x) <= size) return(x)
+  else return(x[sample(1:NROW(x), size = size, replace = FALSE), , drop = FALSE])
+}
+
+
 #' Extract MCC estimate from a `caret::train` object
 #'
 #' @param model A `caret::train` object
@@ -95,7 +111,7 @@ select_hyperparams <- function(hyperparams, ix) {
 #'
 #' @return `hyperparams` with parameters bound
 bind_imp_parameters_for_reuse <- function(hyperparams, imputers) {
-  
+
   # For the methods that properly accept them, we should store parameters from the training set
   # to use in imputing the test set.
   for (h in names(hyperparams)) {

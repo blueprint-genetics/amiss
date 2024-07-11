@@ -31,6 +31,7 @@
 #'
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
+#' @export
 impute_and_train <- function(training_path,
                              outcome_path,
                              output_path,
@@ -47,7 +48,7 @@ impute_and_train <- function(training_path,
   output_path <- normalizePath(output_path, mustWork = FALSE)
   create_dir(output_path)
   flog.pid.info("OUTPUT Output root folder set to %s", output_path)
-  
+
   flog.pid.info("PROGRESS Using %d cores", cores)
   if (!is.null(seed)) {
     flog.pid.info("DESIGN_CHOICE Using seed: %d", seed)
@@ -76,18 +77,19 @@ impute_and_train <- function(training_path,
   if (parameter_list[[CATEGORICAL_ENCODING]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(CATEGORICAL_ENCODING, "\" not provided"))
   }
-  
+
   ### Sample imputation hp grids ###
   if (lean) {
     flog.pid.info("DESIGN_CHOICE Sampling imputation hyperparameter grids to %d rows to save computation time", SIMULATION_HP_SAMPLE_SIZE)
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
     other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
   }
-  
+
   ### Read and process input data ###
   training_path <- normalizePath(training_path)
   flog.pid.info("INPUT Reading training data from delimited file at %s", training_path)
   training_data <- read.csv(training_path, row.names = 1)
+  training_data <- training_data[1:200, ]
   tryCatch({
     outcome_path <- normalizePath(outcome_path)
     flog.pid.info("INPUT Reading training outcomes from delimited file at %s", outcome_path)
@@ -96,10 +98,10 @@ impute_and_train <- function(training_path,
     flog.pid.debug("Could not open file %s", outcome_path)
     flog.pid.debug(e)
   })
-  
+
   outcome <- factor(outcome[,2], levels = c(POSITIVE_LABEL, NEGATIVE_LABEL))
   flog.pid.info("PROGRESS Outcome levels: %s", paste0(levels(outcome), collapse = ", "))
-  
+
   ### Parameter-dependent preprocessing ###
   ## Downsampling majority class
   futile.logger::flog.info("PARAMETER %s = %s", DOWNSAMPLING, parameter_list[[DOWNSAMPLING]])
@@ -109,9 +111,9 @@ impute_and_train <- function(training_path,
     majority_class <- majority_class[which.max(majority_class)]
     minority_class <- table(outcome)
     minority_class <- minority_class[which.min(minority_class)]
-    
+
     futile.logger::flog.info(paste0("PARAMETER Majority class is \"", names(majority_class), "\""))
-    
+
     # Drop n majority class instances, where n is the number
     # by which majority class size exceeds minority class size
     drop_idx <- sample(which(outcome == names(majority_class)), majority_class - minority_class, replace = FALSE)
@@ -119,13 +121,13 @@ impute_and_train <- function(training_path,
     outcome <- outcome[-drop_idx]
     training_data <- training_data[-drop_idx,, drop = FALSE]
     futile.logger::flog.info(paste0("PARAMETER ", table(outcome) %>% capture.output))
-    
+
   } else if (parameter_list[[DOWNSAMPLING]] == DOWNSAMPLING_OFF) {
     # Do nothing
   } else stop(
     paste0("Unknown value \"", parameter_list[[DOWNSAMPLING]], "\" for parameter \"", DOWNSAMPLING, "\"")
   )
-  
+
   # Feature sampling
   flog.pid.info("PARAMETER %s = %s", FEATURE_SAMPLING_PERCENTAGE, parameter_list[[FEATURE_SAMPLING_PERCENTAGE]])
   feature_sampling_pct <- parameter_list[[FEATURE_SAMPLING_PERCENTAGE]]
@@ -135,7 +137,7 @@ impute_and_train <- function(training_path,
         paste0("Feature sampling percentage not in predefined allowed values")
       )
     }
-    
+
     flog.pid.info("PARAMETER Performing feature sampling, keeping %f percent of features", feature_sampling_pct*100)
     all_features <- c(numeric_features, categorical_features)
     sampled_features <- sample(
@@ -143,10 +145,10 @@ impute_and_train <- function(training_path,
       size = length(all_features) * feature_sampling_pct,
       replace = FALSE
     )
-    
+
     sampled_cats_ix <- sampled_features %in% categorical_features
     sampled_nums_ix <- !(sampled_features %in% categorical_features)
-    if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY && any(sampled_cats_ix)) { 
+    if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY && any(sampled_cats_ix)) {
       sampled_cats <- sampled_features[sampled_cats_ix]
       dummies <- lapply(sampled_cats, . %>% find_dummies(colnames(training_data)))
       dummies <- do.call(c, dummies)
@@ -156,11 +158,11 @@ impute_and_train <- function(training_path,
     }
     flog.pid.info("PARAMETER Feature sampling drops the following features: %s", paste0(setdiff(c(numeric_features, categorical_features), sampled_features), collapse = ", "))
     training_data <- training_data[, sampled_cols, drop = FALSE]
-    
+
   } else if (feature_sampling_pct == 1.0) {
     # Do nothing
   }
-  
+
   # Training data sampling
   flog.pid.info("PARAMETER %s = %s", TRAINING_DATA_SAMPLING_PERCENTAGE, parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]])
   training_data_sampling_pct <- parameter_list[[TRAINING_DATA_SAMPLING_PERCENTAGE]]
@@ -170,7 +172,7 @@ impute_and_train <- function(training_path,
         paste0("Training data sampling percentage not in predefined allowed values")
       )
     }
-    
+
     flog.pid.info("PARAMETER Performing training data sampling, keeping %f percentage of rows", training_data_sampling_pct*100)
     training_data_sampling_ix <- sample(
       x = 1:(NROW(training_data)),
@@ -180,7 +182,7 @@ impute_and_train <- function(training_path,
     flog.pid.info("PARAMETER Training data sampling drops %d rows", NROW(training_data) - length(training_data_sampling_ix))
     training_data <- training_data[training_data_sampling_ix, , drop = FALSE]
     outcome <- outcome[training_data_sampling_ix]
-    
+
   } else if (training_data_sampling_pct == 1.0) {
     # Do nothing
   }
@@ -188,12 +190,12 @@ impute_and_train <- function(training_path,
   # Removal of features with near-zero variance
   flog.pid.info("PARAMETER %s = %s", NZV_CHECK, parameter_list[[NZV_CHECK]])
   if (parameter_list[[NZV_CHECK]] == NZV_CHECK_ON) {
-    
+
     flog.pid.info("PARAMETER Removing features with near-zero variance")
     flog.pid.info("PARAMETER Uniqueness cutoff: %d %%", UNIQUENESS_CUTOFF_PERCENTAGE)
     nzv_features <- caret::nearZeroVar(training_data, saveMetrics = TRUE, uniqueCut = UNIQUENESS_CUTOFF_PERCENTAGE)
     flog.pid.info(paste0("PARAMETER ", capture.output(print(nzv_features[nzv_features$nzv, ]))))
-    
+
     if (any(nzv_features$nzv)) {
       training_data <- training_data[, !nzv_features$nzv]
     }
@@ -202,18 +204,18 @@ impute_and_train <- function(training_path,
   } else stop(
     paste0("Unknown value \"", parameter_list[[NZV_CHECK]], "\" for parameter \"", NZV_CHECK, "\"")
   )
-  
+
   # Removal of highly correlated features
   flog.pid.info("PARAMETER %s = %s", CORRELATION_CHECK, parameter_list[[CORRELATION_CHECK]])
   if (parameter_list[[CORRELATION_CHECK]] == CORRELATION_CHECK_ON) {
-    
+
     flog.pid.info("PARAMETER Removing highly correlated features:")
     correlations <- cor(training_data[, intersect(colnames(training_data), numeric_features)], use = "pairwise.complete.obs")
     correlations[is.na(correlations)] <- 0.0
-    
+
     highly_correlated_features <- caret::findCorrelation(correlations, verbose = TRUE, names = TRUE)
     flog.pid.info(paste0("PARAMETER ", highly_correlated_features))
-    
+
     if (highly_correlated_features %>% length > 0) {
       training_data <- training_data[, !colnames(training_data) %in% highly_correlated_features]
     }
@@ -225,7 +227,7 @@ impute_and_train <- function(training_path,
 
   ### Imputation ###
   flog.pid.info("PROGRESS Imputation hyperparameter configuration counts:")
-  
+
   # Log the number of hyperparameter configurations for each imputation method:
   if (length(mice_hyperparameter_grids) > 0) {
     flog.pid.info(paste0("PROGRESS", names(mice_hyperparameter_grids), ": ",  lapply(mice_hyperparameter_grids, nrow)))
@@ -286,7 +288,7 @@ impute_and_train <- function(training_path,
   } else stop(
     paste0("Unknown value \"", parameter_list[[HYPERPARAMETER_SEARCH_TYPE]], "\" for parameter \"", HYPERPARAMETER_SEARCH_TYPE, "\"")
   )
-  
+
   rf_training_options <- list(
     classProbs = TRUE,
     verboseIter = FALSE,
@@ -330,7 +332,7 @@ impute_and_train <- function(training_path,
                            grid = if (search == "grid") RF_HYPERPARAMETER_GRID else NULL,
                            tunelength = nrow(RF_HYPERPARAMETER_GRID),
                            seed = seed)
-  
+
   # Skip LR and XGBoost if not using dummy features
   flog.pid.info("PARAMETER %s = %s", CATEGORICAL_ENCODING, parameter_list[[CATEGORICAL_ENCODING]])
   if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
@@ -387,12 +389,9 @@ impute_and_train <- function(training_path,
   rf_models_path <- file.path(output_path, FILE_RF_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF models to RDS file at %s", rf_models_path)
   saveRDS(rf_bests$models, file = rf_models_path)
-<<<<<<< HEAD
   rf_imputers_path <- file.path(output_path, FILE_RF_IMPUTERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF imputer models to RDS file at %s", rf_imputers_path)
   if (!lean) saveRDS(rf_bests$imputers, file = rf_imputers_path)
-=======
->>>>>>> 3e9a2fd (Update docstrings, remove some dead code)
   rf_hps_path <- file.path(output_path, FILE_RF_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen RF hyperparameters to RDS file at %s", rf_hps_path)
   saveRDS(rf_bests$hyperparams, file = rf_hps_path)
@@ -400,16 +399,13 @@ impute_and_train <- function(training_path,
   xg_models_path <- file.path(output_path, FILE_XGBOOST_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen XGBoost models to RDS file at %s", xg_models_path)
   saveRDS(xg_bests$models, file = xg_models_path)
-<<<<<<< HEAD
   xg_imputers_path <- file.path(output_path, FILE_XGBOOST_IMPUTERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen XGBoost imputer models to RDS file at %s", xg_imputers_path)
   if (!lean) saveRDS(xg_bests$imputers, file = xg_imputers_path)
-=======
->>>>>>> 3e9a2fd (Update docstrings, remove some dead code)
   xg_hps_path <- file.path(output_path, FILE_XGBOOST_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen XGBoost hyperparameters to RDS file at %s", xg_hps_path)
   saveRDS(xg_bests$hyperparams, file = xg_hps_path)
-  
+
   # glm models in R contain references to environments, but for prediction it doesn't seem that
   # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
   # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).
@@ -418,12 +414,9 @@ impute_and_train <- function(training_path,
   lr_models_path <- file.path(output_path, FILE_LR_CLASSIFIERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen LR models to RDS file at %s", lr_models_path)
   saveRDS(lr_bests$models, file = lr_models_path, refhook = function(x) "")
-<<<<<<< HEAD
   lr_imputers_path <- file.path(output_path, FILE_LR_IMPUTERS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen LR imputer models to RDS file at %s", lr_imputers_path)
   if (!lean) saveRDS(lr_bests$imputers, file = lr_imputers_path)
-=======
->>>>>>> 3e9a2fd (Update docstrings, remove some dead code)
   lr_hps_path <- file.path(output_path, FILE_LR_HP_CONFIGS_RDS)
   futile.logger::flog.info("OUTPUT Writing chosen LR hyperparameters to RDS file at %s", lr_hps_path)
   saveRDS(lr_bests$hyperparams, file = lr_hps_path)
@@ -431,7 +424,7 @@ impute_and_train <- function(training_path,
   final_features_path <- file.path(output_path, FILE_FINAL_FEATURES_RDS)
   futile.logger::flog.info("OUTPUT Writing final feature set to RDS file at %s", final_features_path)
   saveRDS(colnames(training_data), final_features_path)
-  
+
   flog.pid.info("PROGRESS Done saving data")
   flog.pid.info("PROGRESS Finishing impute_and_train")
 }
