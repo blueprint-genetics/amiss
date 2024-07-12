@@ -81,9 +81,9 @@ S02_preprocess_data <- function(parsed_data_path,
                         "Benign/Likely_benign,_protective,_risk_factor", "Benign/Likely_benign,_association", "protective")
   futile.logger::flog.info("DESIGN_CHOICE Positive classes: %s", paste0(positive_classes, collapse = ", "))
   futile.logger::flog.info("DESIGN_CHOICE Negative classes: %s", paste0(negative_classes, collapse = ", "))
-  
+
   uncertain_classes <- c("Uncertain_significance", "Uncertain_significance,_other", "Uncertain_significance,_association", "other", "risk_factor", "association_not_found", "Affects")
-  
+
   # Choose class for VUS
   vus <- merged_data$CLNSIG %in% uncertain_classes
   futile.logger::flog.info("PROGRESS Number of VUS variants: %d", sum(vus))
@@ -102,29 +102,29 @@ S02_preprocess_data <- function(parsed_data_path,
   # The response variable (i.e. outcome variable) is processed into 0 (negative) or 1 (positive).
   futile.logger::flog.info("DESIGN_CHOICE Coding positive outcomes as 1 and negative outcomes as 0")
   outcome <- code_labels(merged_data$CLNSIG, positive_classes, negative_classes)
-  
+
   # Training/test split
   futile.logger::flog.info("PROGRESS Splitting data to training and test sets")
   split_percentage <- 0.7
   futile.logger::flog.info("DESIGN_CHOICE Split percentage: %f", split_percentage)
   data_split <- split_train_test(merged_data, split_percentage)
-  
+
   training_set <- data_split$training_set
   futile.logger::flog.info("PROGRESS Number of training set variants: %d", nrow(training_set))
   test_set <- data_split$test_set
   futile.logger::flog.info("PROGRESS Number of test set variants: %d", nrow(test_set))
-  
+
   training_outcome <- outcome[data_split$index]
   names(training_outcome) <- row.names(training_set)
   futile.logger::flog.info("PROGRESS Outcome distribution:")
   futile.logger::flog.info(paste0("PROGRESS ", table(training_outcome) %>% capture.output))
-  
-  test_outcome <- outcome[-data_split$index]
+
+  test_outcome <- outcome[!data_split$index]
   names(test_outcome) <- row.names(test_set)
   futile.logger::flog.info(paste0("PROGRESS ", table(test_outcome) %>% capture.output))
-  
+
   # Categorical variable encoding
-  
+
   futile.logger::flog.info("DESIGN_CHOICE Getting rid of categorical variable values in test set that are not present in training set by setting them to missing")
   test_set[,categorical_features] <- mapply(FUN = function(x, y) {
       x[!(x %in% y)] <- NA
@@ -133,14 +133,14 @@ S02_preprocess_data <- function(parsed_data_path,
     test_set[, categorical_features, drop = FALSE],
     training_set[, categorical_features, drop = FALSE]
   )
-  
+
   futile.logger::flog.info("PARAMETER %s = %s", CATEGORICAL_ENCODING, config[[CATEGORICAL_ENCODING]])
   if (config[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
 
     futile.logger::flog.info("PARAMETER Encoding categorical variables via dummy variables")
     training_dummy_categoricals <- dummify_categoricals(training_set[, categorical_features, drop = FALSE])
     test_dummy_categoricals <- dummify_categoricals(test_set[, categorical_features, drop = FALSE])
-    
+
     # Next, the new dummy variables are bound to the `data.frame`. We keep also the original categorical variables, since they are easier
     # to use for certain statistics computations.
     futile.logger::flog.info("PARAMETER Binding dummy variables to data")
@@ -148,7 +148,7 @@ S02_preprocess_data <- function(parsed_data_path,
       training_set,
       training_dummy_categoricals
     )
-    
+
     test_set <- cbind(
       test_set,
       test_dummy_categoricals
@@ -159,7 +159,7 @@ S02_preprocess_data <- function(parsed_data_path,
     # the "NA" string with something else, as then we won't mix up numerical NA and categorical NA when reading the file.
     any_missing <- training_set[, categorical_features] %>% sapply(. %>% is.na %>% any)
     any_missing <- any_missing | test_set[, categorical_features] %>% sapply(. %>% is.na %>% any)
-    
+
     training_set[, categorical_features[any_missing]]  %<>% lapply(function(x) {
       x[is.na(x)] <- "MISSING"
       return(x)
@@ -217,7 +217,7 @@ S02_preprocess_data <- function(parsed_data_path,
   test_outcome_path <- file.path(output_path, FILE_TEST_OUTCOMES_CSV)
   futile.logger::flog.info("OUTPUT Writing fully preprocessed test set outcomes to %s", test_outcome_path)
   write.csv(test_outcome, test_outcome_path, row.names = TRUE)
-  
+
   sessioninfo_path <- file.path(output_path, "02_preprocess_data_sessioninfo.txt")
   futile.logger::flog.info("OUTPUT Writing session information to text file at %s", sessioninfo_path)
   write(capture.output(sessionInfo()), sessioninfo_path)
