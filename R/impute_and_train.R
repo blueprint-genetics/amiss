@@ -89,7 +89,6 @@ impute_and_train <- function(training_path,
   training_path <- normalizePath(training_path)
   flog.pid.info("INPUT Reading training data from delimited file at %s", training_path)
   training_data <- read.csv(training_path, row.names = 1)
-  training_data <- training_data[1:200, ]
   tryCatch({
     outcome_path <- normalizePath(outcome_path)
     flog.pid.info("INPUT Reading training outcomes from delimited file at %s", outcome_path)
