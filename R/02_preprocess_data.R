@@ -177,6 +177,7 @@ S02_preprocess_data <- function(parsed_data_path,
   futile.logger::flog.info(paste0("PROGRESS ", capture.output(table_with_margin(training_set$Consequence.x, training_set$CLNSIG, useNA = "always") %>% as.data.frame %>% print)))
   futile.logger::flog.info(paste0("PROGRESS ", capture.output(table_with_margin(training_set$Consequence.x, training_outcome, useNA = "always") %>% as.data.frame %>% print)))
 
+  write.csv(training_set, file.path(output_path, FILE_TRAINING_DATA_FOR_STATS_CSV), row.names = TRUE)
   # Using a priori information to impute by constants
 
   # Some variables have missing values that can be imputed with sensible default values using *a priori* information.

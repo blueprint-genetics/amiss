@@ -196,20 +196,4 @@ flog.info("Number of complete test set cases: %d", sum(complete.cases(test_set))
 flog.info("Missingness percentage in training data: %f", sum(is.na(training_set))/NCOL(training_set)/NROW(training_set))
 
 
-## Basic stats on preprocessed data
-
-training_set <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), as.is = TRUE)
-test_set <- read.csv(here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV), as.is = TRUE)
-te_outcome <- read.csv(here("output", "data", FILE_TEST_OUTCOMES_CSV), row.names = 1)[,1]
-flog.info("Number of training set variants: %d", nrow(training_set))
-flog.info("Number of test set variants: %d", nrow(test_set))
-flog.info("Number of positive training set variants: %d", sum(tr_outcome == "positive"))
-flog.info("Number of negative training set variants: %d", sum(tr_outcome == "negative"))
-flog.info("Number of positive test set variants: %d", sum(te_outcome == "positive"))
-flog.info("Number of negative test set variants: %d", sum(te_outcome == "negative"))
-flog.info("Number of complete training set cases: %d", sum(complete.cases(training_set)))
-flog.info("Number of complete test set cases: %d", sum(complete.cases(test_set)))
-flog.info("Missingness percentage in training data: %f", sum(is.na(training_set))/NCOL(training_set)/NROW(training_set))
-
-
 write(capture.output(sessionInfo()), here("output", "03_descriptive_stats_sessioninfo.txt"))
