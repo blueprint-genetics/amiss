@@ -16,6 +16,7 @@
 #' - HYPERPARAMETER_SEARCH_TYPE, which specifies whether grid or random search should be used for optimizing classifier
 #' hyperparameters
 #' - CATEGORICAL_ENCODING, which specifies whether categorical features should be encoded as dummy variables
+#' - IMPUTATION_METHOD, which specifies the imputation method that should be used.
 #'
 #' The process writes into the output folder two files per classification model type, one containing the model and one
 #' containing the winning hyperparameter configuration for the imputation model (which for single value imputation
@@ -77,12 +78,21 @@ impute_and_train <- function(training_path,
   if (parameter_list[[CATEGORICAL_ENCODING]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(CATEGORICAL_ENCODING, "\" not provided"))
   }
+  if (parameter_list[[IMPUTATION_METHOD]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(IMPUTATION_METHOD, "\" not provided"))
+  }
 
   ### Sample imputation hp grids ###
   if (lean) {
     flog.pid.info("DESIGN_CHOICE Sampling imputation hyperparameter grids to %d rows to save computation time", SIMULATION_HP_SAMPLE_SIZE)
     mice_hyperparameter_grids <- lapply(mice_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
     other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
+  }
+  ### If a specific method chosen, use only that
+  if (parameter_list[[IMPUTATION_METHOD]] != "all") {
+    mice_hyperparameter_grids %<>% magrittr::extract2(IMPUTATION_METHOD)
+    other_hyperparameter_grids %<>% magrittr::extract2(IMPUTATION_METHOD)
+    single_value_imputation_hyperparameter_grids %<>% magrittr::extract2(IMPUTATION_METHOD)
   }
 
   ### Read and process input data ###
