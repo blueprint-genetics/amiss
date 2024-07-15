@@ -1,9 +1,12 @@
 library(here)
+library(magrittr)
+library(futile.logger)
+library(foreach)
+library(doRNG)
+library(amiss)
 
 source(here("R", "constants.R"))
 source(here("R", "compute_rmse.R"))
-source(here("R", "impute_and_train.R"))
-source(here("R", "predict_on_test_set.R"))
 source(here("R", "utils.R"))
 source(here("R", "imputation_definitions.R"))
 
@@ -13,18 +16,15 @@ flog.appender(appender.tee(here("output", "07_run_simulations.log")), name = "si
 flog.threshold(DEBUG, name = "simulation_logger")
 
 seed <- 10
-cores <- get_env_cores()
-
-registerDoParallel(cores)
 
 sim_data_paths <- read.csv(file = here("output", "sim", FILE_SIMULATED_FILE_LIST_CSV), as.is = TRUE)[,2]
 
 successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng% {
-  
+
   success <- tryCatch({
     flog.pid.info("Imputing and training on %s", sim_data_path, name = "simulation_logger")
     output_path <- paste0(sim_data_path, "_output")
-    
+
     flog.pid.info("Parameters:", name = "simulation_logger")
     iat_params <- list(training_path = sim_data_path,
                        outcome_path = here("output", "data", FILE_TRAINING_OUTCOMES_CSV),
@@ -32,21 +32,20 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
                        mice_hyperparameter_grids = mice_hyperparameter_grids,
                        other_hyperparameter_grids = other_hyperparameter_grids,
                        single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
+                       parameter_list = rjson::fromJSON(file = "combination_orig.json"),
                        cores = 1,
                        seed = seed,
                        lean = TRUE)
     flog.pid.info(paste0(names(iat_params), " = ", iat_params), name = "simulation_logger")
-    
+
     do.call(impute_and_train, iat_params)
-    
+
     flog.pid.info("Producing performance statistics on %s", sim_data_path, name = "simulation_logger")
     test_params <- list(
       test_path = here("output", "data", FILE_PREPROCESSED_TEST_DATA_CSV),
       outcome_path = here("output", "data", FILE_TEST_OUTCOMES_CSV),
       tr_output_path = output_path,
       results_dir_path = output_path,
-      lean = TRUE,
-      cores = 1,
       seed = seed
     )
     flog.pid.info(paste0(names(test_params), " = ", test_params), name = "simulation_logger")
@@ -83,7 +82,7 @@ successes <- foreach(sim_data_path = sim_data_paths, .options.RNG = seed) %dorng
   })
 
   return(success)
-  
+
 }
 successes <- unlist(successes)
 

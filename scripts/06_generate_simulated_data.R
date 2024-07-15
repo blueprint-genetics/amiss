@@ -13,13 +13,8 @@ source(here("R", "simulation_definitions.R"))
 source(here("R", "feature_definitions.R"))
 source(here("R", "utils.R"))
 
-cores <- get_env_cores()
-
 flog.appender(appender.tee(here("output", "06_generate_simulated_data.log")), name = "simulation_logger")
 flog.threshold(DEBUG, name = "simulation_logger")
-
-flog.pid.info("Using %d cores", cores,  name = "simulation_logger")
-registerDoParallel(cores)
 
 seed <- 10
 flog.pid.info("Using seed %d", seed,  name = "simulation_logger")
@@ -132,7 +127,7 @@ repetitions <- foreach(r = 1:repeats, .options.RNG = seed) %dorng% {
     flog.pid.info("Wrote file %s", filename, name = "simulation_logger")
     return(filename)
   })
-  flog.pid.info("Finishing repetition %d")
+  flog.pid.info("Finishing repetition %d", r)
   return(filenames)
 }
 
