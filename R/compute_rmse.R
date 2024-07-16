@@ -1,7 +1,12 @@
-library(here)
-library(magrittr)
-source(here("R", "recursive_application.R"))
-
+#' Compute RMSE between original and imputed data
+#'
+#' @param imputer_path Path to stored imputer object
+#' @param orig_data_path Path to original data
+#' @param simu_data_path Path to data with additional missingness
+#' @param output_filename Path to output
+#'
+#' @importFrom magrittr %>%
+#' @export
 compute_rmse <- function(imputer_path, orig_data_path, simu_data_path, output_filename) {
 
   imputer <- readRDS(file = imputer_path, refhook = function(x) .GlobalEnv)

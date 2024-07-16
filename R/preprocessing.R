@@ -1,15 +1,11 @@
-library(magrittr)
-library(here)
-
-source(here("R", "recursive_application.R")) # for enumerate
-source(here("R", "utils.R")) # for find_dummies
-
 #' Partition dataset into a training and a test set
 #'
 #' @param dataframe A data.frame that will be partitioned into two.
 #' @param proportion Proportional size of training set compared to test set
 #'
 #' @return Two-element list containing the training and test sets.
+#' @importFrom magrittr %<>%
+#' @export
 split_train_test <- function(dataframe, proportion) {
 
   stopifnot(class(dataframe) == "data.frame")
@@ -25,11 +21,10 @@ split_train_test <- function(dataframe, proportion) {
   # be assigned to the training set
   index <- runif(nrow(dataframe), min = 0, max = 1) < proportion
 
-  row.names(dataframe) <- NULL
-
   datasplit <- list(
     training_set = dataframe[index, ],
-    test_set = dataframe[!index, ]
+    test_set = dataframe[!index, ],
+    index = index
   )
 
   return(datasplit)
@@ -43,6 +38,7 @@ split_train_test <- function(dataframe, proportion) {
 #'
 #' @return Character vector containing "positive" for each pathogenic classification and
 #' "negative" for each non-pathogenic classification.
+#' @export
 code_labels <- function(class_vector, positive_classes, negative_classes) {
 
   stopifnot(class(class_vector) == "character")
@@ -51,7 +47,7 @@ code_labels <- function(class_vector, positive_classes, negative_classes) {
   # If classification is not any of these, raise and error
   undefined_class_ind <- !class_vector %in% c(positive_classes, negative_classes)
   if (any(undefined_class_ind)) {
-    error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(unique(class_vector[undefined_class_ind]))
+    error_msg <- "Undefined class(es) in computing numeric labels: " %>% paste0(paste0(unique(class_vector[undefined_class_ind]), collapse=", "))
     stop(error_msg)
   }
 
@@ -65,6 +61,7 @@ code_labels <- function(class_vector, positive_classes, negative_classes) {
 #' @param data A data.frame containing only character columns
 #'
 #' @return A data.frame containing dummy variables for each original column
+#' @export
 dummify_categoricals <- function(data) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
@@ -94,11 +91,17 @@ dummify_categoricals <- function(data) {
   return(data)
 }
 
+#' From ID strings for variants
+#'
+#' @param data Variant data
+#'
+#' @return A vector containing ID strings generated from corresponding variants input
+#' @export
 form_variant_ids <- function(data) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
 
-  id_cols <- c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID")
+  id_cols <- c("X.Chrom", "Pos", "Ref", "Alt", "FeatureID", CONSEQUENCE_COLUMN)
 
   return(
     apply(
@@ -110,14 +113,21 @@ form_variant_ids <- function(data) {
 
 }
 
+#' Impute with specific values that can be considered appropriate for the feature a-priori
+#'
+#' @param data data.frame with columns corresponding to names in default_imputations
+#' @param default_imputations A list mapping column names to a value with which the column should be imputed
+#'
+#' @return Same as `data` but with specified columns imputed by specified values
+#' @export
 a_priori_impute <- function(data, default_imputations) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
   if (!is.list(default_imputations)) stop("`default_imputations` must be a list")
-  if (!all(sapply(names(default_imputations), FUN = function(x) is.numeric(default_imputations[[x]]) == is.numeric(data[[x]])))) stop("Imputed values must match data by class")
-  if (!all(sapply(names(default_imputations), FUN = function(x) is.character(default_imputations[[x]]) == is.character(data[[x]])))) stop("Imputed values must match data by class")
-  if (any(sapply(default_imputations, is.factor))) stop("Please pass categorical variables as character vectors")
-  if (any(sapply(data, is.factor))) stop("Please pass categorical variables as character vectors")
+  #if (!all(sapply(names(default_imputations), FUN = function(x) is.numeric(default_imputations[[x]]) == is.numeric(data[[x]])))) stop("Imputed values must match data by class")
+  #if (!all(sapply(names(default_imputations), FUN = function(x) is.character(default_imputations[[x]]) == is.character(data[[x]])))) stop("Imputed values must match data by class")
+  #if (any(sapply(default_imputations, is.factor))) stop("Please pass categorical variables as character vectors")
+  #if (any(sapply(data, is.factor))) stop("Please pass categorical variables as character vectors")
 
   for (col in enumerate(default_imputations)) {
     miss_ind <- is.na(data[, col$name])
@@ -128,6 +138,12 @@ a_priori_impute <- function(data, default_imputations) {
 
 }
 
+#' Same as base `table` but with margin sums added
+#'
+#' @param ... Arguments to pass to `table`
+#'
+#' @return Output of `table` with margin sums added
+#' @export
 table_with_margin <- function(...) {
   tabl <- table(...)
   tabl %<>% cbind(ALL_ = rowSums(tabl))
@@ -135,26 +151,21 @@ table_with_margin <- function(...) {
   return(tabl)
 }
 
-detect_imbalanced_consequence_classes <- function(consequence, outcome, freq) {
-
-  if (!is.vector(consequence)) stop("`consequence` must be a vector")
-  if (!is.character(consequence)) stop("`outcome` must be a character vector")
-  if (!is.vector(outcome)) stop("`outcome` must be a vector")
-  if (!is.character(outcome)) stop("`outcome` must be a character vector")
-  if (length(freq) != 1) stop("`freq` must have length 1")
-  if (!is.numeric(freq)) stop("`freq` must be numeric")
-  stopifnot(freq < 1.0)
-  stopifnot(freq > 0.0)
-
-  class_distribution <- table_with_margin(consequence, outcome, useNA = "always") %>% as.data.frame
-  prop_pathg <- class_distribution[,"positive"]/(class_distribution[,"negative"] + class_distribution[,"positive"])
-  unbalanced_conseqs <- class_distribution[(prop_pathg < freq | prop_pathg > 1 - freq) & !is.na(prop_pathg), ]
-
-  return(unbalanced_conseqs)
-
-}
-
-select_features <- function(data, numeric_features, categorical_features) {
+#' Select features from data where categorical features have been dummy-coded
+#'
+#' This function keeps all numeric features listed in `numeric_features` as well as
+#' features whose names have been derived from those listed in `categorical_features`
+#' by use of `dummify_categoricals`. All other columns are dropped.
+#'
+#' @param data A data.frame with features listed in the latter arguments, as well as
+#' those generated via `dummify_categoricals` from those listed in `categorical_features`.
+#' @param numeric_features Character vector of numeric features to keep
+#' @param categorical_features Character vector of categorical features from which dummy
+#' features have been generated
+#'
+#' @return A data.frame derived from `data` with columns as described above
+#' @export
+select_features_after_dummy_coding <- function(data, numeric_features, categorical_features) {
 
   if (!is.vector(numeric_features)) stop("`numeric_features` must be a vector")
   if (!is.character(numeric_features)) stop("`numeric_features` must be a character vector")

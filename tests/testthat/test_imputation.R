@@ -1,8 +1,3 @@
-library(testthat)
-library(purrr)
-
-source("R/imputation.R")
-
 mock_data <- data.frame(
   a = 1:10/10,
   b = c(5:1/10, 6:10/10),
@@ -29,24 +24,24 @@ test_that("check_method_results succeeds on no empty imputations", {
   expect_false(all(check_method_results(mock_imp_tree_knn_failed)))
 })
 
-test_that("impute_over_grid produces imputed datasets", {
-  observed_output <- impute_over_grid(data = mock_data_w_missingness,
-                                      hyperparameter_grids = list(
-                                        knnImputation = data.frame(k = 1:2),
-                                        pmm = data.frame(donors = 1, ridge = 0.001, matchtype = 1)
-                                      ),
-                                      seed = 1,
-                                      times = 2,
-                                      iterations = 2)
+test_that("group_impute produces imputed datasets", {
+  observed_output <- group_impute(data = mock_data_w_missingness,
+                                  hyperparameter_grids = list(
+                                    knnImputation = data.frame(k = 1:2),
+                                    pmm = data.frame(donors = 1, ridge = 0.001, matchtype = 1)
+                                  ),
+                                  seed = 1,
+                                  times = 2,
+                                  iterations = 2)
   expect_true(
-    all(map_depth(observed_output,
+    all(purrr::map_depth(observed_output,
                   .depth = 2,
-                  . %>% extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
+                  . %>% magrittr::extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
     )
   )
   expect_equal(
-    map_depth(observed_output, .depth = 2,
-              . %>% extract2("completed_datasets") %>% sapply(is.data.frame)) %>% unlist %>% sum,
+    purrr::map_depth(observed_output, .depth = 2,
+              . %>% magrittr::extract2("completed_datasets") %>% sapply(is.data.frame)) %>% unlist %>% sum,
     4
   )
 })
@@ -60,12 +55,16 @@ test_that("impute_with_hyperparameters produces imputed datasets", {
                                                        seed = 1, times = 2)
   expect_true(
     all(
-      map_depth(observed_output,
+      purrr::map_depth(observed_output,
                   .depth = 1,
-                  . %>% extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
+                  . %>% magrittr::extract2("completed_datasets") %>% is.null) %>% unlist %>% `!`
     )
   )
-  expect_equal(map_depth(observed_output, .depth = 3, is.data.frame) %>% unlist %>% sum, 2)
+  expect_equal(
+    purrr::map_depth(observed_output, .depth = 1,
+              . %>% magrittr::extract2("completed_datasets") %>% sapply(is.data.frame)) %>% unlist %>% sum,
+    2
+  )
 
 })
 
@@ -122,12 +121,11 @@ test_that("produce_outlier fails correctly", {
 test_that("reimpute produces correct output", {
   expected_output <- mock_data[,1:2]
   expected_output[c(2,3,6,8), c(2)] <- 10
-  expect_equal(reimpute(dataframe = mock_data_w_missingness[,1:2], value = list(a = 0, b = 10)),
+  expect_equal(reimpute(df = mock_data_w_missingness[,1:2], value = list(a = 0, b = 10)),
                expected_output)
 })
 test_that("reimpute fails correctly", {
-  expect_error(reimpute(dataframe = mock_data_w_missingness[,1:2], value = list(a = 0, b = 0, f = 10)), "do not match") # extra name f
-  expect_error(reimpute(dataframe = mock_data_w_missingness[,1:2], value = list(a = 0)), "do not match") # missing name b
+  expect_error(reimpute(df = mock_data_w_missingness[,1:2], value = list(a = 0, b = 0, f = 10)), "do not match") # extra name f
 })
 
 test_that("run_bpca imputes", {

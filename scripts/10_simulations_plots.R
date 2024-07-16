@@ -57,7 +57,6 @@ dir.create(here("output", "sim", "plots", "rmse", "fixed_scales"), recursive = T
 dir.create(here("output", "sim", "plots", "rmse", "free_x_scale"), recursive = TRUE)
 
 form_and_save_rmse_plots <- function(data, prefix, path, x_scale=NULL, y_scale = c(0.4, 0.85), drop_methods=c("Missingness ind.", "missForest", "k-NN")) {
-
   non_feature_cols <- c("X", "repeat.", "pct", "mech", "orientation", "method", "model_ix", "test_completion_ix", "TP", "FP", "FN", "TN", "MCC", "AUC", "Accuracy", "Sensitivity", "Specificity", "F1", "Precision", "na_prop", "Brier")
   feature_cols <- colnames(data)[!colnames(data) %in% non_feature_cols]
 

@@ -1,17 +1,3 @@
-library(mice)
-library(foreach)
-library(doParallel)
-library(doRNG)
-library(magrittr)
-library(pcaMethods)
-library(DMwR)
-library(missForest)
-library(here)
-
-source(here("R", "utils.R"))
-source(here("R", "recursive_application.R"))
-source(here("R", "constants.R"))
-
 #' Produce a function that replaces all missing values
 #' with column-specific outputs
 #'
@@ -23,7 +9,15 @@ source(here("R", "constants.R"))
 #' @return A function that takes a data.frame and replaces
 #' each missing value in each column with the output of `f`
 #' on that column.
+#'
+#' @importFrom magrittr %>%
+#' @importFrom foreach %do%
+#' @importFrom foreach %dopar%
+#' @importFrom doRNG %dorng%
+#'
+#' @export
 single_value_univariate_imputation <- function(f) {
+  force(f)
   replace_na <- function(column) {
     missing <- is.na(column)
     impute_value <- f(column[!missing])
@@ -31,15 +25,18 @@ single_value_univariate_imputation <- function(f) {
     attr(column, IMPUTATION_REUSE_PARAMETERS) <- impute_value
     return(column)
   }
-  imp_func <- function(dataframe) {
+  imp_func <- function(df) {
 
     timing <- system.time({
-      cols_w_nas <- sapply(dataframe, . %>% is.na %>% any)
-      if (!all(sapply(dataframe[,cols_w_nas, drop = FALSE], is.numeric))) stop("All columns with missingness must be numeric")
-      imp_data <- lapply(dataframe, replace_na)
+      cols_w_nas <- sapply(df, . %>% is.na %>% any)
+      if (!all(sapply(df[, cols_w_nas, drop = FALSE], is.numeric)))
+        stop("All columns with missingness must be numeric")
+
+      numeric_cols <- sapply(df, is.numeric)
+      imp_data <- lapply(df[, numeric_cols, drop = FALSE], replace_na)
       estimates <- lapply(imp_data, function(col) attr(col, IMPUTATION_REUSE_PARAMETERS))
-      names(estimates) <- colnames(dataframe)
-      df <- data.frame(imp_data)
+      names(estimates) <- names(imp_data)
+      df[,numeric_cols] <- data.frame(imp_data)
     })
     attr(df, TIMING_ATTR) <- timing
     attr(df, IMPUTATION_REUSE_PARAMETERS) <- estimates
@@ -48,27 +45,42 @@ single_value_univariate_imputation <- function(f) {
   return(imp_func)
 }
 
+#' @export
 produce_outlier <- function(x) {
-  if(!is.numeric(x)) stop("`x` must be a numeric vector")
+  if (!is.numeric(x)) stop("`x` must be a numeric vector")
 
   abs(max(x, na.rm = TRUE) - min(x, na.rm = TRUE)) * 10
 }
 
+#' @export
 max_imp <- single_value_univariate_imputation(max)
+#' @export
 min_imp <- single_value_univariate_imputation(min)
+#' @export
 mean_imp <- single_value_univariate_imputation(mean)
+#' @export
 median_imp <- single_value_univariate_imputation(median)
+#' @export
 zero_imp <- single_value_univariate_imputation(function(x) 0.0)
+#' @export
 outlier_imp <- single_value_univariate_imputation(produce_outlier)
 
+#' Reimpute a data.frame with constant values
+#'
+#' @param df data.frame to impute
+#' @param value named list of values for every column to impute
+#'
+#' @return imputed data.frame
+#' @export
+reimpute <- function(df, value) {
 
-reimpute <- function(dataframe, value) {
-  if (!setequal(names(value), colnames(dataframe))) stop("Names of `value` and column names of `dataframe` do not match")
-  imputed <- lapply(enumerate(dataframe), function(col) {
+  if (!all(names(value) %in% colnames(df))) stop("Names of `value` and column names of `df` do not match")
+  imputed <- lapply(enumerate(df[, names(value), drop = FALSE]), function(col) {
     col$value[is.na(col$value)] <- value[[col$name]]
     return(col$value)
   })
-  imputed <- data.frame(imputed)
+  df[, names(value)] <- data.frame(imputed)
+  return(df)
 }
 
 #' Run and time `mice `
@@ -83,6 +95,8 @@ reimpute <- function(dataframe, value) {
 #' first element is a list of completed datasets (of length `times`),
 #' second element is the `mice`-returned `mids` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
+#'
+#' @export
 run_mice <- function(data, method, hyperparams, times, iterations) {
 
   imputation_object <- NULL
@@ -121,15 +135,19 @@ run_mice <- function(data, method, hyperparams, times, iterations) {
 
   return(result)
 }
+#' @export
 run_mice_pmm <- function(data,hyperparameters, times, iterations) {
   return(run_mice(data, "pmm", hyperparameters, times, iterations))
 }
+#' @export
 run_mice_norm <- function(data,hyperparameters, times, iterations) {
   return(run_mice(data, "norm", hyperparameters, times, iterations))
 }
+#' @export
 run_mice_norm.predict <- function(data,hyperparameters, times, iterations) {
   return(run_mice(data, "norm.predict", hyperparameters, times, iterations))
 }
+#' @export
 run_mice_rf <- function(data,hyperparameters, times, iterations) {
   return(run_mice(data, "rf", hyperparameters, times, iterations))
 }
@@ -143,6 +161,7 @@ run_mice_rf <- function(data,hyperparameters, times, iterations) {
 #' first element is a list of completed datasets (of length `1`),
 #' second element is the `pca`-returned `pcaRes` object.
 #' The list has an additional attribute `timing`, which contains the timing information.
+#' @export
 run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
 
   data <- as.matrix(data)
@@ -160,10 +179,14 @@ run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
 
   })
 
-  dat <- data.frame(imputation@completeObs)
+  if(!is.null(imputation)) {
+    df <- data.frame(imputation@completeObs)
+  } else {
+    df <- NULL
+  }
 
   result <- list(
-    completed_datasets = list(`1` = dat),
+    completed_datasets = list(`1` = df),
     imputation_object = list(`1` = imputation)
   )
   attr(result, TIMING_ATTR) <- timing
@@ -180,16 +203,17 @@ run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
 #' first element is a list of completed datasets (of length `1`),
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
+#' @export
 run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data = NULL) {
 
   timing <- system.time({
     imputation <- NULL
     tryCatch({
       if (!is.null(old_data)) {
-        imputation <- do.call(knnImputation, c(list(data = I(data)), hyperparams, distData = list(old_data)))
+        imputation <- do.call(DMwR::knnImputation, c(list(data = I(data)), hyperparams, distData = list(old_data)))
       }
       else {
-        imputation <- do.call(knnImputation, c(list(data = I(data)), hyperparams))
+        imputation <- do.call(DMwR::knnImputation, c(list(data = I(data)), hyperparams))
       }
     }, error = function(e) {
       flog.pid.debug("Trying to execute knnImputation, the following error occurred: %s", e$message)
@@ -216,18 +240,19 @@ run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data
 #' first element is a list of completed datasets (of length `times`),
 #' second element is `NULL`.
 #' The list has an additional attribute `timing`, which contains the timing information.
+#' @export
 run_missforest <- function(data, hyperparams, times, iterations = NULL) {
 
   timing <- system.time({
-    completed_datasets <- foreach(i = 1:times) %do% {
+    completed_datasets <- foreach::foreach(i = 1:times) %do% {
       imputation <- NULL
       tryCatch({
-        imputation <- do.call(missForest, c(list(I(data)), hyperparams))
+        imputation <- do.call(missForest::missForest, c(list(I(data)), hyperparams))
       }, error = function(e) {
         flog.pid.debug("Trying to execute missForest, the following error occurred: %s", e$message)
       })
       return(imputation$ximp)
-    } %>% set_names(1:times)
+    } %>% magrittr::set_names(1:times)
   })
 
   result <- list(
@@ -249,6 +274,7 @@ run_missforest <- function(data, hyperparams, times, iterations = NULL) {
 #' Used to get matching feature sets between training and test sets.
 #'
 #' @return A data.frame
+#' @export
 missingness_indicators <- function(data, remove_vector = NULL) {
 
   timing <- system.time({
@@ -272,6 +298,12 @@ missingness_indicators <- function(data, remove_vector = NULL) {
   return(data)
 }
 
+#' Check that a method has produced at least one imputed dataset
+#'
+#' @param imputations
+#'
+#' @return
+#' @export
 check_method_results <- function(imputations) {
 
   sapply(names(imputations), function(method) {
@@ -285,10 +317,23 @@ check_method_results <- function(imputations) {
   })
 }
 
+#' NULL-returning method for default value of `method_to_function`
+#'
+#' @param x Method name
+#'
+#' @return NULL
+#' @export
 null_method = function(x) {
   flog.pid.info("Method %s is not implemented", x)
   return(NULL)
 }
+
+#' Mapping from method names to imputation method wrappers
+#'
+#' @param method Name of imputation method
+#'
+#' @return Wrapper for imputation method
+#' @export
 method_to_function <- function(method) {
   return(
     switch(method,
@@ -302,24 +347,48 @@ method_to_function <- function(method) {
            null_method)
   )
 }
+#' Impute over a hyperparameter grid for the method
+#'
+#' @param data data.frame to impute
+#' @param impute_function Imputation method wrapper
+#' @param method_name Name of imputation method
+#' @param hyperparameters Hyperparameter grid data.frame
+#' @param seed Seed to set before imputation
+#' @param times Times to impute (if using stochastic or multiple imputation)
+#' @param ... Additional parameters to pass to imputation method wrapper
+#'
+#' @return List of imputed data
+#' @export
 impute_with_hyperparameters <- function(data, impute_function, method_name, hyperparameters, seed, times, ...) {
 
   if (nrow(hyperparameters) == 0) {
     imputations <- list(imp_hp_1 = impute_function(data, list(), times, ...))
   }
   else {
-    imputations <- foreach(hp_row = 1:nrow(hyperparameters), .options.RNG = seed) %dorng% {
+    imputations <- foreach::foreach(hp_row = 1:nrow(hyperparameters), .options.RNG = seed) %dorng% {
       flog.pid.info("Imputing with %s, parameters %s", method_name, paste0(names(hyperparameters), ": ", hyperparameters[hp_row, ], collapse = ", "))
       impute_function(data, unlist(hyperparameters[hp_row,]), times, ...)
-    } %>% set_names(paste0("imp_hp_", 1:nrow(hyperparameters)))
+    } %>% magrittr::set_names(paste0("imp_hp_", 1:nrow(hyperparameters)))
   }
   return(imputations)
 }
-impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
+#' Impute the same dataset using multiple methods defined by set of hyperparameter grids
+#'
+#' Used in impute_and_train to produce the full set of imputed datasets for every type (mice, other, single) of imputation method.
+#'
+#' @param data data.frame to impute
+#' @param hyperparameter_grids List of hyperparameter grids, named by method names
+#' @param seed Seed to set before imputation
+#' @param times Times to impute (if using stochastic or multiple imputation)
+#' @param ... Additional parameters to pass to imputation method wrapper
+#'
+#' @return List of imputed data
+#' @export
+group_impute <- function(data, hyperparameter_grids, seed, times, ...) {
 
-  imputations <- foreach(hyperparameter_grid = enumerate(hyperparameter_grids)) %do% {
+  imputations <- lapply(enumerate(hyperparameter_grids), function(hyperparameter_grid) {
     impute_with_hyperparameters(data = data, impute_function = method_to_function(hyperparameter_grid$name), method_name = hyperparameter_grid$name, hyperparameters = hyperparameter_grid$value, seed = seed, times = times, ... = ...)
-  }
+  })
   # Combine timings of different hyperparameter configs
   timings <- do.call(rbind, lapply(imputations, . %>% attr(TIMING_ATTR)))
   # Return them along with the imputation object
@@ -330,9 +399,21 @@ impute_over_grid <- function(data, hyperparameter_grids, seed, times, ...) {
   return(imputations)
 }
 
+#' (re-)Impute using specific hyperparameters
+#'
+#' Used by predict_on_test_set to reimpute the test data using specific hyperparameters chosen in training.
+#'
+#' @param data data.frame to impute
+#' @param hp_tree Tree of hyperparameters
+#' @param times Times to impute (if using stochastic or multiple imputation)
+#' @param iters Number of iterations when using mice
+#' @param seed Seed to set before imputation
+#'
+#' @return List of imputed data
+#' @export
 impute_w_hps <- function(data, hp_tree, times, iters, seed){
 
-  imputations <- foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
+  imputations <- foreach::foreach(hps = enumerate(hp_tree), .options.RNG = seed) %dorng% {
     # The imputation parameters estimated from the training set should be used
     # where possible.
     estimates <- attr(hps$value, IMPUTATION_REUSE_PARAMETERS)
@@ -361,7 +442,7 @@ impute_w_hps <- function(data, hp_tree, times, iters, seed){
 
     } else if (method %in% names(single_value_imputation_hyperparameter_grids)) {
 
-      return(list(completed_datasets = list(`1` = reimpute(dataframe = data, value = estimates))))
+      return(list(completed_datasets = list(`1` = reimpute(df = data, value = estimates))))
 
     } else {
 
@@ -372,7 +453,7 @@ impute_w_hps <- function(data, hp_tree, times, iters, seed){
   }
   names(imputations) <- names(hp_tree)
 
-  completions <- imputations %>% lapply(. %>% extract2(1))
+  completions <- imputations %>% lapply(. %>% magrittr::extract2(1))
 
   return(completions)
 }

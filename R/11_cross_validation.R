@@ -1,82 +1,245 @@
-library(here)
+#' Cross-validation body
+#'
+#' This function performs training and testing with a given parameter combination,
+#' training data and testing data sets and their respective label vectors.
+#' The results files are read, a fold number is appended to each row, and
+#' the results are returned in a list. The list is ordered to contain random forest results first,
+#' XGBoost results second and logistic regression results third.
+#'
+#' @param fold_tr_datas List of training datasets for each cross-validation fold
+#' @param fold_te_datas List of test datasets for each cross-validation fold
+#' @param fold_tr_outcomes List of training outcome vectors for each cross-validation fold
+#' @param fold_te_outcomes List of test outcome vectors for each cross-validation fold
+#' @param output_path Path to directory to write results in
+#' @param i Fold index
+#'
+#' @return A triple (3-element list) of data.frames containing results for random forest, xgboost and
+#' logistic regression, respectively. When a classifier fails to produce results, a row of missing values is returned.
+#' @export
+cv_loop <- function(parameters, fold_tr_datas, fold_te_datas, fold_tr_outcomes, fold_te_outcomes, output_path, i) {
 
-source(here("R", "visualizations.R"))
-source(here("R", "constants.R"))
-source(here("R", "impute_and_train.R"))
-source(here("R", "predict_on_test_set.R"))
-source(here("R", "utils.R"))
-source(here("R", "imputation_definitions.R"))
+    flog.pid.info("PROGRESS Starting fold %d", i)
 
-cores <- get_env_cores()
-only_redraw_plot <- Sys.getenv("ONLY_REDRAW_PLOT")
+    # Define output paths
+    dir_path <- file.path(output_path, paste0("fold_", i)) %>% normalizePath(mustWork = FALSE)
+    create_dir(dir_path)
+    flog.pid.info("OUTPUT Output root folder for fold %d set to %s", i, dir_path)
 
-seed <- 10
-set.seed(seed)
+    tr_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_DATA, "_", i, ".csv"))
+    flog.pid.info("INPUT Writing training data for fold %d into delimited file %s", i, tr_data_path)
+    tr_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_OUTCOMES, "_", i, ".csv"))
+    flog.pid.info("INPUT Writing training outcomes for fold %d into delimited file %s", i, tr_outcome_path)
+    te_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_DATA, "_", i, ".csv"))
+    flog.pid.info("INPUT Writing test data for fold %d into delimited file %s", i, te_data_path)
+    te_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_OUTCOMES, "_", i, ".csv"))
+    flog.pid.info("INPUT Writing test outcomes for fold %d into delimited file %s", i, te_outcome_path)
 
-training_data <- read.csv(here("output", "data", FILE_PREPROCESSED_TRAINING_DATA_CSV), row.names = 1, as.is = TRUE)
-outcomes <- read.csv(here("output", "data", FILE_TRAINING_OUTCOMES_CSV), row.names = 1, as.is = TRUE)[[1]]
-
-n_folds <- 100
-rows <- NROW(training_data)
-
-# Reorder rows
-reordering <- sample(1:rows, rows, replace = FALSE)
-training_data <- training_data[reordering,]
-outcomes <- outcomes[reordering]
-
-folds <- replicate(n_folds, sample(1:rows, 0.7*rows, replace = TRUE), simplify = FALSE)
-
-fold_tr_datas <- lapply(folds, function(fold) training_data[-fold, ])
-fold_tr_outcomes <- lapply(folds, function(fold) outcomes[-fold])
-fold_te_datas <- lapply(folds, function(fold) training_data[fold, ])
-fold_te_outcomes <- lapply(folds, function(fold) outcomes[fold])
-
-create_dir(here("output", "cv"))
-
-rf_results <- list()
-lr_results <- list()
-rf_pc_results <- list()
-lr_pc_results <- list()
-for (i in 1:length(folds)) {
-  
-  dir_path <- here("output", "cv", paste0("fold_", i))
-  create_dir(dir_path)
-   
-  tr_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_DATA, "_", i, ".csv"))
-  tr_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TRAINING_OUTCOMES, "_", i, ".csv"))
-  te_data_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_DATA, "_", i, ".csv"))
-  te_outcome_path <- file.path(dir_path, paste0(FILE_CROSSVALIDATION_TEST_OUTCOMES, "_", i, ".csv") )
-   
-  if(only_redraw_plot != "TRUE") {
+    # Write out data for fold
     write.csv(fold_tr_datas[[i]], tr_data_path)
-    write.csv(fold_tr_outcomes[[i]],  tr_outcome_path)
+    write.csv(fold_tr_outcomes[[i]], tr_outcome_path)
     write.csv(fold_te_datas[[i]], te_data_path)
     write.csv(fold_te_outcomes[[i]], te_outcome_path)
-  
+
+    # Define hyperparameter grid for the selected imputation method. This is a bit complicated due to the
+    # `impute_and_train` method being designed to run several imputations; it could be simplified.
+    flog.pid.info("PARAMETER %s = %s", IMPUTATION_METHOD, parameters[[IMPUTATION_METHOD]])
+    flog.pid.info("PARAMETER Obtaining hyperparameter grid for %s", parameters[[IMPUTATION_METHOD]])
+    mice_hyperparameter_grids_in <- NULL
+    other_hyperparameter_grids_in <- NULL
+    single_value_imputation_hyperparameter_grids_in <- NULL
+
+    if (parameters[[IMPUTATION_METHOD]] %in% names(mice_hyperparameter_grids)) {
+       mice_hyperparameter_grids_in <- mice_hyperparameter_grids[ parameters[[IMPUTATION_METHOD]] ] 
+    } else if (parameters[[IMPUTATION_METHOD]] %in% names(other_hyperparameter_grids)) {
+       other_hyperparameter_grids_in <- other_hyperparameter_grids[ parameters[[IMPUTATION_METHOD]] ] 
+    } else if (parameters[[IMPUTATION_METHOD]] %in% names(single_value_imputation_hyperparameter_grids)) {
+       single_value_imputation_hyperparameter_grids_in <- single_value_imputation_hyperparameter_grids[ parameters[[IMPUTATION_METHOD]] ] 
+    } else stop(
+      paste0("Unknown value \"", parameters[[IMPUTATION_METHOD]], "\" for parameter \"", IMPUTATION_METHOD, "\"")
+    )
+
+    # Do the real work, i.e. imputation, training and testing
+    flog.pid.info("PROGRESS Starting imputation and training process")
     impute_and_train(training_path = tr_data_path, outcome_path = tr_outcome_path, output_path = dir_path,
-		     mice_hyperparameter_grids = mice_hyperparameter_grids, other_hyperparameter_grids = other_hyperparameter_grids, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids,
-		     cores = cores, seed = 42, lean = TRUE)
-    predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), cores = cores, seed = 42, lean = TRUE)
+                     mice_hyperparameter_grids = mice_hyperparameter_grids_in, other_hyperparameter_grids = other_hyperparameter_grids_in, single_value_imputation_hyperparameter_grids = single_value_imputation_hyperparameter_grids_in,
+                     parameter_list = parameters,
+                     cores = 1, seed = 42, lean = TRUE)
+    flog.pid.info("PROGRESS Starting test process")
+    predict_on_test_set(test_path = te_data_path, outcome_path = te_outcome_path, tr_output_path = dir_path, results_dir_path = file.path(dir_path, "results"), seed = 42)
+
+    # Obtain and combine results
+    rf_results_path <- file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV)
+    flog.pid.info("PROGRESS Obtaining results for RF from delimited file %s", rf_results_path)
+    rf_results <- tryCatch({
+      rf_results <- read.csv(rf_results_path)
+    }, error = function(e) {
+      rf_results <- data.frame(t(rep(NA, 17)))
+      colnames(rf_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
+      return(rf_results)
+    })
+    rf_results$fold <- i
+    xg_results_path <- file.path(dir_path, "results", FILE_XGBOOST_PERFORMANCE_CSV)
+    flog.pid.info("PROGRESS Obtaining results for XGBoost from delimited file %s", xg_results_path)
+    xg_results <- tryCatch({
+      xg_results <- read.csv(xg_results_path)
+    }, error = function(e) {
+      xg_results <- data.frame(t(rep(NA, 17)))
+      colnames(xg_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
+      return(xg_results)
+    })
+    xg_results$fold <- i
+    lr_results_path <- file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV)
+    flog.pid.info("PROGRESS Obtaining results for LR from delimited file %s", lr_results_path)
+    lr_results <- tryCatch({
+      lr_results <- read.csv(lr_results_path)
+    }, error = function(e) {
+      lr_results <- data.frame(t(rep(NA, 17)))
+      colnames(lr_results) <- c(METHOD_COLUMN, MODEL_INDEX_COLUMN, TEST_COMPLETION_INDEX_COLUMN, "TP","FP","FN","TN","Accuracy","Brier","MCC","AUC","Sensitivity","Specificity","F1","Precision", "tr_time", "te_time")
+      return(lr_results)
+    })
+    lr_results$fold <- i
+
+    flog.pid.info("PROGRESS Finishing fold %d", i)
+    return(list(rf_results, xg_results, lr_results))
+}
+
+#' Step 11: Cross-validation
+#'
+#' This step performs parallel cross-validation with a specified parameter combination.
+#' The preprocessed training data from step 2 is read and split into `n_folds` folds
+#' (with 70/30 splits). Training and testing is done for each fold in parallel (if a
+#' parallelization backend for foreach has been set). Results from every fold are gathered
+#' to files separated by the classifier model type.
+#'
+#' Parameters directly used by this step (referenced with constant names,
+#' see R/parameters.R for explicit string values):
+#' - IMPUTATION_METHOD, which specifies the imputation method to be used
+#'
+#' Parameters indirectly used by this step (used inside functions called from this step):
+#' - DOWNSAMPLING, which specifies whether the label majority class should be downsampled to
+#' the size of the minority class,
+#' - FEATURE_SAMPLING_PERCENTAGE, which specifies the percentage of features that should be kept
+#' when doing feature sampling,
+#' - TRAINING_DATA_SAMPLING_PERCENTAGE, which specifies the percentage of rows that should be kept
+#' when doing training data sampling,
+#' - NZV_CHECK, which specifies whether features with near-zero variance should be removed,
+#' - CORRELATION_CHECK, which specifies whether features that are highly correlated with another
+#' feature should be removed,
+#' - HYPERPARAMETER_SEARCH_TYPE, which specifies whether grid or random search should be used for
+#' optimizing classifier hyperparameters
+#' - CATEGORICAL_ENCODING, which specifies whether categorical features should
+#' be encoded as dummy variables
+#'
+#' @param preprocessed_data_path Path to directory containing the results from step 02
+#' @param output_path Path to directory in which outputs will be written
+#' @param parameters_path Path to file specifying parameter combination
+#' @param n_folds Number of cross-validation folds
+#' @param seed Seed value
+#'
+#' @return
+#' @export
+S11_cross_validation <- function(preprocessed_data_path,
+                                 output_path,
+                                 parameters_path,
+                                 n_folds,
+                                 logs_dir = normalizePath("logs", mustWork = FALSE),
+                                 seed = 10) {
+
+  ### Setup ###
+  output_path <- normalizePath(output_path, mustWork = FALSE)
+  create_dir(logs_dir)
+  create_dir(output_path)
+
+  futile.logger::flog.info("DESIGN_CHOICE Using seed: %d", seed)
+  set.seed(seed)
+
+  futile.logger::flog.appender(futile.logger::appender.tee(file.path(logs_dir, "11_cross_validation.log")))
+  futile.logger::flog.threshold(futile.logger::DEBUG)
+  flog.pid.info("START 11_cross_validation.R")
+  flog.pid.info("OUTPUT Output root path set to %s", output_path)
+
+  # Setup paths
+  training_data_path <- file.path(preprocessed_data_path, FILE_PREPROCESSED_TRAINING_DATA_CSV) %>% normalizePath
+  flog.pid.info("INPUT Reading preprocessed data from delimited file at %s", training_data_path)
+  training_data <- read.csv(training_data_path, row.names = 1, as.is = TRUE)
+
+  preprocessed_data_path <- normalizePath(preprocessed_data_path)
+  preprocessed_outcomes_path <- file.path(preprocessed_data_path, FILE_TRAINING_OUTCOMES_CSV)
+  flog.pid.info("INPUT Reading preprocessed outcomes from delimited file at %s", preprocessed_outcomes_path)
+  outcomes <- read.csv(preprocessed_outcomes_path, row.names = 1, as.is = TRUE)[[1]]
+
+  # Process parameters
+  config <- get_config(parameters_path)
+
+  if (config[[IMPUTATION_METHOD]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(IMPUTATION_METHOD, "\" not provided"))
   }
-  
-  rf_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_RF_PERFORMANCE_CSV))
-  rf_results[[i]]$fold <- i
-  lr_results[[i]] <- read.csv(file.path(dir_path, "results", FILE_LR_PERFORMANCE_CSV))
-  lr_results[[i]]$fold <- i
+
+  ### Cross-validation fold generation ###
+  # Reorder rows
+  flog.pid.info("PROGRESS Preparing for cross-validation: reordering rows")
+  rows <- NROW(training_data)
+  reordering <- sample(1:rows, rows, replace = FALSE)
+  training_data <- training_data[reordering,]
+  outcomes <- outcomes[reordering]
+
+  flog.pid.info("PROGRESS Preparing for cross-validation: generating cross-validation folds")
+  folds <- replicate(n_folds, sample(1:rows, 0.7*rows, replace = FALSE), simplify = FALSE)
+
+  fold_tr_datas <- lapply(folds, function(fold) training_data[-fold, ])
+  fold_tr_outcomes <- lapply(folds, function(fold) outcomes[-fold])
+  fold_te_datas <- lapply(folds, function(fold) training_data[fold, ])
+  fold_te_outcomes <- lapply(folds, function(fold) outcomes[fold])
+
+  flog.pid.info("PROGRESS Performing cross-validation")
+  pkgs <- c(
+    "amiss",
+    "purrr",
+    "doRNG",
+    "caret",
+    "futile.logger",
+    "magrittr",
+    "DMwR2",
+    "ModelMetrics"
+  )
+
+  ### Cross-validation ###
+  results_triplet <- foreach::foreach(i = 1:length(folds),
+                                      .packages = pkgs) %dopar% amiss::cv_loop(
+                                        config,
+                                        fold_tr_datas,
+                                        fold_te_datas,
+                                        fold_tr_outcomes,
+                                        fold_te_outcomes,
+                                        output_path,
+                                        i
+                                      )
+
+  ### Gathering results ###
+  flog.pid.info("PROGRESS Gathering results from cross-validation")
+  rf_results <- lapply(results_triplet, function(x) x[[1]])
+  xg_results <- lapply(results_triplet, function(x) x[[2]])
+  lr_results <- lapply(results_triplet, function(x) x[[3]])
+  rf_results <- do.call(rbind, rf_results)
+  xg_results <- do.call(rbind, xg_results)
+  lr_results <- do.call(rbind, lr_results)
+
+  rf_results <- rename_methods(rf_results)
+  xg_results <- rename_methods(xg_results)
+  lr_results <- rename_methods(lr_results)
+
+  ### Writing output ###
+  rf_output_path <- file.path(output_path, FILE_RF_CROSSVALIDATION_RESULTS_CSV)
+  flog.pid.info("OUTPUT Writing results from cross-validation for RF into delimited file at %s", rf_output_path)
+  write.csv(rf_results, rf_output_path)
+
+  xg_output_path <- file.path(output_path, FILE_XGBOOST_CROSSVALIDATION_RESULTS_CSV)
+  flog.pid.info("OUTPUT Writing results from cross-validation for XGBoost into delimited file at %s", xg_output_path)
+  write.csv(xg_results, xg_output_path)
+
+  lr_output_path <- file.path(output_path, FILE_LR_CROSSVALIDATION_RESULTS_CSV)
+  flog.pid.info("OUTPUT Writing results from cross-validation for LR into delimited file at %s", lr_output_path)
+  write.csv(lr_results, lr_output_path)
+
+  flog.pid.info("DONE 11_cross_validation.R")
 }
-rf_results <- do.call(rbind, rf_results)
-lr_results <- do.call(rbind, lr_results)
-
-rf_results <- rename_methods(rf_results)
-rf_results$method <- reorder(rf_results$method, rf_results$MCC, mean)
-lr_results <- rename_methods(lr_results)
-
-if (only_redraw_plot != "TRUE") {
-  write.csv(rf_results, here("output", "cv", FILE_RF_CROSSVALIDATION_RESULTS_CSV))
-  write.csv(lr_results, here("output", "cv", FILE_LR_CROSSVALIDATION_RESULTS_CSV))
-}
-
-ggsave(filename = here("output", "cv", "si_cv_double_boxplots.pdf"), 
-       plot = doubleboxplot("MCC", rf_results, lr_results, FALSE),
-       device = "pdf", width = 170, height = 180, units = "mm")
-

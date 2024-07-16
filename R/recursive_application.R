@@ -18,6 +18,7 @@
 #'
 #' @return A tree, containing all branches of `x` that lead to
 #' leaves of type `x_class`, now with `fun` applied.
+#' @export
 recursive_apply <- function(x, fun, x_class, pass_node_names = FALSE, node_names = list()) {
 
   if (x_class %in% class(x)) {
@@ -55,17 +56,20 @@ recursive_apply <- function(x, fun, x_class, pass_node_names = FALSE, node_names
 }
 
 # Common special cases
+#' @export
 recursive_apply_numeric <- function(x, fun, pass_node_names = FALSE)
   recursive_apply(x = x, fun = fun, x_class = "numeric", pass_node_names = pass_node_names)
 
 
 # Analogous to `expand.grid` for a tree
+#' @export
 get_tree_names <- function(tree, x_class) {
   tree_names <- recursive_apply(tree, function(x, name_list) return(name_list), x_class = x_class, pass_node_names = TRUE)
   tree_names %<>% leaf_apply(. %>% paste0(collapse = ":"), docall = FALSE)
   tree_names %<>% unlist(use.names = FALSE)
   return(tree_names)
 }
+#' @export
 get_tree_names_as_df <- function(tree, x_class) {
   tree_names <- get_tree_names(tree, x_class)
   tree_names %<>% strsplit(":")
@@ -73,6 +77,7 @@ get_tree_names_as_df <- function(tree, x_class) {
   tree_names %<>% data.frame(stringsAsFactors = FALSE)
   return(tree_names)
 }
+#' @export
 tree_as_df <- function(tree, x_class) {
   tree_df <- get_tree_names_as_df(tree, x_class)
   vals <- apply(tree_df, MARGIN = 1, FUN = function(...) {
@@ -88,9 +93,9 @@ tree_as_df <- function(tree, x_class) {
 
 
 #' A recursive application of a function to lists of leaves
-#' 
+#'
 #' This function applies `fun` to the (unique) sibling lists of each leaf.
-#' 
+#'
 #' The function assumes that the input tree's nodes only have internal
 #' nodes as children, or have only leaves as children.
 #'
@@ -103,21 +108,22 @@ tree_as_df <- function(tree, x_class) {
 #' E.g.
 #' `> a <- list(list(1:5, 6:10), list(11:15))`
 #' `> leaf_apply(a, max, TRUE)`
-#' `[[1]]
-#' [1] 10
-#' 
-#' [[2]]
-#' [1] 15
+#' `[[1]]`
+#' `[1] 10`
+#'
+#' `[[2]]`
+#' `[1] 15`
 #'
 #' @param x List structure over whose leaves to apply.
 #' @param fun Function to apply.
 #' @param docall Whether to apply `fun` directly or using `do.call`.
 #'
 #' @return A (list) tree with the lowest ancestors of leaves replaced by the result of `fun` over the leaves.
+#' @export
 leaf_apply <- function(x, fun, docall) {
-  
+
   if (length(x) < 1) return (NULL)
-  
+
   if (class(x) == "list" && all(sapply(x, class) != "list")) {
     if (docall) {
       do.call(fun, x)
@@ -135,6 +141,7 @@ leaf_apply <- function(x, fun, docall) {
   }
 }
 
+#' @export
 pair_up <- function(name, value) {
   list(name = name,  value = value)
 }
@@ -144,6 +151,7 @@ pair_up <- function(name, value) {
 #' @param x A named list-like
 #'
 #' @return A list of (name, value) pairs represented as lists.
+#' @export
 enumerate <- function(x) {
   mapply(FUN = pair_up, names(x), x, SIMPLIFY = FALSE)
 }
