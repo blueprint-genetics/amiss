@@ -90,9 +90,24 @@ impute_and_train <- function(training_path,
   }
   ### If a specific method chosen, use only that
   if (parameter_list[[IMPUTATION_METHOD]] != "all") {
-    mice_hyperparameter_grids %<>% magrittr::extract2(IMPUTATION_METHOD)
-    other_hyperparameter_grids %<>% magrittr::extract2(IMPUTATION_METHOD)
-    single_value_imputation_hyperparameter_grids %<>% magrittr::extract2(IMPUTATION_METHOD)
+    if (parameter_list[[IMPUTATION_METHOD]] %in% names(mice_hyperparameter_grids)) {
+      mice_hyperparameter_grids <- mice_hyperparameter_grids[parameter_list[[IMPUTATION_METHOD]]]
+    }
+    else {
+      mice_hyperparameter_grids <- list()
+    }
+    if (parameter_list[[IMPUTATION_METHOD]] %in% names(other_hyperparameter_grids)) {
+      other_hyperparameter_grids <- other_hyperparameter_grids[parameter_list[[IMPUTATION_METHOD]]]
+    }
+    else {
+      other_hyperparameter_grids <- list()
+    }
+    if (parameter_list[[IMPUTATION_METHOD]] %in% names(single_value_imputation_hyperparameter_grids)) {
+      single_value_imputation_hyperparameter_grids <- single_value_imputation_hyperparameter_grids[parameter_list[[IMPUTATION_METHOD]]]
+    }
+    else {
+      single_value_imputation_hyperparameter_grids <- list()
+    }
   }
 
   ### Read and process input data ###
