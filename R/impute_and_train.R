@@ -253,11 +253,11 @@ impute_and_train <- function(training_path,
     times <- SIMULATION_IMPUTE_TIMES
   }
   flog.pid.info("DESIGN_CHOICE Imputing %d times, with max. %d iterations", times, MICE_ITERATIONS)
-  mice_imputations <- impute_over_grid(training_data, mice_hyperparameter_grids, seed, times = times, iterations = MICE_ITERATIONS)
+  mice_imputations <- group_impute(training_data, mice_hyperparameter_grids, seed, times = times, iterations = MICE_ITERATIONS)
 
   # Non-MICE imputations
   flog.pid.info("PROGRESS Starting non-MICE imputation")
-  other_imputations <- impute_over_grid(training_data, other_hyperparameter_grids, seed, times = times)
+  other_imputations <- group_impute(training_data, other_hyperparameter_grids, seed, times = times)
 
   # Single value imputations
   flog.pid.info("PROGRESS Starting single value imputation")

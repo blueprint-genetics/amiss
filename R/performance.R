@@ -6,13 +6,14 @@
 #' @return A list that contains a tree for each performance metric, each tree's structure matching that of `predictions`.
 #'
 #' @importFrom magrittr %>%
+#' @export
 performance_stats <- function(predictions, outcome) {
-  
+
   if (!is.factor(outcome)) stop("`outcome` must be a factor")
 
   outcome_lvls <- levels(outcome)
   if (length(outcome_lvls) != 2) stop("`outcome` must have exactly 2 levels")
-  
+
   confusion_matrices <- recursive_apply_numeric(predictions, function(pred) {
     pred <- factor(outcome_lvls[2 - (pred > 0.5)], outcome_lvls)
     caret::confusionMatrix(pred, outcome)
@@ -28,7 +29,7 @@ performance_stats <- function(predictions, outcome) {
   brier <- recursive_apply_numeric(predictions, . %>% ModelMetrics::brier(actual = positive_outcome_indicator, predicted = .))
   mcc <- recursive_apply_numeric(predictions, . %>% ModelMetrics::mcc(actual = positive_outcome_indicator, predicted = ., cutoff = 0.5))
   auc <- recursive_apply_numeric(predictions, . %>% ModelMetrics::auc(actual = positive_outcome_indicator, predicted = .))
-  
+
   tr_time <- recursive_apply_numeric(predictions, extract_tr_time)
   te_time <- recursive_apply_numeric(predictions, extract_te_time)
 
@@ -38,7 +39,7 @@ performance_stats <- function(predictions, outcome) {
   fp <- recursive_apply_cm(confusion_matrices, . %>% magrittr::use_series("table") %>% magrittr::extract(outcome_lvls[1], outcome_lvls[2]) %>% as.numeric %>% magrittr::set_names("fp"))
   fn <- recursive_apply_cm(confusion_matrices, . %>% magrittr::use_series("table") %>% magrittr::extract(outcome_lvls[2], outcome_lvls[1]) %>% as.numeric %>% magrittr::set_names("fn"))
   tn <- recursive_apply_cm(confusion_matrices, . %>% magrittr::use_series("table") %>% magrittr::extract(outcome_lvls[2], outcome_lvls[2]) %>% as.numeric %>% magrittr::set_names("tn"))
-  
+
   accuracy <- recursive_apply_cm(confusion_matrices, extract_accuracy)
   sensitivity <- recursive_apply_cm(confusion_matrices, extract_stat("Sensitivity"))
   specificity <- recursive_apply_cm(confusion_matrices, extract_stat("Specificity"))
@@ -73,6 +74,7 @@ performance_stats <- function(predictions, outcome) {
 #' 2) classifier index (relevant with multiple imputation; depends on completion of training set)
 #' 3) test set index (relevant with multiple imputation)
 #' 4) value of the leaf
+#' @export
 transform_perf_tree_to_table <- function(perf_tree) {
 
   tree_names <- get_tree_names(perf_tree, x_class = "numeric")
@@ -103,6 +105,7 @@ transform_perf_tree_to_table <- function(perf_tree) {
 #' @param tables List of tables formed with `transform_perf_tree_to_table`
 #'
 #' @return A wide-format data.frame containing data from all tables in input
+#' @export
 merge_tables <- function(tables) {
 
   perf_table <- tables[[1]]

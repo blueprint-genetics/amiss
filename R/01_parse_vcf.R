@@ -1,12 +1,5 @@
 #' Step 01: parse annotated ClinVar VCF and CADD annotation files
 #'
-#' @param vcf_filename
-#' @param cadd_snv_filename
-#' @param cadd_indel_filename
-#' @param output_root_dir
-#' @param parameters
-#' @param parameters_path
-#'
 #' Parameters used by this step (presented via constant names; see
 #' R/parameters.R for explicit string values):
 #' - TRANSCRIPT, which determines whether or not only canonical transcripts
@@ -19,9 +12,11 @@
 #' @param vcf_filename Path to VEP-annotated ClinVar VCF
 #' @param cadd_snv_filename Path to CADD SNV file
 #' @param cadd_indel_filename Path to CADD indel file
-#' @param parameters_path Path to file defining parameter combination to use
 #' @param output_root_dir Path to root output directory, in which the directory
 #'   containing script outputs will be created
+#' @param logs_dir Path to log output directory
+#' @param parameters List of parameters to use. If NULL, `parameters_path` is required.
+#' @param parameters_path Path to file defining parameter combination to use. If NULL, `parameters` is required.
 #'
 #' @return Path to directory in which output files were written
 #' @export

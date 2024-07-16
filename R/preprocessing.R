@@ -5,6 +5,7 @@
 #'
 #' @return Two-element list containing the training and test sets.
 #' @importFrom magrittr %<>%
+#' @export
 split_train_test <- function(dataframe, proportion) {
 
   stopifnot(class(dataframe) == "data.frame")
@@ -37,6 +38,7 @@ split_train_test <- function(dataframe, proportion) {
 #'
 #' @return Character vector containing "positive" for each pathogenic classification and
 #' "negative" for each non-pathogenic classification.
+#' @export
 code_labels <- function(class_vector, positive_classes, negative_classes) {
 
   stopifnot(class(class_vector) == "character")
@@ -59,6 +61,7 @@ code_labels <- function(class_vector, positive_classes, negative_classes) {
 #' @param data A data.frame containing only character columns
 #'
 #' @return A data.frame containing dummy variables for each original column
+#' @export
 dummify_categoricals <- function(data) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
@@ -93,6 +96,7 @@ dummify_categoricals <- function(data) {
 #' @param data Variant data
 #'
 #' @return A vector containing ID strings generated from corresponding variants input
+#' @export
 form_variant_ids <- function(data) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
@@ -115,6 +119,7 @@ form_variant_ids <- function(data) {
 #' @param default_imputations A list mapping column names to a value with which the column should be imputed
 #'
 #' @return Same as `data` but with specified columns imputed by specified values
+#' @export
 a_priori_impute <- function(data, default_imputations) {
 
   if (!is.data.frame(data)) stop("`data` must be a data.frame")
@@ -138,6 +143,7 @@ a_priori_impute <- function(data, default_imputations) {
 #' @param ... Arguments to pass to `table`
 #'
 #' @return Output of `table` with margin sums added
+#' @export
 table_with_margin <- function(...) {
   tabl <- table(...)
   tabl %<>% cbind(ALL_ = rowSums(tabl))
@@ -158,6 +164,7 @@ table_with_margin <- function(...) {
 #' features have been generated
 #'
 #' @return A data.frame derived from `data` with columns as described above
+#' @export
 select_features_after_dummy_coding <- function(data, numeric_features, categorical_features) {
 
   if (!is.vector(numeric_features)) stop("`numeric_features` must be a vector")

@@ -10,11 +10,11 @@
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
 #' @importFrom doRNG %dorng%
-
+#' @export
 prediction <- function(models, completions, positive_label = POSITIVE_LABEL, seed = 1) {
-  
+
   predictions <- lapply(names(models), function(method) {
-  
+
     pred_per_model <- lapply(models[[method]], function(model) {
 
       if (is.null(completions[[method]]) || length(completions[[method]]) < 1) {

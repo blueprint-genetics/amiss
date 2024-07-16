@@ -1,9 +1,10 @@
 
+#' Take a sample from list without replacement. If list contains fewer than `size` values, return original list.
 #'
+#' @param x List to sample from
+#' @param size Maximum size of output list
 #'
-#' @param
-#'
-#' @return
+#' @return Sample without replacement from `x` of length at most `size`.
 #' @export
 sample_max <- function(x, size) {
   if (!is.data.frame(x)) stop("`x` must be a data.frame")
@@ -23,6 +24,7 @@ sample_max <- function(x, size) {
 #' @importFrom magrittr %>%
 #' @importFrom foreach %do%
 #' @importFrom doRNG %dorng%
+#' @export
 extract_mcc_performance <- function(model) {
 
   if (is.null(model)) return(NULL)
@@ -38,6 +40,7 @@ extract_mcc_performance <- function(model) {
 #' @param x A list of numeric values
 #'
 #' @return `x` but with NULL elements replaced with `-Inf`
+#' @export
 inf_NULLs <- function(x) {
   if (!is.list(x)) stop("`x` must be a list")
   if (!all(sapply(x, function(i) {is.null(i) | is.numeric(i)}))) stop("`x` must have all numeric or NULL components")
@@ -55,6 +58,7 @@ inf_NULLs <- function(x) {
 #' @param models A tree of `caret::model` objects
 #'
 #' @return A tree of performance estimates whose structure matches that of the input
+#' @export
 get_model_performance_estimates <- function(models) {
   perf <- purrr::map_depth(models, .f = function(model) extract_mcc_performance(model), .depth = 3)
   perf <- purrr::map_depth(perf, . %>% inf_NULLs, .depth = 2)
@@ -67,6 +71,7 @@ get_model_performance_estimates <- function(models) {
 #' @param perf_tree Tree of performance estimates
 #'
 #' @return Index of model subtree with best mean error
+#' @export
 get_best_model_index <- function(perf_tree) {
 
   # The estimates are in lists with one value per completed dataset.
@@ -83,6 +88,7 @@ get_best_model_index <- function(perf_tree) {
 #' @param ix List mapping a name to a numeric index
 #'
 #' @return Selected subtree
+#' @export
 select_from_tree <- function(tree, ix) {
 
   selected <- purrr::map(enumerate(ix), . %>% with(tree[[name]][[value]]))
@@ -96,6 +102,7 @@ select_from_tree <- function(tree, ix) {
 #' @param ix List mapping a name to a numeric index
 #'
 #' @return List containing data.frames containing selected hyperparameters
+#' @export
 select_hyperparams <- function(hyperparams, ix) {
   if (!all(names(ix) %in% names(hyperparams))) stop("Index names do not match hyperparameter names")
 
@@ -110,6 +117,7 @@ select_hyperparams <- function(hyperparams, ix) {
 #' @param imputers Imputation model tree from which to obtain training set parameter estimates for relevant imputation models
 #'
 #' @return `hyperparams` with parameters bound
+#' @export
 bind_imp_parameters_for_reuse <- function(hyperparams, imputers) {
 
   # For the methods that properly accept them, we should store parameters from the training set
@@ -136,6 +144,7 @@ bind_imp_parameters_for_reuse <- function(hyperparams, imputers) {
 #'
 #' @return List with selected subtrees of the classifier model tree, imputation model tree and the hyperparameter tree
 #' as elements.
+#' @export
 select_best <- function(models, imputations, hyperparameters) {
 
   if (!all(names(models) %in% names(hyperparameters))) stop("Model names do not match hyperparameter names")
@@ -166,6 +175,7 @@ select_best <- function(models, imputations, hyperparameters) {
 #' @param tunelength Tuning length scalar to pass to `caret::train`
 #'
 #' @return A `caret::train` object with a fitted RF model
+#' @export
 train_rf <- function(data, outcome, control, grid, tunelength) {
 
   if (is.null(data)) {
@@ -204,6 +214,7 @@ train_rf <- function(data, outcome, control, grid, tunelength) {
 #' @param tunelength Tuning length scalar to pass to `caret::train`
 #'
 #' @return A `caret::train` object with a fitted XGBoost model
+#' @export
 train_xgboost <- function(data, outcome, control, grid, tunelength) {
 
   if (is.null(data)) {
@@ -243,6 +254,7 @@ train_xgboost <- function(data, outcome, control, grid, tunelength) {
 #' @param tunelength Ignored
 #'
 #' @return A `caret::train` object with a fitted logistic regression model
+#' @export
 train_lr <- function(data, outcome, control, grid, tunelength=NULL) {
 
   if (is.null(data)) {
@@ -276,6 +288,7 @@ train_lr <- function(data, outcome, control, grid, tunelength=NULL) {
 #' @param seed Seed value to set at start of loop
 #'
 #' @return Classifier model tree
+#' @export
 loop_models <- function(training_function, classifier_name, imputations, control, grid, tunelength, outcome, seed) {
   if (!is.function(training_function)) stop("`training_function` must be a function")
   if (!is.character(classifier_name)) stop("`classifier_name` must be a character vector")
@@ -287,7 +300,7 @@ loop_models <- function(training_function, classifier_name, imputations, control
   foreach::foreach(method = enumerate(imputations), .options.RNG = seed) %dorng% {
     flog.pid.info("PROGRESS Starting execution of %s on datasets produced by %s", classifier_name, method$name)
     foreach::foreach(mi_iter = method$value) %do% {
-      model_per_dataset <- foreach::foreach(data = mi_iter$completed_datasets) %do% training_function(data = data, outcome = outcome, control = control, tunelength = tunelength, grid = grid)
+      model_per_dataset <- foreach::foreach(data = mi_iter$completed_datasets) %do% training_function(data = data, outcome = outcome, control = control, grid = grid)
       return(model_per_dataset %>% magrittr::set_names(names(mi_iter$completed_datasets)))
     } %>% magrittr::set_names(names(method$value))
   } %>% magrittr::set_names(names(imputations))

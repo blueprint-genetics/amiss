@@ -7,6 +7,7 @@
 #'
 #' @return A ggplot object containing the correlation plot
 #' @importFrom magrittr %>%
+#' @export
 plot_missingness_correlations <- function(data, features, title) {
 
   miss_data <- is.na(data)
@@ -28,6 +29,7 @@ plot_missingness_correlations <- function(data, features, title) {
 #' @param title Title of the plot.
 #'
 #' @return A ggplot object containing the correlation plot
+#' @export
 plot_observed_correlations <- function(data, features, title) {
 
   corr <- cor(data[, features], use = "pairwise.complete.obs")
@@ -53,6 +55,7 @@ plot_observed_correlations <- function(data, features, title) {
 #' @param title Title of the plot.
 #'
 #' @return A ggplot object containing the correlation plot
+#' @export
 plot_missingness_vs_observed_correlations <- function(data, features, title) {
 
   data <- data[, features]

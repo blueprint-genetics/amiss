@@ -5,6 +5,7 @@
 #'
 #' @return List containing vectors of row numbers.
 #' @importFrom magrittr %>%
+#' @export
 partition_rows_into_batches <- function(num_rows, batches = 100) {
 
   breakpoints <- seq(1, num_rows, length.out = batches + 1)
@@ -17,17 +18,36 @@ partition_rows_into_batches <- function(num_rows, batches = 100) {
 
 }
 
+#' Find dummy variables based on the variable names
+#'
+#' @param original_variable_name Name of the original variable from which dummy variables were generated
+#' @param name_list List of variables
+#' @return List of dummy derivatives of `original_variable_name`
+#'
+#' @export
 find_dummies <- function(original_variable_name, name_list) {
   name_list[name_list %>% startsWith(original_variable_name) & !name_list %in% original_variable_name]
 }
 
+#' flog.info with process id prepended to message
+#'
+#' @export
 flog.pid.info <- function(msg, ...) {
   futile.logger::flog.info(paste0("pid=", Sys.getpid(), " ", msg), ...)
 }
+#' flog.debug with process id prepended to message
+#'
+#' @export
 flog.pid.debug <- function(msg, ...) {
   futile.logger::flog.debug(paste0("pid=", Sys.getpid(), " ", msg), ...)
 }
 
+#' dir.create wrapper
+#'
+#' @param path
+#'
+#' @return
+#' @export
 create_dir <- function(path) {
   if (!dir.exists(path)) {
     dir_creation_success <- dir.create(path, showWarnings = TRUE)
@@ -64,6 +84,7 @@ generate_parameter_dependent_name <- function(combination, subset = PREPROCESSIN
 #' @param value_separator String that marks separation between parameter name and value
 #'
 #' @return List mapping parameter names to values
+#' @export
 decode_parameter_dependent_path <- function(path, parameter_separator=".", value_separator="-") {
   # Strip training "/"s
   p <- str_remove(path, "/$")
@@ -76,6 +97,13 @@ decode_parameter_dependent_path <- function(path, parameter_separator=".", value
   return(p)
 }
 
+#' Form data.frame from imputer objects that have timing attribute stored
+#'
+#' @param imputers List of imputer objects
+#' @param times_imputed Number of times imputed
+#'
+#' @return data.frame with timing information extracted
+#' @export
 form_run_time_df <- function(imputers, times_imputed) {
   timing <- purrr::map(.x = imputers, function(x) attr(x, TIMING_ATTR))
   # Make sure that method and elapsed columns exist even if timing is empty
