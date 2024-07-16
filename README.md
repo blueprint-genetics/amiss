@@ -17,7 +17,7 @@ devtools::install_github("blueprint-genetics/amiss")
 
 The framework can be configured using JSON files that determine which preprocessing and imputation steps are taken.
 
-The file [combination_orig.json`](combination_orig.json) in the repository contains parameters that largely match the original code of the manuscript. [`combination_minimal.json`](combination_minimal.json) produces the smallest dataset for processing and uses only zero imputation, and thus should be quickest to run. 
+The file [`combination_orig.json`](combination_orig.json) in the repository contains parameters that largely match the original code of the manuscript. [`combination_minimal.json`](combination_minimal.json) produces the smallest dataset for processing and uses only zero imputation, and thus should be quickest to run. 
 
 For different options available for parameter values, see [`parameter_grid.json`](parameter_grid.json).
 
