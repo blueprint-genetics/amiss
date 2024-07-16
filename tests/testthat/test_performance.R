@@ -4,7 +4,7 @@ mock_data <- data.frame(
   c = c(0.1, 0.6, 0.22, 0.1, 0.2, 0.1, 0.8, 0.8, 0.0, 1),
   d = c(rep("a", 5), rep("b", 5)),
   o = factor(c("a", rep("b", 3), "a", rep("a", 3), "b", "b"), c("a", "b"))
-) 
+)
 mock_data_w_missingness <- mock_data
 mock_data_w_missingness[c(2,3,6,8), c(2)] <- NA
 
@@ -15,7 +15,7 @@ mock_imp_tree <- list(
 )
 mock_model_tree <- list(
   knnImputation = list(caret::train(x = mock_data[,-5], y = mock_data[,5], "rf")),
-  zero_imp = list(caret::train(x = mock_data[,-5], y = mock_data[,5], "rf"), 
+  zero_imp = list(caret::train(x = mock_data[,-5], y = mock_data[,5], "rf"),
                   caret::train(x = mock_data[,-5], y = mock_data[,5], "rf"))
 )
 mock_pred_tree <- list(
@@ -36,9 +36,9 @@ mock_perf_tree <- list(TP = list(knnImputation = list(model_1 = list(imp_1 = 1))
 
 turn_table_expected_output_tp <- data.frame(method = "knnImputation", model_ix = "model_1", test_completion_ix = "imp_1", value = 1) %>% magrittr::set_rownames("knnImputation:model_1:imp_1")
 turn_table_expected_output_fp <- data.frame(method = "knnImputation", model_ix = "model_1", test_completion_ix = "imp_1", value = 2) %>% magrittr::set_rownames("knnImputation:model_1:imp_1")
-test_that("turn_table produces correct output", {
-  expect_equal(turn_table(perf_tree = mock_perf_tree$TP), turn_table_expected_output_tp)
-  expect_equal(turn_table(perf_tree = mock_perf_tree$FP), turn_table_expected_output_fp)
+test_that("transform_perf_tree_to_table produces correct output", {
+  expect_equal(transform_perf_tree_to_table(perf_tree = mock_perf_tree$TP), turn_table_expected_output_tp)
+  expect_equal(transform_perf_tree_to_table(perf_tree = mock_perf_tree$FP), turn_table_expected_output_fp)
 })
 
 test_that("merge_tables produces correct output", {

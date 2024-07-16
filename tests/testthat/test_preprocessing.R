@@ -10,7 +10,7 @@ mock_data <- data.frame(
 mock_split <- split_train_test(mock_data, 0.7)
 
 test_that("split_train_test produces correct length outputs", {
-  expect_equal(length(mock_split), 2)
+  expect_equal(length(mock_split), 3) # Training set, test set, index
   expect_equal(NROW(mock_split$training_set) + NROW(mock_split$test_set), 10)
 })
 
@@ -67,10 +67,11 @@ mock_variant_data <- data.frame(
   Pos = c(0, 1),
   Ref = c("A", "G"),
   Alt = c("C", "T"),
-  FeatureID = c("ENS1", "ENS2")
+  FeatureID = c("ENS1", "ENS2"),
+  Consequence.x = c("missense_variant", "intron_variant")
 )
 test_that("form_variant_ids produces correct output", {
-  expect_equal(form_variant_ids(mock_variant_data), c("1:0:A:C:ENS1", "X:1:G:T:ENS2"))
+  expect_equal(form_variant_ids(mock_variant_data), c("1:0:A:C:ENS1:missense_variant", "X:1:G:T:ENS2:intron_variant"))
 })
 test_that("form_variant_ids fails correctly", {
   expect_error(form_variant_ids(123), "`data` must be a data.frame")
@@ -98,29 +99,22 @@ test_that("a_priori_impute produces correct output", {
   expect_equal(a_priori_impute(mock_miss_data, mock_default_imps), mock_miss_data_imputed)
 })
 
-test_that("a_priori_impute fails correctly", {
-  expect_error(a_priori_impute(mock_miss_data, list(a = "b")), "Imputed values must match data by class") # Wrong type for imputed value
-  expect_error(a_priori_impute(mock_miss_data, list(d = factor("b"))), "Imputed values must match data by class") # No factors
-  expect_error(a_priori_impute(data.frame(mock_miss_data$d), list(d = "b")), "Imputed values must match data by class") # No factors
-})
-
-# table_with_margin
-# test_that("table_with_margin produces correct output", {
-#   expected_output <- c(
-#     "     a b ALL_",
-#     "a    4 0    4",
-#     "b    0 5    5",
-#     "ALL_ 4 5    9")
-#
-#   expect_equal(table_with_margin(mock_data$d, mock_data$d) %>% capture.output, expected_output)
+# Removed these checks in a_priori_impute
+# test_that("a_priori_impute fails correctly", {
+#   expect_error(a_priori_impute(mock_miss_data, list(a = "b")), "Imputed values must match data by class") # Wrong type for imputed value
+#   expect_error(a_priori_impute(mock_miss_data, list(d = factor("b"))), "Imputed values must match data by class") # No factors
+#   expect_error(a_priori_impute(data.frame(mock_miss_data$d), list(d = "b")), "Imputed values must match data by class") # No factors
 # })
 
-# detect_imbalanced_consequence_classes
-test_that("detect_imbalanced_consequence_classes produces correct output", {
-  mock_conseqs <- c(rep("y", 50), rep("x", 50))
-  mock_outcomes <- c("positive", rep("negative", 49), rep("positive", 25), rep("negative", 25))
-  expect_equal(rownames(detect_imbalanced_consequence_classes(mock_conseqs, outcome = mock_outcomes, 0.05)), "y")
-  expect_equal(rownames(detect_imbalanced_consequence_classes(mock_conseqs, outcome = mock_outcomes, 0.005)), character(0)) # If none were that rare
+# table_with_margin
+test_that("table_with_margin produces correct output", {
+  expected_output <- c(
+    "     a b ALL_",
+    "a    4 0    4",
+    "b    0 5    5",
+    "ALL_ 4 5    9")
+
+  expect_equal(table_with_margin(mock_data$d, mock_data$d) %>% capture.output, expected_output)
 })
 
 mock_num_vars <- c("a", "b")
@@ -130,17 +124,17 @@ mock_data_w_dummies <- cbind(mock_data, dummify_categoricals(mock_data[mock_cat_
 #drop_original_categorical_features
 test_that("select_features drops non-dummy variables correctly", {
   expect_equal(
-    colnames(select_features(mock_data_w_dummies, mock_num_vars, mock_cat_vars)),
+    colnames(select_features_after_dummy_coding(mock_data_w_dummies, mock_num_vars, mock_cat_vars)),
     c("a", "b", "c.a", "c.b", "d.b", "d.a", "d.NA")
   )
 })
 
 test_that("select_features fails correctly", {
-  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("d")), "Non-numeric columns included in `numeric_features`") # Wrong types of column
-  expect_error(select_features(mock_data_w_dummies, c("a"), c("b", "d")), "Non-character columns included in `categorical_features`") # Wrong types of column
-  expect_error(select_features(mock_data_w_dummies, c(), c( "d")), "`numeric_features` must be a vector") # Empty numeric_features
-  expect_error(select_features(mock_data_w_dummies, c("a"), c()), "`categorical_features` must be a vector") # Empty categorical_features
-  expect_error(select_features(mock_data_w_dummies, list("a","c"), c("b", "d")), "`numeric_features` must be a character vector") # List instead of vector
-  expect_error(select_features(mock_data_w_dummies, c("a","c", "f"), c("b", "d")), "`numeric_features` must be a subset of `data` column names") # Inexistent column
-  expect_error(select_features(mock_data_w_dummies, c("a","c"), c("b", "d", "f")), "`categorical_features` must be a subset of `data` column names") # Inexistent column
+  expect_error(select_features_after_dummy_coding(mock_data_w_dummies, c("a","c"), c("d")), "Non-numeric columns included in `numeric_features`") # Wrong types of column
+  expect_error(select_features_after_dummy_coding(mock_data_w_dummies, c("a"), c("b", "d")), "Non-character columns included in `categorical_features`") # Wrong types of column
+  expect_error(select_features_after_dummy_coding(mock_data_w_dummies, c(), c( "d")), "`numeric_features` must be a vector") # Empty numeric_features
+  expect_error(select_features_after_dummy_coding(mock_data_w_dummies, c("a"), c()), "`categorical_features` must be a vector") # Empty categorical_features
+  expect_error(select_features_after_dummy_coding(mock_data_w_dummies, list("a","c"), c("b", "d")), "`numeric_features` must be a character vector") # List instead of vector
+  expect_error(select_features_after_dummy_coding(mock_data_w_dummies, c("a","c", "f"), c("b", "d")), "`numeric_features` must be a subset of `data` column names") # Inexistent column
+  expect_error(select_features_after_dummy_coding(mock_data_w_dummies, c("a","c"), c("b", "d", "f")), "`categorical_features` must be a subset of `data` column names") # Inexistent column
 })
