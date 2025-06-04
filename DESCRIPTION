@@ -43,4 +43,5 @@ Imports:
     pcaMethods,
     rjson,
     xgboost,
-    e1071
+    e1071,
+    ranger
