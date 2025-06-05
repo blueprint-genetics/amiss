@@ -5,6 +5,10 @@
 Using the devtools package, you can install directly from GitHub:
 
 ```
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("pcaMethods")
 devtools::install_github("blueprint-genetics/amiss")
 ```
 

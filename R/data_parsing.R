@@ -117,9 +117,7 @@ get_vep_field_names <- function(vcf) {
   stopifnot(class(vcf) == "vcfR")
 
   # Get CSQ keys from metadata
-  csq_keys <- vcfR::queryMETA(vcf, 'CSQ', nice = TRUE)[[1]][4]
-  # Drop the part of the string before the format definition
-  csq_keys <- stringr::str_split(csq_keys, stringr::fixed("Format: "))[[1]][2]
+  csq_keys <- vcfR::queryMETA(vcf, 'CSQ', nice = TRUE)
   # Produce character vector
   csq_keys <- stringr::str_split(csq_keys, stringr::fixed("|"))[[1]]
 
