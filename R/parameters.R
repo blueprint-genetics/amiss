@@ -1,3 +1,5 @@
+CLASSIFIER_METHOD <- "classifier"
+
 TRANSCRIPT <- "transcript"
 TRANSCRIPT_KEEP_ALL <- "keep_all"
 TRANSCRIPT_CANONICAL <- "canonical"
