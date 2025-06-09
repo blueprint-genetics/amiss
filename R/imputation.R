@@ -196,7 +196,7 @@ run_bpca <- function(data, hyperparams, times = NULL, iterations = NULL) {
 #' Run and time kNN
 #'
 #' @param data A data.frame to impute
-#' @param hyperparams list of named values that will be fed as arguments to `DMwR::knnImputation`
+#' @param hyperparams list of named values that will be fed as arguments to `DMwR2::knnImputation`
 #' @param old_data Completed training set to use for finding neighbors
 #'
 #' @return A named two-element list, where
@@ -210,10 +210,10 @@ run_knn <- function(data, hyperparams, times = NULL, iterations = NULL, old_data
     imputation <- NULL
     tryCatch({
       if (!is.null(old_data)) {
-        imputation <- do.call(DMwR::knnImputation, c(list(data = I(data)), hyperparams, distData = list(old_data)))
+        imputation <- do.call(DMwR2::knnImputation, c(list(data = I(data)), hyperparams, distData = list(old_data)))
       }
       else {
-        imputation <- do.call(DMwR::knnImputation, c(list(data = I(data)), hyperparams))
+        imputation <- do.call(DMwR2::knnImputation, c(list(data = I(data)), hyperparams))
       }
     }, error = function(e) {
       flog.pid.debug("Trying to execute knnImputation, the following error occurred: %s", e$message)
@@ -451,6 +451,7 @@ impute_w_hps <- function(data, hp_tree, times, iters, seed){
 
     }
   }
+  
   names(imputations) <- names(hp_tree)
 
   completions <- imputations %>% lapply(. %>% magrittr::extract2(1))

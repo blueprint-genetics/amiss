@@ -81,6 +81,14 @@ impute_and_train <- function(training_path,
   if (parameter_list[[IMPUTATION_METHOD]] %>% is.null) {
     stop("Required parameter \"" %>% paste0(IMPUTATION_METHOD, "\" not provided"))
   }
+  if (parameter_list[[CLASSIFIER_METHOD]] %>% is.null) {
+    stop("Required parameter \"" %>% paste0(CLASSIFIER_METHOD, "\" not provided"))
+  }
+
+
+  if (!all(parameter_list[[CLASSIFIER_METHOD]] %in% c("xgboost", "rf", "lr"))) {
+    stop("Required parameter \"" %>% paste0(CLASSIFIER_METHOD, "\" has value \"") %>% paste0(parameter_list[[CLASSIFIER_METHOD]]) %>% paste0("\" which is not one of 'rf', 'xgboost' or 'lr'"))
+  }
 
   ### Sample imputation hp grids ###
   if (lean) {
@@ -89,26 +97,12 @@ impute_and_train <- function(training_path,
     other_hyperparameter_grids <- lapply(other_hyperparameter_grids, . %>% sample_max(size = SIMULATION_HP_SAMPLE_SIZE))
   }
   ### If a specific method chosen, use only that
-  if (parameter_list[[IMPUTATION_METHOD]] != "all") {
-    if (parameter_list[[IMPUTATION_METHOD]] %in% names(mice_hyperparameter_grids)) {
-      mice_hyperparameter_grids <- mice_hyperparameter_grids[parameter_list[[IMPUTATION_METHOD]]]
-    }
-    else {
-      mice_hyperparameter_grids <- list()
-    }
-    if (parameter_list[[IMPUTATION_METHOD]] %in% names(other_hyperparameter_grids)) {
-      other_hyperparameter_grids <- other_hyperparameter_grids[parameter_list[[IMPUTATION_METHOD]]]
-    }
-    else {
-      other_hyperparameter_grids <- list()
-    }
-    if (parameter_list[[IMPUTATION_METHOD]] %in% names(single_value_imputation_hyperparameter_grids)) {
-      single_value_imputation_hyperparameter_grids <- single_value_imputation_hyperparameter_grids[parameter_list[[IMPUTATION_METHOD]]]
-    }
-    else {
-      single_value_imputation_hyperparameter_grids <- list()
-    }
+  if (parameter_list[[IMPUTATION_METHOD]] == "all") {
+    parameter_list[[IMPUTATION_METHOD]] <- c(names(mice_hyperparameter_grids), names(other_hyperparameter_grids), names(single_value_imputation_hyperparameter_grids))
   }
+  mice_hyperparameter_grids <- mice_hyperparameter_grids[which(names(mice_hyperparameter_grids) %in% parameter_list[[IMPUTATION_METHOD]])]
+  other_hyperparameter_grids <- other_hyperparameter_grids[which(names(other_hyperparameter_grids) %in% parameter_list[[IMPUTATION_METHOD]])]
+  single_value_imputation_hyperparameter_grids <- single_value_imputation_hyperparameter_grids[which(names(single_value_imputation_hyperparameter_grids) %in% parameter_list[[IMPUTATION_METHOD]])]
 
   ### Read and process input data ###
   training_path <- normalizePath(training_path)
@@ -249,6 +243,11 @@ impute_and_train <- function(training_path,
     paste0("Unknown value \"", parameter_list[[CORRELATION_CHECK]], "\" for parameter \"", CORRELATION_CHECK, "\"")
   )
 
+  # Save final list of features
+  final_features_path <- file.path(output_path, FILE_FINAL_FEATURES_RDS)
+  futile.logger::flog.info("OUTPUT Writing final feature set to RDS file at %s", final_features_path)
+  saveRDS(colnames(training_data), final_features_path)
+
   ### Imputation ###
   flog.pid.info("PROGRESS Imputation hyperparameter configuration counts:")
 
@@ -313,142 +312,159 @@ impute_and_train <- function(training_path,
     paste0("Unknown value \"", parameter_list[[HYPERPARAMETER_SEARCH_TYPE]], "\" for parameter \"", HYPERPARAMETER_SEARCH_TYPE, "\"")
   )
 
-  rf_training_options <- list(
-    classProbs = TRUE,
-    verboseIter = FALSE,
-    method = "oob", # Use out-of-bag error estimate for model selection
-    returnResamp = "final",
-    allowParallel = FALSE,
-    search = search
-  )
-  flog.pid.info("DESIGN_CHOICE Using following options controlling RF training: ")
-  flog.pid.info(paste0("DESIGN_CHOICE ", names(rf_training_options), " = ", rf_training_options))
-  rf_training_settings <- do.call(caret::trainControl, rf_training_options)
-  xg_training_options <- list(
-    classProbs = TRUE,
-    verboseIter = FALSE,
-    method = "cv",
-    number = 10,
-    allowParallel = FALSE,
-    search = search
-  )
-  flog.pid.info("DESIGN_CHOICE Using following options controlling XGBoost training: ")
-  flog.pid.info(paste0("DESIGN_CHOICE ", names(xg_training_options), " = ", xg_training_options))
-  xg_training_settings <- do.call(caret::trainControl, xg_training_options)
-  lr_training_options <- list(
-    classProbs = TRUE,
-    verboseIter = FALSE,
-    allowParallel = FALSE,
-    search = search
-  )
-  flog.pid.info("DESIGN_CHOICE Using following options controlling LR training: ")
-  flog.pid.info(paste0("DESIGN_CHOICE ", names(lr_training_options), " = ", lr_training_options))
-  lr_training_settings <- do.call(caret::trainControl, lr_training_options)
+  all_hyperparameter_grids <- c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids)
+  write_models <- function(best_models, models_path, hps_path, imputers_path=NULL) {
 
-  flog.pid.info("PROGRESS Starting classifier training")
-  # Train on every completed dataset
-  flog.pid.info("PROGRESS Starting RF training")
-  rf_models <- loop_models(training_function = train_rf,
-                           classifier_name = "RF",
-                           imputations = imputations,
-                           outcome = outcome,
-                           control = rf_training_settings,
-                           grid = if (search == "grid") RF_HYPERPARAMETER_GRID else NULL,
-                           tunelength = nrow(RF_HYPERPARAMETER_GRID),
-                           seed = seed)
+    # glm models in R contain references to environments, but for prediction it doesn't seem that
+    # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
+    # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).
+    # See https://stackoverflow.com/questions/54144239/how-to-use-saverds-refhook-parameter for an example of
+    # using the `refhook`.
+
+    futile.logger::flog.info("OUTPUT Writing chosen models to RDS file at %s", models_path)
+    saveRDS(best_models$models, file = models_path, refhook = function(x) "")
+    futile.logger::flog.info("OUTPUT Writing chosen hyperparameters to RDS file at %s", hps_path)
+    saveRDS(best_models$hyperparams, file = hps_path)
+    futile.logger::flog.info("OUTPUT Writing chosen imputer models to RDS file at %s", imputers_path)
+    if (!is.null(imputers_path)) saveRDS(best_models$imputers, file = imputers_path)
+
+  }
+  train_models <- function(training_options, tr_function, classifier_name, imputations, outcome, classifier_grid, imputation_grids, tune_length) {
+    flog.pid.info("DESIGN_CHOICE Using following options controlling training: ")
+    flog.pid.info(paste0("DESIGN_CHOICE ", names(training_options), " = ", training_options))
+    training_settings <- do.call(caret::trainControl, training_options)
+    flog.pid.info("PROGRESS Starting classifier training: " %>% paste0(classifier_name))
+    # Train on every completed dataset
+    models <- loop_models(training_function = tr_function,
+                             classifier_name = classifier_name,
+                             imputations = imputations,
+                             outcome = outcome,
+                             control = training_settings,
+                             grid = classifier_grid,
+                             tunelength = tune_length,
+                             seed = seed)
+    bests <- select_best(models, imputations, imputation_grids)
+
+    return(bests)
+
+  }
+  if("rf" %in% parameter_list[[CLASSIFIER_METHOD]]) {
+
+    rf_training_options <- list(
+      classProbs = TRUE,
+      verboseIter = FALSE,
+      method = "oob", # Use out-of-bag error estimate for model selection
+      returnResamp = "final",
+      allowParallel = FALSE,
+      search = search
+    )
+
+    rf_bests <- train_models(
+      rf_training_options,
+      train_rf,
+      "RF",
+      imputations,
+      outcome,
+      if (search == "grid") RF_HYPERPARAMETER_GRID else NULL,
+      all_hyperparameter_grids,
+      nrow(RF_HYPERPARAMETER_GRID)
+    )
+       
+    # Save run time information for imputers
+    rf_runtimes_path <- file.path(output_path, FILE_RF_RUNTIMES_CSV)
+    futile.logger::flog.info("OUTPUT Writing RF-linked imputation runtime measurements to delimited file at %s", rf_runtimes_path)
+    write.csv(x = form_run_time_df(rf_bests$imputers, times_imputed = times), file = rf_runtimes_path)
+
+    # Saving model
+    write_models(
+      rf_bests, 
+      file.path(output_path, FILE_RF_CLASSIFIERS_RDS),
+      file.path(output_path, FILE_RF_HP_CONFIGS_RDS),
+      imputers_path = if (!lean) file.path(output_path, FILE_RF_IMPUTERS_RDS) else NULL
+    )
+  }
+
+  flog.pid.info("PARAMETER %s = %s", CATEGORICAL_ENCODING, parameter_list[[CATEGORICAL_ENCODING]])
 
   # Skip LR and XGBoost if not using dummy features
-  flog.pid.info("PARAMETER %s = %s", CATEGORICAL_ENCODING, parameter_list[[CATEGORICAL_ENCODING]])
   if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_DUMMY) {
+
+    if("xgboost" %in% parameter_list[[CLASSIFIER_METHOD]]) {
+
+      xg_training_options <- list(
+        classProbs = TRUE,
+        verboseIter = FALSE,
+        method = "cv",
+        number = 10,
+        allowParallel = FALSE,
+        search = search
+      )
+
+      xg_bests <- train_models(
+        xg_training_options,
+        train_xgboost,
+        "XGBoost",
+        imputations,
+        outcome,
+        if (search == "grid") XGBOOST_HYPERPARAMETER_GRID else NULL,
+        all_hyperparameter_grids,
+        nrow(XGBOOST_HYPERPARAMETER_GRID) 
+      )
+         
+      # Save run time information for imputers
+      xg_runtimes_path <- file.path(output_path, FILE_XGBOOST_RUNTIMES_CSV)
+      futile.logger::flog.info("OUTPUT Writing XGBoost-linked imputation runtime measurements to delimited file at %s", xg_runtimes_path)
+      write.csv(x = form_run_time_df(xg_bests$imputers, times_imputed = times), file = xg_runtimes_path)
+
+      # Saving model
+      write_models(
+        xg_bests, 
+        file.path(output_path, FILE_XGBOOST_CLASSIFIERS_RDS),
+        file.path(output_path, FILE_XGBOOST_HP_CONFIGS_RDS),
+        imputers_path = if (!lean) file.path(output_path, FILE_XGBOOST_IMPUTERS_RDS) else NULL
+      )
+    }
+
     flog.pid.info("PARAMETER Categorical features are encoded as dummy variables, so XGBoost and LR training is possible")
-    flog.pid.info("PROGRESS Starting XGBoost training")
-    xg_models <- loop_models(training_function = train_xgboost,
-                             classifier_name = "XGBoost",
-                             imputations = imputations,
-                             outcome = outcome,
-                             control = xg_training_settings,
-                             grid = if (search == "grid") XGBOOST_HYPERPARAMETER_GRID else NULL,
-                             tunelength = nrow(XGBOOST_HYPERPARAMETER_GRID),
-                             seed = seed)
-    flog.pid.info("PROGRESS Starting LR training")
-    lr_models <- loop_models(training_function = train_lr,
-                             classifier_name = "LR",
-                             imputations = imputations,
-                             outcome = outcome,
-                             control = lr_training_settings,
-                             grid = if (search == "grid") data.frame() else NULL,
-                             tunelength = NULL,
-                             seed = seed)
+    if ("lr" %in% parameter_list[[CLASSIFIER_METHOD]]) {
+      lr_training_options <- list(
+        classProbs = TRUE,
+        verboseIter = FALSE,
+        allowParallel = FALSE,
+        search = search
+      )
+
+      lr_bests <- train_models(
+        lr_training_options,
+        train_lr,
+        "LR",
+        imputations,
+        outcome,
+        if (search == "grid") data.frame() else NULL,
+        all_hyperparameter_grids,
+        NULL
+      )
+         
+      # Save run time information for imputers
+      lr_runtimes_path <- file.path(output_path, FILE_LR_RUNTIMES_CSV)
+      futile.logger::flog.info("OUTPUT Writing LR-linked imputation runtime measurements to delimited file at %s", lr_runtimes_path)
+      write.csv(x = form_run_time_df(lr_bests$imputers, times_imputed = times), file = lr_runtimes_path)
+
+      # Saving model
+      write_models(
+        lr_bests, 
+        file.path(output_path, FILE_LR_CLASSIFIERS_RDS),
+        file.path(output_path, FILE_LR_HP_CONFIGS_RDS),
+        imputers_path = if (!lean) file.path(output_path, FILE_LR_IMPUTERS_RDS) else NULL
+      )
+    }
   } else if (parameter_list[[CATEGORICAL_ENCODING]] == CATEGORICAL_AS_FACTOR) {
     # XGBoost does not work with factors, and LR cannot deal with new factor
     # levels in test data (which occurs easily in CV), so we have to skip them.
     flog.pid.info("PARAMETER Categorical features are encoded as factors, so XGBoost and LR are skipped")
-    xg_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
-    lr_models <- list(list(imp_hp_1 = list(NULL))) %>% set_names(parameter_list[[IMPUTATION_METHOD]])
   }  else stop(
     paste0("Unknown value \"", parameter_list[[CATEGORICAL_ENCODING]], "\" for parameter \"", CATEGORICAL_ENCODING, "\"")
   )
 
-  ### Model selection ###
-  flog.pid.info("PROGRESS Starting model selection")
-  all_hyperparameter_grids <- c(mice_hyperparameter_grids, other_hyperparameter_grids, single_value_imputation_hyperparameter_grids)
-  rf_bests <- select_best(rf_models, imputations, all_hyperparameter_grids)
-  xg_bests <- select_best(xg_models, imputations, all_hyperparameter_grids)
-  lr_bests <- select_best(lr_models, imputations, all_hyperparameter_grids)
-
-  ### Writing output ###
-  flog.pid.info("PROGRESS Saving data")
-  # Save run time information for imputers
-  rf_runtimes_path <- file.path(output_path, FILE_RF_RUNTIMES_CSV)
-  futile.logger::flog.info("OUTPUT Writing RF-linked imputation runtime measurements to delimited file at %s", rf_runtimes_path)
-  write.csv(x = form_run_time_df(rf_bests$imputers, times_imputed = times), file = rf_runtimes_path)
-  xg_runtimes_path <- file.path(output_path, FILE_XGBOOST_RUNTIMES_CSV)
-  futile.logger::flog.info("OUTPUT Writing XGBoost-linked imputation runtime measurements to delimited file at %s", xg_runtimes_path)
-  write.csv(x = form_run_time_df(xg_bests$imputers, times_imputed = times), file = xg_runtimes_path)
-  lr_runtimes_path <- file.path(output_path, FILE_LR_RUNTIMES_CSV)
-  futile.logger::flog.info("OUTPUT Writing LR-linked imputation runtime measurements to delimited file at %s", lr_runtimes_path)
-  write.csv(x = form_run_time_df(lr_bests$imputers, times_imputed = times), file = lr_runtimes_path)
-
-  # Saving model
-  rf_models_path <- file.path(output_path, FILE_RF_CLASSIFIERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen RF models to RDS file at %s", rf_models_path)
-  saveRDS(rf_bests$models, file = rf_models_path)
-  rf_imputers_path <- file.path(output_path, FILE_RF_IMPUTERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen RF imputer models to RDS file at %s", rf_imputers_path)
-  if (!lean) saveRDS(rf_bests$imputers, file = rf_imputers_path)
-  rf_hps_path <- file.path(output_path, FILE_RF_HP_CONFIGS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen RF hyperparameters to RDS file at %s", rf_hps_path)
-  saveRDS(rf_bests$hyperparams, file = rf_hps_path)
-
-  xg_models_path <- file.path(output_path, FILE_XGBOOST_CLASSIFIERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen XGBoost models to RDS file at %s", xg_models_path)
-  saveRDS(xg_bests$models, file = xg_models_path)
-  xg_imputers_path <- file.path(output_path, FILE_XGBOOST_IMPUTERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen XGBoost imputer models to RDS file at %s", xg_imputers_path)
-  if (!lean) saveRDS(xg_bests$imputers, file = xg_imputers_path)
-  xg_hps_path <- file.path(output_path, FILE_XGBOOST_HP_CONFIGS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen XGBoost hyperparameters to RDS file at %s", xg_hps_path)
-  saveRDS(xg_bests$hyperparams, file = xg_hps_path)
-
-  # glm models in R contain references to environments, but for prediction it doesn't seem that
-  # the environment needs to be the exact one defined during training. Using a dummy `refhook`-argument
-  # we can bypass saving the environments and save *a lot* of space (~ 50 Mb per model -> 7 Mb per model).
-  # See https://stackoverflow.com/questions/54144239/how-to-use-saverds-refhook-parameter for an example of
-  # using the `refhook`.
-  lr_models_path <- file.path(output_path, FILE_LR_CLASSIFIERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen LR models to RDS file at %s", lr_models_path)
-  saveRDS(lr_bests$models, file = lr_models_path, refhook = function(x) "")
-  lr_imputers_path <- file.path(output_path, FILE_LR_IMPUTERS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen LR imputer models to RDS file at %s", lr_imputers_path)
-  if (!lean) saveRDS(lr_bests$imputers, file = lr_imputers_path)
-  lr_hps_path <- file.path(output_path, FILE_LR_HP_CONFIGS_RDS)
-  futile.logger::flog.info("OUTPUT Writing chosen LR hyperparameters to RDS file at %s", lr_hps_path)
-  saveRDS(lr_bests$hyperparams, file = lr_hps_path)
-
-  final_features_path <- file.path(output_path, FILE_FINAL_FEATURES_RDS)
-  futile.logger::flog.info("OUTPUT Writing final feature set to RDS file at %s", final_features_path)
-  saveRDS(colnames(training_data), final_features_path)
-
-  flog.pid.info("PROGRESS Done saving data")
   flog.pid.info("PROGRESS Finishing impute_and_train")
 }
