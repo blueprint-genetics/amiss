@@ -39,7 +39,6 @@ predict_on_test_set <- function(test_path, training_path, outcome_path, tr_outpu
   test_path <- normalizePath(test_path)
   flog.pid.info("INPUT Reading test data from delimited file at %s", test_path)
   test_data <- read.csv(test_path, row.names = 1)
-  consequences <- row.names(test_data) %>% strsplit(":", fixed = TRUE) %>% sapply(. %>% tail(1))
 
   outcome_path <- normalizePath(outcome_path)
   flog.pid.info("INPUT Reading test outcomes from delimited file at %s", outcome_path)
@@ -63,6 +62,7 @@ predict_on_test_set <- function(test_path, training_path, outcome_path, tr_outpu
   flog.pid.info("Removed %d rows that had become duplicated due to feature reductions", sum(!rows_to_keep))
   test_data <- test_data[rows_to_keep, ]
   outcome <- outcome[rows_to_keep]
+  consequences <- row.names(test_data) %>% strsplit(":", fixed = TRUE) %>% sapply(. %>% tail(1))
 
 
   times <- IMPUTE_TIMES
@@ -73,7 +73,7 @@ predict_on_test_set <- function(test_path, training_path, outcome_path, tr_outpu
   if("rf" %in% parameter_list[[CLASSIFIER_METHOD]]) {
     rf_models_path <- file.path(tr_output_path, FILE_RF_CLASSIFIERS_RDS)
     flog.pid.info("INPUT Reading RF classifier models from RDS file at %s", rf_models_path)
-    rf_models <- readRDS(rf_models_path)
+    rf_models <- readRDS(rf_models_path,refhook = function(x) NULL)
 
     if (rf_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
 
@@ -101,7 +101,7 @@ predict_on_test_set <- function(test_path, training_path, outcome_path, tr_outpu
   if("xgboost" %in% parameter_list[[CLASSIFIER_METHOD]]) {
     xg_models_path <- file.path(tr_output_path, FILE_XGBOOST_CLASSIFIERS_RDS)
     flog.pid.info("INPUT Reading XGBoost classifier models from RDS file at %s", xg_models_path)
-    xg_models <- readRDS(xg_models_path)
+    xg_models <- readRDS(xg_models_path, refhook=function(x) NULL)
 
     if (xg_models %>% unlist(recursive = TRUE) %>% is.null %>% all %>% `!`) {
 
