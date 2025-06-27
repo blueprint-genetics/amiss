@@ -5,6 +5,9 @@
 Using the devtools package, you can install directly from GitHub:
 
 ```
+if (!require("devtools", quietly = TRUE))
+  install.packages("devtools")
+
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
@@ -31,6 +34,10 @@ To run the framework with a single set of parameters up to computation of the cl
 
 ```
 library(amiss)
+library(magrittr)
+source("R/imputation_definitions.R")
+
+setwd("~/amiss/")
 
 # Parse 
 S01_parse_vcf("clinvar_20190624.vep.vcf", cadd_snv_filename = "CADD_clingen.tsv", cadd_indel_filename = "CADD_clingen_indel.tsv", output_root_dir = "output/data", parameters_path = "combination_minimal.json")
@@ -50,9 +57,11 @@ impute_and_train(training_path = "output/data/preprocessed_training_data.csv",
 
 # Prediction
 predict_on_test_set(test_path = "output/data/preprocessed_test_data.csv",
+		    training_path = "output/data/preprocessed_training_data.csv",
                     outcome_path = "output/data/test_outcomes.csv",
                     tr_output_path = "output/trained",
                     results_dir_path = "output/results",
+                    parameter_list=rjson::fromJSON(file = "combination_minimal.json"),
                     seed = 10)
                     
 # Result CSVs now in output/results
