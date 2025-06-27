@@ -37,6 +37,8 @@ library(amiss)
 library(magrittr)
 source("R/imputation_definitions.R")
 
+setwd("~/amiss/")
+
 # Parse 
 S01_parse_vcf("clinvar_20190624.vep.vcf", cadd_snv_filename = "CADD_clingen.tsv", cadd_indel_filename = "CADD_clingen_indel.tsv", output_root_dir = "output/data", parameters_path = "combination_minimal.json")
 
