@@ -30,7 +30,7 @@ Imports:
     tidyr,
     iterators,
     missForest,
-    DMwR2,
+    multiUS,
     rngtools,
     lattice,
     itertools,
