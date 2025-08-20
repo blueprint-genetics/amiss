@@ -21,14 +21,16 @@ sudo apt install \
 	libfribidi-dev libharfbuzz-dev libxml2-dev cmake
 ```
 
-On Arch Linux (tested with `base-20250817.0.405639` Docker image):
+On Arch Linux (tested with `base-20250817.0.405639` Docker image and CachyOS):
 
 ```
 pacman -S \
-	base-devel gcc-fortran git curl openssl make cmake libgit2 zlib \
+	base-devel gcc-fortran git curl openssl make cmake libgit2 zlib-ng-compat \
 	pandoc freetype2 libxml2 harfbuzz fribidi \
 	fontconfig libjpeg libpng icu libtiff
 ````
+
+Both zlib and zlib-ng-compat work; you might have zlib already installed so you can answer "no" if asked whether you want to replace zlib with zlib-ng-compat.
 
 #### MacOS
 
@@ -55,7 +57,9 @@ if (!require("devtools", quietly = TRUE))
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
-BiocManager::install("pcaMethods", ask=FALSE)
+if (!require("pcaMethods", quietly = TRUE))
+    BiocManager::install("pcaMethods", ask=FALSE)
+
 devtools::install_github("blueprint-genetics/amiss")
 ```
 
@@ -98,11 +102,15 @@ if (!require("devtools", quietly = TRUE))
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
-BiocManager::install("pcaMethods", ask=FALSE)
-devtools::install_github(".")
+if (!require("pcaMethods", quietly = TRUE))
+    BiocManager::install("pcaMethods", ask=FALSE)
+
+devtools::install_local(".")
 ```
 
 ## Data
+
+To run AMISS, you need annotated ClinVar variant data.
 
 - [Obtain and annotate ClinGen variants](docs/instructions/annotation.md)
 - [Obtain additional annotations from CADD data](docs/instructions/cadd_data_download.md)
@@ -120,7 +128,6 @@ To run the framework with a single set of parameters up to computation of the cl
 ```
 library(amiss)
 library(magrittr)
-source("R/imputation_definitions.R")
 
 create_dir("output")
 
