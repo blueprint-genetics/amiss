@@ -78,7 +78,16 @@ Error: Failed to install 'unknown package' from GitHub:
 
 This suggests that there is an expired or otherwise invalid authentication token on the computer. You can either remove it as discussed on [Stack Overflow](https://stackoverflow.com/questions/70908295/failed-to-install-unknown-package-from-github) or create a new, valid authentication token as discussed on [GitHub](https://github.com/orgs/community/discussions/140956).
 
-This repository does not require any authentication, and thus if you are not sure you want to remove the token, you can work also around this by passing the `auth_token=NULL` parameter to `install_github`:
+In short, you can use
+
+```
+install.packages("gitcreds")
+gitcreds::gitcreds_delete()
+```
+
+to remove the existing credentials. 
+
+If you are not sure you want to remove the token, you can work also around this by passing the `auth_token=NULL` parameter to `install_github`:
 
 ```
 devtools::install_github("blueprint-genetics/amiss", auth_token=NULL)
