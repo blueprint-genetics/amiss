@@ -6,13 +6,13 @@ Authors@R:
            family = "Särkkä",
            role = c("aut", "cre"),
            email = "mikko.sarkka@blueprintgenetics.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+           comment = c(ORCID = "0000-0003-4525-4840"))
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.2
 Imports: 
     here,
     foreach,

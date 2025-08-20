@@ -1,6 +1,52 @@
-# Framework
+# AMISS Framework
 
 ## Installation
+
+### System dependencies
+
+We tested package installation with R version 4.5.1. on Ubuntu 24.04, Arch Linux release `base-20250817.0.405639`, MacOS Sequoia 15.6 and Windows 11.
+
+#### Linux
+
+If using Linux, installation of dependencies may depend on some system level development packages.
+
+On Ubuntu (tested with 24.04 Docker image):
+
+```
+sudo apt install \
+	libx11-dev git libcurl4-openssl-dev \
+	libssl-dev make libgit2-dev zlib1g-dev pandoc \
+	libfreetype6-dev libjpeg-dev libpng-dev \
+	libtiff-dev libicu-dev libfontconfig1-dev \
+	libfribidi-dev libharfbuzz-dev libxml2-dev cmake
+```
+
+On Arch Linux (tested with `base-20250817.0.405639` Docker image and CachyOS):
+
+```
+pacman -S \
+	base-devel gcc-fortran git curl openssl make cmake libgit2 zlib-ng-compat \
+	pandoc freetype2 libxml2 harfbuzz fribidi \
+	fontconfig libjpeg libpng icu libtiff
+````
+
+Both zlib and zlib-ng-compat work; you might have zlib already installed so you can answer "no" if asked whether you want to replace zlib with zlib-ng-compat.
+
+#### MacOS
+
+On MacOS (tested on Sequioa 15.6), package installation should automatically download binaries and thus no additional development libraries should be necessary.
+
+However, if you use homebrew to install R, be sure to use `--cask` to avoid having to install all packages from source:
+
+```
+brew install --cask r
+```
+
+#### Windows
+
+On Windows (tested on Windows 11), package installation automatically downloads binaries and thus no additional development libraries should be necessary.
+
+### Package installation using `devtools`
 
 Using the devtools package, you can install directly from GitHub:
 
@@ -11,19 +57,75 @@ if (!require("devtools", quietly = TRUE))
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
-BiocManager::install("pcaMethods")
+if (!require("pcaMethods", quietly = TRUE))
+    BiocManager::install("pcaMethods", ask=FALSE)
+
 devtools::install_github("blueprint-genetics/amiss")
 ```
 
+## Installation troubleshooting 
+
+### Bad credentials error
+
+If installation with `devtools::install_github` fails with the error below:
+
+```
+Using github PAT from envvar GITHUB_PAT
+Error: Failed to install 'unknown package' from GitHub:
+ HTTP error 401.
+ Bad credentials
+```
+
+This suggests that there is an expired or otherwise invalid authentication token on the computer. You can either remove it as discussed on [Stack Overflow](https://stackoverflow.com/questions/70908295/failed-to-install-unknown-package-from-github) or create a new, valid authentication token as discussed on [GitHub](https://github.com/orgs/community/discussions/140956).
+
+In short, you can use
+
+```
+install.packages("gitcreds")
+gitcreds::gitcreds_delete()
+```
+
+to remove the existing credentials. 
+
+If you are not sure you want to remove the token, you can work also around this by passing the `auth_token=NULL` parameter to `install_github`:
+
+```
+devtools::install_github("blueprint-genetics/amiss", auth_token=NULL)
+```
+
+Alternatively, you can download the package manually and then install using `install_local`:
+
+First clone the repository:
+
+```
+git clone https://github.com/blueprint-genetics/amiss.git
+cd amiss
+```
+
+and then in R:
+
+```
+if (!require("devtools", quietly = TRUE))
+  install.packages("devtools")
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+if (!require("pcaMethods", quietly = TRUE))
+    BiocManager::install("pcaMethods", ask=FALSE)
+
+devtools::install_local(".")
+```
+
 ## Data
+
+To run AMISS, you need annotated ClinVar variant data.
 
 - [Obtain and annotate ClinGen variants](docs/instructions/annotation.md)
 - [Obtain additional annotations from CADD data](docs/instructions/cadd_data_download.md)
 
 ## Parameters
-
 The framework can be configured using JSON files that determine which preprocessing and imputation steps are taken.
-
 The file [`combination_orig.json`](combination_orig.json) in the repository contains parameters that largely match the original code of the manuscript. [`combination_minimal.json`](combination_minimal.json) produces the smallest dataset for processing and uses only zero imputation, and thus should be quickest to run. 
 
 For different options available for parameter values, see [`parameter_grid.json`](parameter_grid.json).
@@ -35,7 +137,6 @@ To run the framework with a single set of parameters up to computation of the cl
 ```
 library(amiss)
 library(magrittr)
-source("R/imputation_definitions.R")
 
 create_dir("output")
 

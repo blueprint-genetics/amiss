@@ -1,4 +1,3 @@
-
 mice_imputation_hyperparameters <- list(
 
   pmm = list(donors = (0:9)*4 + 1, ridge = c(1e-03, 1e-04, 1e-05, 1e-06, 1e-07, 1e-08), matchtype = 0:2),
@@ -7,6 +6,9 @@ mice_imputation_hyperparameters <- list(
   rf = list(ntree = (0:35) * 15 + 1)
 )
 
+#' Default hyperparameter grid for MICE imputation methods
+#'
+#' @export
 mice_hyperparameter_grids <- lapply(mice_imputation_hyperparameters, expand.grid)
 
 other_imputation_hyperparameters <- list(
@@ -15,8 +17,14 @@ other_imputation_hyperparameters <- list(
   missForest = list(mtry = 1:3 * 15 - 10, ntree = c(50, 100, 200, 500))
 )
 
+#' Default hyperparameter grid for non-MICE imputation methods
+#'
+#' @export
 other_hyperparameter_grids <- lapply(other_imputation_hyperparameters, expand.grid)
 
+#' Default hyperparameter grid for simple imputation methods
+#'
+#' @export
 single_value_imputation_hyperparameter_grids <- list(
   missingness_indicators = "missingness_indicators",
   max_imp = "max_imp",
